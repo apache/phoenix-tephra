@@ -15,16 +15,138 @@
   the License.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>co.cask.tephra</groupId>
+  <parent>
+    <groupId>org.apache</groupId>
+    <artifactId>apache</artifactId>
+    <version>13</version>
+  </parent>
+
+  <groupId>org.apache.tephra</groupId>
   <artifactId>tephra</artifactId>
-  <version>0.7.1-SNAPSHOT</version>
+  <version>0.1.0-incubating-SNAPSHOT</version>
   <packaging>pom</packaging>
-  <name>Tephra Transaction System</name>
-  <description>Tephra Transaction System</description>
-  <url>https://github.com/caskdata/tephra</url>
+  <name>Apache Tephra</name>
+  <description>
+    Apache Tephra provides globally-consistent transactions on Apache HBase and other storage engines
+  </description>
+  <url>http://tephra.incubator.apache.org</url>
+
+  <organization>
+    <name>The Apache Software Foundation</name>
+    <url>http://www.apache.org</url>
+  </organization>
+
+  <licenses>
+    <license>
+      <name>The Apache Software License, Version 2.0</name>
+      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+      <distribution>repo</distribution>
+      <comments>A business-friendly OSS license</comments>
+    </license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <id>jamestaylor</id>
+      <name>James Taylor</name>
+      <email>jamestaylor@apache.org</email>
+      <roles>
+        <role>Mentor</role>
+      </roles>
+    </developer>
+    <developer>
+      <id>larsh</id>
+      <name>Lars Hofhansl</name>
+      <email>larsh@apache.org</email>
+      <roles>
+        <role>Mentor</role>
+      </roles>
+    </developer>
+    <developer>
+      <id>apurtell</id>
+      <name>Andrew Purtell</name>
+      <email>apurtell@apache.org</email>
+      <roles>
+        <role>Mentor</role>
+      </roles>
+    </developer>
+    <developer>
+      <id>gates</id>
+      <name>Alan Gates</name>
+      <email>gates@apache.org</email>
+      <roles>
+        <role>Mentor</role>
+      </roles>
+    </developer>
+    <developer>
+      <id>hsaputra</id>
+      <name>Henry Saputra</name>
+      <email>hsaputra@apache.org</email>
+      <roles>
+        <role>Mentor</role>
+      </roles>
+    </developer>
+    <developer>
+      <id>anew</id>
+      <name>Andreas Neumann</name>
+      <email>anew@apache.org</email>
+      <roles>
+        <role>Committer</role>
+      </roles>
+    </developer>
+    <developer>
+      <id>chtyim</id>
+      <name>Terence Yim</name>
+      <email>chtyim@apache.org</email>
+      <roles>
+        <role>Committer</role>
+      </roles>
+    </developer>
+    <developer>
+      <id>poorna</id>
+      <name>Poorna Chandra</name>
+      <email>poorna@apache.org</email>
+      <roles>
+        <role>Committer</role>
+      </roles>
+    </developer>
+    <developer>
+      <id>gokul</id>
+      <name>Gokul Gunasekaran</name>
+      <email>gokul@apache.org</email>
+      <roles>
+        <role>Committer</role>
+      </roles>
+    </developer>
+    <developer>
+      <id>jamestaylor</id>
+      <name>James Taylor</name>
+      <email>jamestaylor@apache.org</email>
+      <roles>
+        <role>Committer</role>
+      </roles>
+    </developer>
+    <developer>
+      <id>tdsilva</id>
+      <name>Thomas D'Silva</name>
+      <email>tdsilva@apache.org</email>
+      <roles>
+        <role>Committer</role>
+      </roles>
+    </developer>
+    <developer>
+      <id>garyh</id>
+      <name>Gary Helmling</name>
+      <email>garyh@apache.org</email>
+      <roles>
+        <role>Committer</role>
+      </roles>
+    </developer>
+  </developers>
 
   <modules>
     <module>tephra-api</module>
@@ -38,51 +160,38 @@
     <module>tephra-distribution</module>
   </modules>
 
-  <licenses>
-    <license>
-      <name>The Apache Software License, Version 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
-    </license>
-  </licenses>
-
-  <developers>
-    <developer>
-      <name>Cask Data</name>
-      <email>tephra-dev@googlegroups.com</email>
-      <organization>Cask Data</organization>
-      <organizationUrl>https://github.com/caskdata/tephra</organizationUrl>
-    </developer>
-  </developers>
-
   <scm>
-    <connection>scm:git:https://github.com/caskdata/tephra.git</connection>
-    <developerConnection>scm:git:git@github.com:caskdata/tephra.git</developerConnection>
-    <url>https://github.com/caskdata/tephra.git</url>
+    <connection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-tephra.git</connection>
+    <url>https://git-wip-us.apache.org/repos/asf?p=incubator-tephra.git;a=summary</url>
+    <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-tephra.git</developerConnection>
     <tag>HEAD</tag>
   </scm>
 
   <issueManagement>
-    <system>JIRA</system>
-    <url>https://issues.cask.co/browse/TEPHRA</url>
+    <url>https://issues.apache.org/jira/browse/TEPHRA</url>
   </issueManagement>
-
-  <repositories>
-    <repository>
-      <id>continuuity-public</id>
-      <url>https://repository.continuuity.com/content/groups/public</url>
-    </repository>
-  </repositories>
-
-  <distributionManagement>
-    <repository>
-      <id>sonatype.release</id>
-      <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
-    </repository>
-    <snapshotRepository>
-      <id>sonatype.snapshots</id>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-    </snapshotRepository>
-  </distributionManagement>
+  <mailingLists>
+    <mailingList>
+      <name>Development</name>
+      <post>dev@tephra.incubator.apache.org</post>
+      <subscribe>dev-subscribe@tephra.incubator.apache.org</subscribe>
+      <unsubscribe>dev-unsubscribe@tephra.incubator.apache.org</unsubscribe>
+      <archive>http://mail-archives.apache.org/mod_mbox/tephra-dev/</archive>
+      <otherArchives>
+        <otherArchive>http://tephra-dev.markmail.org</otherArchive>
+      </otherArchives>
+    </mailingList>
+    <mailingList>
+      <name>Commits</name>
+      <post>commits@tephra.incubator.apache.org</post>
+      <subscribe>commits-subscribe@tephra.incubator.apache.org</subscribe>
+      <unsubscribe>commits-unsubscribe@tephra.incubator.apache.org</unsubscribe>
+      <archive>http://mail-archives.apache.org/mod_mbox/tephra-commits/</archive>
+      <otherArchives>
+        <otherArchive>http://tephra-commits.markmail.org</otherArchive>
+      </otherArchives>
+    </mailingList>
+  </mailingLists>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -307,6 +416,20 @@
               </configuration>
             </execution>
           </executions>
+          <dependencies>
+            <dependency>
+              <groupId>org.apache.maven.doxia</groupId>
+              <artifactId>doxia-core</artifactId>
+              <version>1.6</version>
+              <exclusions>
+                <!-- Exclude xerces to remove XML parsing warnings (RAT-158) -->
+                <exclusion>
+                  <groupId>xerces</groupId>
+                  <artifactId>xercesImpl</artifactId>
+                </exclusion>
+              </exclusions>
+            </dependency>
+          </dependencies>
         </plugin>
 
         <!-- Checkstyle for code style -->
