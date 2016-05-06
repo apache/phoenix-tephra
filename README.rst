@@ -142,12 +142,12 @@ For any client applications, add the following dependencies to any Apache Maven 
 build system's equivalent configuration), in order to make use of Tephra classes::
 
   <dependency>
-    <groupId>co.cask.tephra</groupId>
+    <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-api</artifactId>
     <version>0.7.1</version>
   </dependency>
   <dependency>
-    <groupId>co.cask.tephra</groupId>
+    <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-core</artifactId>
     <version>0.7.1</version>
   </dependency>
@@ -158,7 +158,7 @@ appropriate HBase compatibility library.
 For HBase 0.96.x::
 
   <dependency>
-    <groupId>co.cask.tephra</groupId>
+    <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-0.96</artifactId>
     <version>0.7.1</version>
   </dependency>
@@ -166,7 +166,7 @@ For HBase 0.96.x::
 For HBase 0.98.x::
 
   <dependency>
-    <groupId>co.cask.tephra</groupId>
+    <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-0.98</artifactId>
     <version>0.7.1</version>
   </dependency>
@@ -174,7 +174,7 @@ For HBase 0.98.x::
 For HBase 1.0.x::
 
   <dependency>
-    <groupId>co.cask.tephra</groupId>
+    <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-1.0</artifactId>
     <version>0.7.1</version>
   </dependency>
@@ -183,7 +183,7 @@ If you are running the CDH 5.4, 5.5, or 5.6 version of HBase 1.0.x (this version
 with Apache HBase 1.0.x)::
 
   <dependency>
-    <groupId>co.cask.tephra</groupId>
+    <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-1.0-cdh</artifactId>
     <version>0.7.1</version>
   </dependency>
@@ -191,7 +191,7 @@ with Apache HBase 1.0.x)::
 For HBase 1.1.x or CDH 5.7 version of HBase 1.2.x::
 
   <dependency>
-    <groupId>co.cask.tephra</groupId>
+    <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-1.1</artifactId>
     <version>0.7.1</version>
   </dependency>
@@ -302,35 +302,35 @@ For HBase 0.96.x::
 
   <property>
     <name>hbase.coprocessor.region.classes</name>
-    <value>co.cask.tephra.hbase96.coprocessor.TransactionProcessor</value>
+    <value>org.apache.tephra.hbase96.coprocessor.TransactionProcessor</value>
   </property>
 
 For HBase 0.98.x::
 
   <property>
     <name>hbase.coprocessor.region.classes</name>
-    <value>co.cask.tephra.hbase98.coprocessor.TransactionProcessor</value>
+    <value>org.apache.tephra.hbase98.coprocessor.TransactionProcessor</value>
   </property>
 
 For HBase 1.0.x::
 
   <property>
     <name>hbase.coprocessor.region.classes</name>
-    <value>co.cask.tephra.hbase10.coprocessor.TransactionProcessor</value>
+    <value>org.apache.tephra.hbase10.coprocessor.TransactionProcessor</value>
   </property>
 
 For the CDH 5.4, 5.5, or 5.6 version of HBase 1.0.x::
 
   <property>
     <name>hbase.coprocessor.region.classes</name>
-    <value>co.cask.tephra.hbase10cdh.coprocessor.TransactionProcessor</value>
+    <value>org.apache.tephra.hbase10cdh.coprocessor.TransactionProcessor</value>
   </property>
 
 For HBase 1.1.x or CDH 5.7 version of HBase 1.2.x::
 
   <property>
     <name>hbase.coprocessor.region.classes</name>
-    <value>co.cask.tephra.hbase11.coprocessor.TransactionProcessor</value>
+    <value>org.apache.tephra.hbase11.coprocessor.TransactionProcessor</value>
   </property>
 
 You may configure the ``TransactionProcessor`` to be loaded only on HBase tables that you will
@@ -622,7 +622,7 @@ Known Issues and Limitations
   changes, its transaction ID is added to a list of excluded transactions.  Data from invalidated
   transactions will be dropped by the ``TransactionProcessor`` coprocessor on HBase region flush
   and compaction operations.  Currently, however, transaction IDs can only be manually removed
-  from the list of excluded transaction IDs, using the ``co.cask.tephra.TransactionAdmin`` tool.
+  from the list of excluded transaction IDs, using the ``org.apache.tephra.TransactionAdmin`` tool.
 
 
 How to Contribute

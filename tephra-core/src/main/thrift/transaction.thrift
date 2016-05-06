@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-namespace java co.cask.tephra.distributed.thrift
+namespace java org.apache.tephra.distributed.thrift
 
 enum TTransactionType {
   SHORT = 1,
