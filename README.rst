@@ -637,21 +637,20 @@ Bug Reports & Feature Requests
 
 Bugs and tasks are tracked in a public JIRA `issue tracker <https://issues.cask.co/browse/TEPHRA>`__.
 
-Tephra User Groups and Mailing Lists
-....................................
+Apache Tephra User Groups and Mailing Lists
+...........................................
 
-- Tephra User Group: `tephra-user@googlegroups.com <https://groups.google.com/d/forum/tephra-user>`__
+- Apache Tephra Mailing List: `dev@tephra.incubator.apache.org <https://mail-archives.apache.org/mod_mbox/tephra-dev>`__
 
-  The *tephra-user* mailing list is primarily for users using the product to develop
-  applications. You can expect questions from users, release announcements, and any other
-  discussions that we think will be helpful to the users.
+  The mailing list is for both users and developers of Apache Tephra.
+  You can expect questions from users, release announcements, and any other
+  discussions that we think will be helpful to the users. In addition, this list
+  will be used for all our design, architecture and technical discussions.
 
-- Tephra Developer Group and Development Discussions: `tephra-dev@googlegroups.com 
-  <https://groups.google.com/d/forum/tephra-dev>`__
+- Apache Tephra Commits Mailing List: `commits@tephra.incubator.apache.org
+  <https://mail-archives.apache.org/mod_mbox/tephra-commits>`__
 
-  The *tephra-dev* mailing list is essentially for developers actively working on the
-  product, and should be used for all our design, architecture and technical discussions
-  moving forward. This mailing list will also receive all JIRA and GitHub notifications.
+  This mailing list will receive all Git commit notifications.
 
 IRC
 ...
