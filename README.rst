@@ -1,11 +1,11 @@
 .. ==================
-.. Cask Tephra
+.. Apache Tephra
 .. ==================
 
 |(Tephra)|
 
 **Transactions for Apache HBase** |(TM)|:
-Cask Tephra provides globally consistent transactions on top of Apache HBase.  While HBase
+Apache Tephra provides globally consistent transactions on top of Apache HBase.  While HBase
 provides strong consistency with row- or region-level ACID operations, it sacrifices
 cross-region and cross-table consistency in favor of scalability.  This trade-off requires
 application developers to handle the complexity of ensuring consistency when their modifications
@@ -130,8 +130,8 @@ Getting Started
 
 You can get started with Tephra by building directly from the latest source code::
 
-  git clone https://github.com/caskdata/tephra.git
-  cd tephra
+  git clone https://git-wip-us.apache.org/repos/asf/incubator-tephra.git
+  cd incubator-tephra
   mvn clean package
 
 After the build completes, you will have a full binary distribution of Tephra under the
@@ -144,12 +144,12 @@ build system's equivalent configuration), in order to make use of Tephra classes
   <dependency>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-api</artifactId>
-    <version>0.7.1</version>
+    <version>${tephra.version}</version>
   </dependency>
   <dependency>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-core</artifactId>
-    <version>0.7.1</version>
+    <version>${tephra.version}</version>
   </dependency>
 
 Since the HBase APIs have changed between versions, you will need to select the
@@ -160,7 +160,7 @@ For HBase 0.96.x::
   <dependency>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-0.96</artifactId>
-    <version>0.7.1</version>
+    <version>${tephra.version}</version>
   </dependency>
 
 For HBase 0.98.x::
@@ -168,7 +168,7 @@ For HBase 0.98.x::
   <dependency>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-0.98</artifactId>
-    <version>0.7.1</version>
+    <version>${tephra.version}</version>
   </dependency>
 
 For HBase 1.0.x::
@@ -176,7 +176,7 @@ For HBase 1.0.x::
   <dependency>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-1.0</artifactId>
-    <version>0.7.1</version>
+    <version>${tephra.version}</version>
   </dependency>
 
 If you are running the CDH 5.4, 5.5, or 5.6 version of HBase 1.0.x (this version contains API incompatibilities
@@ -185,7 +185,7 @@ with Apache HBase 1.0.x)::
   <dependency>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-1.0-cdh</artifactId>
-    <version>0.7.1</version>
+    <version>${tephra.version}</version>
   </dependency>
 
 For HBase 1.1.x or CDH 5.7 version of HBase 1.2.x::
@@ -193,7 +193,7 @@ For HBase 1.1.x or CDH 5.7 version of HBase 1.2.x::
   <dependency>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-1.1</artifactId>
-    <version>0.7.1</version>
+    <version>${tephra.version}</version>
   </dependency>
 
 Deployment and Configuration
@@ -699,7 +699,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-Cask, Cask Tephra and Tephra are trademarks of Cask Data, Inc. All rights reserved.
+Tephra is a trademark of Cask Data, Inc. All rights reserved.
 
 Apache, Apache HBase, and HBase are trademarks of The Apache Software Foundation. Used with permission. 
 No endorsement by The Apache Software Foundation is implied by the use of these marks.
