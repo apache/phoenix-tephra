@@ -86,13 +86,13 @@ public class TxConstants {
   /**
    * Key used to set the serialized transaction as an attribute on Get and Scan operations.
    */
-  public static final String TX_OPERATION_ATTRIBUTE_KEY = "cask.tx";
+  public static final String TX_OPERATION_ATTRIBUTE_KEY = "tephra.tx";
   /**
    * Key used to flag a delete operation as part of a transaction rollback.  This is used so that the
    * {@code TransactionProcessor} coprocessor loaded on a table can differentiate between deletes issued
    * as part of a normal client operation versus those performed when rolling back a transaction.
    */
-  public static final String TX_ROLLBACK_ATTRIBUTE_KEY = "cask.tx.rollback";
+  public static final String TX_ROLLBACK_ATTRIBUTE_KEY = "tephra.tx.rollback";
 
   /**
    * Column qualifier used for a special delete marker tombstone, which identifies an entire column family as deleted.
