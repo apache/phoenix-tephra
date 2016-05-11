@@ -296,41 +296,11 @@ HBase Coprocessor Configuration
 In addition to the transaction server, Tephra requires an HBase coprocessor to be installed on all
 tables where transactional reads and writes will be performed.  
 
-To configure the coprocessor on all HBase tables, add the following to ``hbase-site.xml``.
-
-For HBase 0.96.x::
+To configure the coprocessor on all HBase tables, add the following to ``hbase-site.xml``::
 
   <property>
     <name>hbase.coprocessor.region.classes</name>
-    <value>org.apache.tephra.hbase96.coprocessor.TransactionProcessor</value>
-  </property>
-
-For HBase 0.98.x::
-
-  <property>
-    <name>hbase.coprocessor.region.classes</name>
-    <value>org.apache.tephra.hbase98.coprocessor.TransactionProcessor</value>
-  </property>
-
-For HBase 1.0.x::
-
-  <property>
-    <name>hbase.coprocessor.region.classes</name>
-    <value>org.apache.tephra.hbase10.coprocessor.TransactionProcessor</value>
-  </property>
-
-For the CDH 5.4, 5.5, or 5.6 version of HBase 1.0.x::
-
-  <property>
-    <name>hbase.coprocessor.region.classes</name>
-    <value>org.apache.tephra.hbase10cdh.coprocessor.TransactionProcessor</value>
-  </property>
-
-For HBase 1.1.x or CDH 5.7 version of HBase 1.2.x::
-
-  <property>
-    <name>hbase.coprocessor.region.classes</name>
-    <value>org.apache.tephra.hbase11.coprocessor.TransactionProcessor</value>
+    <value>org.apache.tephra.hbase.coprocessor.TransactionProcessor</value>
   </property>
 
 You may configure the ``TransactionProcessor`` to be loaded only on HBase tables that you will

@@ -29,27 +29,27 @@ public class ConfigurationFactory implements Provider<Configuration> {
   private static class ConfigurationProviderFactory extends HBaseVersionSpecificFactory<ConfigurationProvider> {
     @Override
     protected String getHBase96Classname() {
-      return "org.apache.tephra.hbase96.HBase96ConfigurationProvider";
+      return "org.apache.tephra.hbase.HBase96ConfigurationProvider";
     }
 
     @Override
     protected String getHBase98Classname() {
-      return "org.apache.tephra.hbase98.HBase98ConfigurationProvider";
+      return "org.apache.tephra.hbase.HBase98ConfigurationProvider";
     }
 
     @Override
     protected String getHBase10Classname() {
-      return "org.apache.tephra.hbase10.HBase10ConfigurationProvider";
+      return "org.apache.tephra.hbase.HBase10ConfigurationProvider";
     }
 
     @Override
     protected String getHBase11Classname() {
-      return "org.apache.tephra.hbase11.HBase11ConfigurationProvider";
+      return "org.apache.tephra.hbase.HBase11ConfigurationProvider";
     }
 
     @Override
     protected String getHBase10CDHClassname() {
-      return "org.apache.tephra.hbase10cdh.HBase10ConfigurationProvider";
+      return "org.apache.tephra.hbase.HBase10ConfigurationProvider";
     }
   }
 
