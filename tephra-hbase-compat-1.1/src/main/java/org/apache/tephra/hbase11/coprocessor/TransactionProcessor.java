@@ -173,7 +173,7 @@ public class TransactionProcessor extends BaseRegionObserver {
 
     // Deletes that are part of a transaction rollback do not need special handling.
     // They will never be rolled back, so are performed as normal HBase deletes.
-    if (delete.getAttribute(TxConstants.TX_ROLLBACK_ATTRIBUTE_KEY) != null) {
+    if (isRollbackOperation(delete)) {
       return;
     }
 
@@ -300,10 +300,20 @@ public class TransactionProcessor extends BaseRegionObserver {
 
   private Transaction getFromOperation(OperationWithAttributes op) throws IOException {
     byte[] encoded = op.getAttribute(TxConstants.TX_OPERATION_ATTRIBUTE_KEY);
+    if (encoded == null) {
+      // to support old clients
+      encoded = op.getAttribute(TxConstants.OLD_TX_OPERATION_ATTRIBUTE_KEY);
+    }
     if (encoded != null) {
       return txCodec.decode(encoded);
     }
     return null;
+  }
+
+  private boolean isRollbackOperation(OperationWithAttributes op) throws IOException {
+    return op.getAttribute(TxConstants.TX_ROLLBACK_ATTRIBUTE_KEY) != null ||
+      // to support old clients
+      op.getAttribute(TxConstants.OLD_TX_ROLLBACK_ATTRIBUTE_KEY) != null;
   }
 
   /**

@@ -139,7 +139,7 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
           byte[] family = change.getFamily();
           byte[] qualifier = change.getQualifier();
           Delete rollbackDelete = new Delete(row);
-          rollbackDelete.setAttribute(TxConstants.TX_ROLLBACK_ATTRIBUTE_KEY, new byte[0]);
+          makeRollbackOperation(rollbackDelete);
           switch (conflictLevel) {
             case ROW:
             case NONE:
@@ -611,5 +611,9 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
 
   public void addToOperation(OperationWithAttributes op, Transaction tx) throws IOException {
     op.setAttribute(TxConstants.TX_OPERATION_ATTRIBUTE_KEY, txCodec.encode(tx));
+  }
+
+  protected void makeRollbackOperation(Delete delete) {
+    delete.setAttribute(TxConstants.TX_ROLLBACK_ATTRIBUTE_KEY, new byte[0]);
   }
 }

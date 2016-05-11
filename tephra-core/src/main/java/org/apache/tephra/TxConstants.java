@@ -88,11 +88,19 @@ public class TxConstants {
    */
   public static final String TX_OPERATION_ATTRIBUTE_KEY = "tephra.tx";
   /**
+   * @deprecated This constant is replaced by {@link #TX_OPERATION_ATTRIBUTE_KEY}
+   */
+  public static final String OLD_TX_OPERATION_ATTRIBUTE_KEY = "cask.tx";
+  /**
    * Key used to flag a delete operation as part of a transaction rollback.  This is used so that the
    * {@code TransactionProcessor} coprocessor loaded on a table can differentiate between deletes issued
    * as part of a normal client operation versus those performed when rolling back a transaction.
    */
   public static final String TX_ROLLBACK_ATTRIBUTE_KEY = "tephra.tx.rollback";
+  /**
+   * @deprecated This constant is replaced by {@link #TX_ROLLBACK_ATTRIBUTE_KEY}
+   */
+  public static final String OLD_TX_ROLLBACK_ATTRIBUTE_KEY = "cask.tx.rollback";
 
   /**
    * Column qualifier used for a special delete marker tombstone, which identifies an entire column family as deleted.

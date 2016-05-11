@@ -37,6 +37,7 @@ package org.apache.tephra.hbase96;
  import org.apache.hadoop.hbase.client.HBaseAdmin;
  import org.apache.hadoop.hbase.client.HTable;
  import org.apache.hadoop.hbase.client.HTableInterface;
+ import org.apache.hadoop.hbase.client.OperationWithAttributes;
  import org.apache.hadoop.hbase.client.Put;
  import org.apache.hadoop.hbase.client.Result;
  import org.apache.hadoop.hbase.client.ResultScanner;
@@ -1551,5 +1552,66 @@ public class TransactionAwareHTableTest {
     result = transactionAwareHTable.get(get);
     assertTrue(result.isEmpty());
     transactionContext.finish();
+  }
+
+  /**
+   * Tests that transaction co-processor works with older clients
+   *
+   * @throws Exception
+   */
+  @Test
+  public void testOlderClientOperations() throws Exception {
+    // Use old HTable to test
+    TransactionAwareHTable oldTxAware = new OldTransactionAwareHTable(hTable);
+    transactionContext.addTransactionAware(oldTxAware);
+
+    transactionContext.start();
+    Put put = new Put(TestBytes.row);
+    put.add(TestBytes.family, TestBytes.qualifier, TestBytes.value);
+    oldTxAware.put(put);
+    transactionContext.finish();
+
+    transactionContext.start();
+    long txId = transactionContext.getCurrentTransaction().getTransactionId();
+    put = new Put(TestBytes.row);
+    put.add(TestBytes.family, TestBytes.qualifier, TestBytes.value2);
+    oldTxAware.put(put);
+    // Invalidate the second Put
+    TransactionSystemClient txClient = new InMemoryTxSystemClient(txManager);
+    txClient.invalidate(txId);
+
+    transactionContext.start();
+    put = new Put(TestBytes.row);
+    put.add(TestBytes.family, TestBytes.qualifier, TestBytes.value3);
+    oldTxAware.put(put);
+    // Abort the third Put
+    transactionContext.abort();
+
+    // Get should now return the first value
+    transactionContext.start();
+    Result result = oldTxAware.get(new Get(TestBytes.row));
+    transactionContext.finish();
+
+    byte[] value = result.getValue(TestBytes.family, TestBytes.qualifier);
+    assertArrayEquals(TestBytes.value, value);
+  }
+
+  /**
+   * Represents older transaction clients
+   */
+  private static class OldTransactionAwareHTable extends TransactionAwareHTable {
+    public OldTransactionAwareHTable(HTableInterface hTable) {
+      super(hTable);
+    }
+
+    @Override
+    public void addToOperation(OperationWithAttributes op, Transaction tx) throws IOException {
+      op.setAttribute(TxConstants.OLD_TX_OPERATION_ATTRIBUTE_KEY, txCodec.encode(tx));
+    }
+
+    @Override
+    protected void makeRollbackOperation(Delete delete) {
+      delete.setAttribute(TxConstants.OLD_TX_ROLLBACK_ATTRIBUTE_KEY, new byte[0]);
+    }
   }
 }
