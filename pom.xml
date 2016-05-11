@@ -29,7 +29,7 @@
 
   <groupId>org.apache.tephra</groupId>
   <artifactId>tephra</artifactId>
-  <version>0.1.0-incubating-SNAPSHOT</version>
+  <version>0.8.0-incubating-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Apache Tephra</name>
   <description>
