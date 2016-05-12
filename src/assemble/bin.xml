@@ -55,7 +55,10 @@
       <outputDirectory>.</outputDirectory>
       <includes>
         <include>LICENSE</include>
+        <include>NOTICE</include>
         <include>README.rst</include>
+        <include>KEYS</include>
+        <include>DISCLAIMER</include>
       </includes>
       <fileMode>0644</fileMode>
     </fileSet>

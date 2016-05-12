@@ -78,6 +78,7 @@
 
   <build>
     <plugins>
+      <!-- Generate binary distribution artifact -->
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
         <executions>
@@ -88,7 +89,8 @@
               <goal>single</goal>
             </goals>
             <configuration>
-              <finalName>tephra-${project.version}</finalName>
+              <finalName>apache-tephra-${project.version}</finalName>
+              <appendAssemblyId>true</appendAssemblyId>
               <formats>
                 <format>tar.gz</format>
               </formats>
@@ -160,8 +162,8 @@
                           <include name="**/jacoco.exec" />
                         </fileset>
                       </executiondata>
-                      <structure name="Tephra Coverage Project">
-                        <group name="Tephra">
+                      <structure name="Apache Tephra Coverage Project">
+                        <group name="Apache Tephra">
                           <classfiles>
                             <fileset dir="../">
                               <include name="**/*.class" />
