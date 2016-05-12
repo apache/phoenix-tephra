@@ -45,6 +45,9 @@ public class HDFSTransactionLogReaderSupplier implements Supplier<TransactionLog
     }
 
     switch (version) {
+      case 3:
+        logReader = new HDFSTransactionLogReaderV3(reader);
+        return logReader;
       case 2:
         logReader = new HDFSTransactionLogReaderV2(reader);
         return logReader;

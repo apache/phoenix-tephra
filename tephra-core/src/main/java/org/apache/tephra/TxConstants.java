@@ -345,7 +345,7 @@ public class TxConstants {
      */
     public static final String NUM_ENTRIES_APPENDED = "count";
     public static final String VERSION_KEY = "version";
-    public static final byte CURRENT_VERSION = 2;
+    public static final byte CURRENT_VERSION = 3;
   }
 
 }

@@ -18,6 +18,7 @@
 
 package org.apache.tephra.persist;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Writable;
@@ -233,6 +234,46 @@ public abstract class AbstractTransactionLog implements TransactionLog {
     }
 
     public TransactionEdit getEdit() {
+      return this.edit;
+    }
+
+    @Override
+    public void write(DataOutput out) throws IOException {
+      this.key.write(out);
+      this.edit.write(out);
+    }
+
+    @Override
+    public void readFields(DataInput in) throws IOException {
+      this.key.readFields(in);
+      this.edit.readFields(in);
+    }
+  }
+
+  // package private for testing
+  @Deprecated
+  @VisibleForTesting
+  static class CaskEntry implements Writable {
+    private LongWritable key;
+    private co.cask.tephra.persist.TransactionEdit edit;
+
+
+    // for Writable
+    public CaskEntry() {
+      this.key = new LongWritable();
+      this.edit = new co.cask.tephra.persist.TransactionEdit();
+    }
+
+    public CaskEntry(LongWritable key, co.cask.tephra.persist.TransactionEdit edit) {
+      this.key = key;
+      this.edit = edit;
+    }
+
+    public LongWritable getKey() {
+      return this.key;
+    }
+
+    public co.cask.tephra.persist.TransactionEdit getEdit() {
       return this.edit;
     }
 

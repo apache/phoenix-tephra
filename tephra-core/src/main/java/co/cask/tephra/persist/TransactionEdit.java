@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.tephra.persist;
+package co.cask.tephra.persist;
 
 import com.google.common.base.Objects;
 import com.google.common.collect.Sets;
@@ -24,6 +24,7 @@ import org.apache.hadoop.io.Writable;
 import org.apache.tephra.ChangeId;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TransactionType;
+import org.apache.tephra.persist.TransactionLog;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -34,7 +35,9 @@ import java.util.Set;
 
 /**
  * Represents a transaction state change in the {@link TransactionLog}.
+ * This class was included for backward compatibility reasons. It will be removed in future releases.
  */
+@Deprecated
 public class TransactionEdit implements Writable {
 
   /**
@@ -168,7 +171,7 @@ public class TransactionEdit implements Writable {
   }
 
   /**
-   * Returns the transaction type. This is only populated for edits of type {@link State#INPROGRESS} or 
+   * Returns the transaction type. This is only populated for edits of type {@link State#INPROGRESS} or
    * {@link State#ABORTED}.
    */
   public TransactionType getType() {
@@ -181,7 +184,7 @@ public class TransactionEdit implements Writable {
 
   /**
    * Returns the transaction ids to be removed from invalid transaction list. This is only populated for
-   * edits of type {@link State#TRUNCATE_INVALID_TX} 
+   * edits of type {@link State#TRUNCATE_INVALID_TX}
    */
   public Set<Long> getTruncateInvalidTx() {
     return truncateInvalidTx;
@@ -248,7 +251,7 @@ public class TransactionEdit implements Writable {
    */
   public static TransactionEdit createCommitted(long writePointer, Set<ChangeId> changes, long nextWritePointer,
                                                 boolean canCommit) {
-    return new TransactionEdit(writePointer, 0L, State.COMMITTED, 0L, changes, nextWritePointer, canCommit, null, 
+    return new TransactionEdit(writePointer, 0L, State.COMMITTED, 0L, changes, nextWritePointer, canCommit, null,
                                null, 0L, 0L, null);
   }
 
@@ -257,7 +260,7 @@ public class TransactionEdit implements Writable {
    */
   public static TransactionEdit createAborted(long writePointer, TransactionType type, long[] checkpointPointers) {
     return new TransactionEdit(writePointer, 0L, State.ABORTED, 0L, null, 0L, false, type, null, 0L, 0L,
-        checkpointPointers);
+                               checkpointPointers);
   }
 
   /**
@@ -279,14 +282,14 @@ public class TransactionEdit implements Writable {
    */
   public static TransactionEdit createTruncateInvalidTx(Set<Long> truncateInvalidTx) {
     return new TransactionEdit(0L, 0L, State.TRUNCATE_INVALID_TX, 0L, null, 0L, false, null, truncateInvalidTx,
-        0L, 0L, null);
+                               0L, 0L, null);
   }
 
   /**
    * Creates a new instance in the {@link State#TRUNCATE_INVALID_TX} state.
    */
   public static TransactionEdit createTruncateInvalidTxBefore(long truncateInvalidTxTime) {
-    return new TransactionEdit(0L, 0L, State.TRUNCATE_INVALID_TX, 0L, null, 0L, false, null, null, 
+    return new TransactionEdit(0L, 0L, State.TRUNCATE_INVALID_TX, 0L, null, 0L, false, null, null,
                                truncateInvalidTxTime, 0L, null);
   }
 
@@ -295,22 +298,7 @@ public class TransactionEdit implements Writable {
    */
   public static TransactionEdit createCheckpoint(long writePointer, long parentWritePointer) {
     return new TransactionEdit(writePointer, 0L, State.CHECKPOINT, 0L, null, 0L, false, null, null, 0L,
-        parentWritePointer, null);
-  }
-
-  /**
-   * Creates a new instance from {@link co.cask.tephra.persist.TransactionEdit}.
-   */
-  @Deprecated
-  public static TransactionEdit convertCaskTxEdit(co.cask.tephra.persist.TransactionEdit txEdit) {
-    if (txEdit == null) {
-      return null;
-    }
-    return new TransactionEdit(txEdit.getWritePointer(), txEdit.getVisibilityUpperBound(),
-                               TransactionEdit.State.valueOf(txEdit.getState().toString()), txEdit.getExpiration(),
-                               txEdit.getChanges(), txEdit.getCommitPointer(), txEdit.getCanCommit(), txEdit.getType(),
-                               txEdit.getTruncateInvalidTx(), txEdit.getTruncateInvalidTxTime(),
-                               txEdit.getParentWritePointer(), txEdit.getCheckpointPointers());
+                               parentWritePointer, null);
   }
 
   @Override
@@ -335,19 +323,19 @@ public class TransactionEdit implements Writable {
     TransactionEdit that = (TransactionEdit) o;
 
     return Objects.equal(this.writePointer, that.writePointer) &&
-        Objects.equal(this.visibilityUpperBound, that.visibilityUpperBound) &&
-        Objects.equal(this.commitPointer, that.commitPointer) &&
-        Objects.equal(this.expirationDate, that.expirationDate) &&
-        Objects.equal(this.state, that.state) &&
-        Objects.equal(this.changes, that.changes) &&
-        Objects.equal(this.canCommit, that.canCommit) &&
-        Objects.equal(this.type, that.type) &&
-        Objects.equal(this.truncateInvalidTx, that.truncateInvalidTx) &&
-        Objects.equal(this.truncateInvalidTxTime, that.truncateInvalidTxTime) &&
-        Objects.equal(this.parentWritePointer, that.parentWritePointer) &&
-        Arrays.equals(this.checkpointPointers, that.checkpointPointers);
+      Objects.equal(this.visibilityUpperBound, that.visibilityUpperBound) &&
+      Objects.equal(this.commitPointer, that.commitPointer) &&
+      Objects.equal(this.expirationDate, that.expirationDate) &&
+      Objects.equal(this.state, that.state) &&
+      Objects.equal(this.changes, that.changes) &&
+      Objects.equal(this.canCommit, that.canCommit) &&
+      Objects.equal(this.type, that.type) &&
+      Objects.equal(this.truncateInvalidTx, that.truncateInvalidTx) &&
+      Objects.equal(this.truncateInvalidTxTime, that.truncateInvalidTxTime) &&
+      Objects.equal(this.parentWritePointer, that.parentWritePointer) &&
+      Arrays.equals(this.checkpointPointers, that.checkpointPointers);
   }
-  
+
   @Override
   public final int hashCode() {
     return Objects.hashCode(writePointer, visibilityUpperBound, commitPointer, expirationDate, state, changes,
@@ -373,3 +361,4 @@ public class TransactionEdit implements Writable {
   }
 
 }
+

@@ -53,8 +53,9 @@ public class HDFSTransactionLogReaderV1 implements TransactionLogReader {
     }
 
     try {
-      boolean successful = reader.next(key, reuse);
-      return successful ? reuse : null;
+      co.cask.tephra.persist.TransactionEdit oldTxEdit = new co.cask.tephra.persist.TransactionEdit();
+      boolean successful = reader.next(key, oldTxEdit);
+      return successful ? TransactionEdit.convertCaskTxEdit(oldTxEdit) : null;
     } catch (EOFException e) {
       LOG.warn("Hit an unexpected EOF while trying to read the Transaction Edit. Skipping the entry.", e);
       return null;
