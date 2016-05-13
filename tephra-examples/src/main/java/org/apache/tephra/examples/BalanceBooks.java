@@ -153,8 +153,8 @@ public class BalanceBooks implements Closeable {
       LOG.info("VERIFYING BALANCES");
       context.start();
       long totalBalance = 0;
-      ResultScanner scanner = table.getScanner(new Scan());
-      try {
+
+      try (ResultScanner scanner = table.getScanner(new Scan())) {
         for (Result r : scanner) {
           if (!r.isEmpty()) {
             int rowId = Bytes.toInt(r.getRow());
@@ -162,10 +162,6 @@ public class BalanceBooks implements Closeable {
             totalBalance += balance;
             LOG.info("Client #{}: balance = ${}", rowId, balance);
           }
-        }
-      } finally {
-        if (scanner != null) {
-          Closeables.closeQuietly(scanner);
         }
       }
       if (totalBalance == 0) {
@@ -198,8 +194,7 @@ public class BalanceBooks implements Closeable {
 
   protected void createTableIfNotExists(Configuration conf, byte[] tableName, byte[][] columnFamilies)
       throws IOException {
-    HBaseAdmin admin = new HBaseAdmin(conf);
-    try {
+    try (HBaseAdmin admin = new HBaseAdmin(conf)) {
       HTableDescriptor desc = new HTableDescriptor(TableName.valueOf(tableName));
       for (byte[] family : columnFamilies) {
         HColumnDescriptor columnDesc = new HColumnDescriptor(family);
@@ -208,14 +203,6 @@ public class BalanceBooks implements Closeable {
       }
       desc.addCoprocessor(TransactionProcessor.class.getName());
       admin.createTable(desc);
-    } finally {
-      if (admin != null) {
-        try {
-          admin.close();
-        } catch (IOException ioe) {
-          LOG.warn("Error closing HBaseAdmin", ioe);
-        }
-      }
     }
   }
 
@@ -226,15 +213,12 @@ public class BalanceBooks implements Closeable {
       System.exit(1);
     }
 
-    BalanceBooks bb = new BalanceBooks(Integer.parseInt(args[0]), Integer.parseInt(args[1]));
-    try {
+    try (BalanceBooks bb = new BalanceBooks(Integer.parseInt(args[0]), Integer.parseInt(args[1]))) {
       bb.init();
       bb.run();
       bb.verify();
     } catch (Exception e) {
       LOG.error("Failed during BalanceBooks run", e);
-    } finally {
-      bb.close();
     }
   }
 

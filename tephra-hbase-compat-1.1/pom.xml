@@ -103,4 +103,13 @@
     </dependency>
   </dependencies>
 
+  <profiles>
+    <profile>
+      <id>hbase1.2</id>
+      <properties>
+        <hbase11.version>1.2.1</hbase11.version>
+      </properties>
+    </profile>
+  </profiles>
+
 </project>
