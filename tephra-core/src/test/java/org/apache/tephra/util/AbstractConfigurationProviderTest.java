@@ -21,8 +21,11 @@ package org.apache.tephra.util;
 import org.apache.hadoop.conf.Configuration;
 import org.junit.Test;
 
+import java.util.Collection;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  *
@@ -31,10 +34,11 @@ public abstract class AbstractConfigurationProviderTest {
   @Test
   public void testVersionFactory() {
     HBaseVersion.Version foundVersion = HBaseVersion.get();
-    assertEquals(getExpectedVersion(), foundVersion);
+    assertTrue(String.format("%s was not part of the expected versions : %s", foundVersion, getExpectedVersions()),
+               getExpectedVersions().contains(foundVersion));
   }
 
-  protected abstract HBaseVersion.Version getExpectedVersion();
+  protected abstract Collection<HBaseVersion.Version> getExpectedVersions();
 
   @Test
   public void testConfigurationProvider() {

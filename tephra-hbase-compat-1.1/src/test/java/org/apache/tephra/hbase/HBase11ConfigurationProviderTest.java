@@ -18,15 +18,18 @@
 
 package org.apache.tephra.hbase;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.tephra.util.AbstractConfigurationProviderTest;
 import org.apache.tephra.util.HBaseVersion;
 
+import java.util.Collection;
+
 /**
- * Test for HBase 1.1 version specific behavior.
+ * Test for HBase 1.1 and HBase 1.2 versions specific behavior.
  */
 public class HBase11ConfigurationProviderTest extends AbstractConfigurationProviderTest {
   @Override
-  protected HBaseVersion.Version getExpectedVersion() {
-    return HBaseVersion.Version.HBASE_11;
+  protected Collection<HBaseVersion.Version> getExpectedVersions() {
+    return ImmutableList.of(HBaseVersion.Version.HBASE_11, HBaseVersion.Version.HBASE_12);
   }
 }

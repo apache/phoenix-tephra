@@ -30,18 +30,9 @@
   <name>Apache Tephra Examples</name>
 
   <properties>
-    <!-- HBase 1.0 only supports Hadoop 2.4 or newer -->
     <hadoop.version>2.6.0</hadoop.version>
-    <hbase10cdh.version>1.0.0-cdh5.4.2</hbase10cdh.version>
+    <hbase12.version>1.2.1</hbase12.version>
   </properties>
-
-  <repositories>
-    <repository>
-      <id>cloudera</id>
-      <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
-    </repository>
-  </repositories>
-
   
   <dependencies>
     <dependency>
@@ -56,31 +47,31 @@
     </dependency>
     <dependency>
       <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-hbase-compat-1.0-cdh</artifactId>
+      <artifactId>tephra-hbase-compat-1.1</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-common</artifactId>
-      <version>${hbase10cdh.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-client</artifactId>
-      <version>${hbase10cdh.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-protocol</artifactId>
-      <version>${hbase10cdh.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase10cdh.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
     </dependency>
 
@@ -99,14 +90,14 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase10cdh.version}</version>
+      <version>${hbase12.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-testing-util</artifactId>
-      <version>${hbase10cdh.version}</version>
+      <version>${hbase12.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
