@@ -86,16 +86,26 @@ public class HDFSTransactionLogTest {
   }
 
   private SequenceFile.Writer getSequenceFileWriter(Configuration configuration, FileSystem fs,
-                                                    long timeInMillis, boolean withMarker) throws IOException {
+                                                    long timeInMillis, byte versionNumber) throws IOException {
     String snapshotDir = configuration.get(TxConstants.Manager.CFG_TX_SNAPSHOT_DIR);
     Path newLog = new Path(snapshotDir, LOG_FILE_PREFIX + timeInMillis);
     SequenceFile.Metadata metadata = new SequenceFile.Metadata();
-    if (withMarker) {
+    if (versionNumber > 1) {
       metadata.set(new Text(TxConstants.TransactionLog.VERSION_KEY),
-                   new Text(Byte.toString(TxConstants.TransactionLog.CURRENT_VERSION)));
+                   new Text(Byte.toString(versionNumber)));
     }
-    return SequenceFile.createWriter(fs, configuration, newLog, LongWritable.class,
-                                     TransactionEdit.class, SequenceFile.CompressionType.NONE, null, null, metadata);
+
+    switch (versionNumber) {
+      case 1:
+      case 2:
+        return SequenceFile.createWriter(fs, configuration, newLog, LongWritable.class,
+                                         co.cask.tephra.persist.TransactionEdit.class,
+                                         SequenceFile.CompressionType.NONE, null, null, metadata);
+      default:
+        return SequenceFile.createWriter(fs, configuration, newLog, LongWritable.class,
+                                         TransactionEdit.class, SequenceFile.CompressionType.NONE,
+                                         null, null, metadata);
+    }
   }
 
   private void writeNumWrites(SequenceFile.Writer writer, final int size) throws Exception {
@@ -103,21 +113,92 @@ public class HDFSTransactionLogTest {
     CommitMarkerCodec.writeMarker(writer, size);
   }
 
-  private void testTransactionLogSync(int totalCount, int batchSize, boolean withMarker, boolean isComplete)
+  private void testCaskTransactionLogSync(int totalCount, int batchSize, byte versionNumber, boolean isComplete)
+    throws Exception {
+    List<co.cask.tephra.persist.TransactionEdit> edits = TransactionEditUtil.createRandomCaskEdits(totalCount);
+    long timestamp = System.currentTimeMillis();
+    Configuration configuration = getConfiguration();
+    FileSystem fs = FileSystem.newInstance(FileSystem.getDefaultUri(configuration), configuration);
+    SequenceFile.Writer writer = getSequenceFileWriter(configuration, fs, timestamp, versionNumber);
+    AtomicLong logSequence = new AtomicLong();
+    HDFSTransactionLog transactionLog = getHDFSTransactionLog(configuration, fs, timestamp);
+    AbstractTransactionLog.CaskEntry entry;
+
+    for (int i = 0; i < totalCount - batchSize; i += batchSize) {
+      if (versionNumber > 1) {
+        writeNumWrites(writer, batchSize);
+      }
+      for (int j = 0; j < batchSize; j++) {
+        entry = new AbstractTransactionLog.CaskEntry(new LongWritable(logSequence.getAndIncrement()), edits.get(j));
+        writer.append(entry.getKey(), entry.getEdit());
+      }
+      writer.syncFs();
+    }
+
+    if (versionNumber > 1) {
+      writeNumWrites(writer, batchSize);
+    }
+
+    for (int i = totalCount - batchSize; i < totalCount - 1; i++) {
+      entry = new AbstractTransactionLog.CaskEntry(new LongWritable(logSequence.getAndIncrement()), edits.get(i));
+      writer.append(entry.getKey(), entry.getEdit());
+    }
+
+    entry = new AbstractTransactionLog.CaskEntry(new LongWritable(logSequence.getAndIncrement()),
+                                                 edits.get(totalCount - 1));
+    if (isComplete) {
+      writer.append(entry.getKey(), entry.getEdit());
+    } else {
+      byte[] bytes = Longs.toByteArray(entry.getKey().get());
+      writer.appendRaw(bytes, 0, bytes.length, new SequenceFile.ValueBytes() {
+        @Override
+        public void writeUncompressedBytes(DataOutputStream outStream) throws IOException {
+          byte[] test = new byte[]{0x2};
+          outStream.write(test, 0, 1);
+        }
+
+        @Override
+        public void writeCompressedBytes(DataOutputStream outStream) throws IllegalArgumentException, IOException {
+          // no-op
+        }
+
+        @Override
+        public int getSize() {
+          // mimic size longer than the actual byte array size written, so we would reach EOF
+          return 12;
+        }
+      });
+    }
+    writer.syncFs();
+    Closeables.closeQuietly(writer);
+
+    // now let's try to read this log
+    TransactionLogReader reader = transactionLog.getReader();
+    int syncedEdits = 0;
+    while (reader.next() != null) {
+      // testing reading the transaction edits
+      syncedEdits++;
+    }
+    if (isComplete) {
+      Assert.assertEquals(totalCount, syncedEdits);
+    } else {
+      Assert.assertEquals(totalCount - batchSize, syncedEdits);
+    }
+  }
+
+  private void testTransactionLogSync(int totalCount, int batchSize, byte versionNumber, boolean isComplete)
     throws Exception {
     List<TransactionEdit> edits = TransactionEditUtil.createRandomEdits(totalCount);
     long timestamp = System.currentTimeMillis();
     Configuration configuration = getConfiguration();
     FileSystem fs = FileSystem.newInstance(FileSystem.getDefaultUri(configuration), configuration);
-    SequenceFile.Writer writer = getSequenceFileWriter(configuration, fs, timestamp, withMarker);
+    SequenceFile.Writer writer = getSequenceFileWriter(configuration, fs, timestamp, versionNumber);
     AtomicLong logSequence = new AtomicLong();
     HDFSTransactionLog transactionLog = getHDFSTransactionLog(configuration, fs, timestamp);
     AbstractTransactionLog.Entry entry;
 
     for (int i = 0; i < totalCount - batchSize; i += batchSize) {
-      if (withMarker) {
-        writeNumWrites(writer, batchSize);
-      }
+      writeNumWrites(writer, batchSize);
       for (int j = 0; j < batchSize; j++) {
         entry = new AbstractTransactionLog.Entry(new LongWritable(logSequence.getAndIncrement()), edits.get(j));
         writer.append(entry.getKey(), entry.getEdit());
@@ -125,10 +206,7 @@ public class HDFSTransactionLogTest {
       writer.syncFs();
     }
 
-    if (withMarker) {
-      writeNumWrites(writer, batchSize);
-    }
-
+    writeNumWrites(writer, batchSize);
     for (int i = totalCount - batchSize; i < totalCount - 1; i++) {
       entry = new AbstractTransactionLog.Entry(new LongWritable(logSequence.getAndIncrement()), edits.get(i));
       writer.append(entry.getKey(), entry.getEdit());
@@ -177,22 +255,33 @@ public class HDFSTransactionLogTest {
   }
 
   @Test
-  public void testTransactionLogNewVersion() throws Exception {
+  public void testTransactionLogVersion3() throws Exception {
     // in-complete sync
-    testTransactionLogSync(1000, 1, true, false);
-    testTransactionLogSync(2000, 5, true, false);
+    testTransactionLogSync(1000, 1, (byte) 3, false);
+    testTransactionLogSync(2000, 5, (byte) 3, false);
 
     // complete sync
-    testTransactionLogSync(1000, 1, true, true);
-    testTransactionLogSync(2000, 5, true, true);
+    testTransactionLogSync(1000, 1, (byte) 3, true);
+    testTransactionLogSync(2000, 5, (byte) 3, true);
+  }
+
+  @Test
+  public void testTransactionLogVersion2() throws Exception {
+    // in-complete sync
+    testCaskTransactionLogSync(1000, 1, (byte) 2, false);
+    testCaskTransactionLogSync(2000, 5, (byte) 2, false);
+
+    // complete sync
+    testCaskTransactionLogSync(1000, 1, (byte) 2, true);
+    testCaskTransactionLogSync(2000, 5, (byte) 2, true);
   }
 
   @Test
   public void testTransactionLogOldVersion() throws Exception {
     // in-complete sync
-    testTransactionLogSync(1000, 1, false, false);
+    testCaskTransactionLogSync(1000, 1, (byte) 1, false);
 
     // complete sync
-    testTransactionLogSync(2000, 5, false, true);
+    testCaskTransactionLogSync(2000, 5, (byte) 1, true);
   }
 }

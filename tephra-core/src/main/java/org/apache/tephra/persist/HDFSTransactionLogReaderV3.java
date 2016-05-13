@@ -29,22 +29,22 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 
 /**
- * {@link TransactionLogReader} that can read v2 version of Transaction logs. The logs are expected to
+ * {@link TransactionLogReader} that can read v3 version of Transaction logs. The logs are expected to
  * have commit markers that indicates the size of the batch of {@link TransactionEdit}s (follows the marker),
  * that were synced together. If the expected number of {@link TransactionEdit}s are not present then that set of
  * {@link TransactionEdit}s are discarded.
  */
-public class HDFSTransactionLogReaderV2 implements TransactionLogReader {
+public class HDFSTransactionLogReaderV3 implements TransactionLogReader {
   private static final Logger LOG = LoggerFactory.getLogger(HDFSTransactionLogReaderV2.class);
 
   private final SequenceFile.Reader reader;
-  private final Queue<co.cask.tephra.persist.TransactionEdit> transactionEdits;
+  private final Queue<TransactionEdit> transactionEdits;
   private final CommitMarkerCodec commitMarkerCodec;
   private final LongWritable key;
 
   private boolean closed;
 
-  public HDFSTransactionLogReaderV2(SequenceFile.Reader reader) {
+  public HDFSTransactionLogReaderV3(SequenceFile.Reader reader) {
     this.reader = reader;
     this.transactionEdits = new ArrayDeque<>();
     this.key = new LongWritable();
@@ -76,12 +76,12 @@ public class HDFSTransactionLogReaderV2 implements TransactionLogReader {
     }
 
     if (!transactionEdits.isEmpty()) {
-      return TransactionEdit.convertCaskTxEdit(transactionEdits.remove());
+      return transactionEdits.remove();
     }
 
     // Fetch the 'marker' and read 'marker' number of edits
     populateTransactionEdits();
-    return TransactionEdit.convertCaskTxEdit(transactionEdits.poll());
+    return transactionEdits.poll();
   }
 
   private void populateTransactionEdits() throws IOException {
@@ -96,7 +96,7 @@ public class HDFSTransactionLogReaderV2 implements TransactionLogReader {
     }
 
     for (int i = 0; i < numEntries; i++) {
-      co.cask.tephra.persist.TransactionEdit edit = new co.cask.tephra.persist.TransactionEdit();
+      TransactionEdit edit = new TransactionEdit();
       try {
         if (reader.next(key, edit)) {
           transactionEdits.add(edit);

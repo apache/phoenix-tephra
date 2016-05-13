@@ -68,7 +68,7 @@ import java.util.Random;
  * <p>
  *   You can run the BalanceBooks application with the following command:
  *   <pre>
- *     ./bin/tephra run BalanceBooks [num clients] [num iterations]
+ *     ./bin/tephra run org.apache.tephra.examples.BalanceBooks [num clients] [num iterations]
  *   </pre>
  *   where <code>[num clients]</code> is the number of concurrent client threads to use, and
  *   <code>[num iterations]</code> is the number of "transfer" operations to perform per client thread.
