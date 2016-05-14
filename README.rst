@@ -189,7 +189,7 @@ with Apache HBase 1.0.x)::
     <version>${tephra.version}</version>
   </dependency>
 
-For HBase 1.1.x or CDH 5.7 version of HBase 1.2.x::
+For HBase 1.1.x or HBase 1.2.x::
 
   <dependency>
     <groupId>org.apache.tephra</groupId>

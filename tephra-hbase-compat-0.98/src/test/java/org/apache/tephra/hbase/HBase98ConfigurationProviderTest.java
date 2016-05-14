@@ -18,15 +18,18 @@
 
 package org.apache.tephra.hbase;
 
+import com.google.common.collect.ImmutableList;
 import org.apache.tephra.util.AbstractConfigurationProviderTest;
 import org.apache.tephra.util.HBaseVersion;
+
+import java.util.Collection;
 
 /**
  * Test for HBase 0.98 version specific behavior.
  */
 public class HBase98ConfigurationProviderTest extends AbstractConfigurationProviderTest {
   @Override
-  protected HBaseVersion.Version getExpectedVersion() {
-    return HBaseVersion.Version.HBASE_98;
+  protected Collection<HBaseVersion.Version> getExpectedVersions() {
+    return ImmutableList.of(HBaseVersion.Version.HBASE_98);
   }
 }

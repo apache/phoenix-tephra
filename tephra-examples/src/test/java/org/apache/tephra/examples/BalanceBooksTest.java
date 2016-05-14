@@ -119,13 +119,10 @@ public class BalanceBooksTest {
 
   @Test
   public void testBalanceBooks() throws Exception {
-    BalanceBooks bb = new BalanceBooks(5, 100, testUtil.getConfiguration());
-    try {
+    try (BalanceBooks bb = new BalanceBooks(5, 100, testUtil.getConfiguration())) {
       bb.init();
       bb.run();
       assertTrue(bb.verify());
-    } finally {
-      bb.close();
     }
   }
 }

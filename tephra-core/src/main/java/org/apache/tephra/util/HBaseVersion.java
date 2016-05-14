@@ -51,7 +51,7 @@ public class HBaseVersion {
     HBASE_10("1.0"),
     HBASE_10_CDH("1.0-cdh"),
     HBASE_11("1.1"),
-    HBASE_12_CDH("1.2-cdh"),
+    HBASE_12("1.2"),
     UNKNOWN("unknown");
 
     final String majorVersion;
@@ -88,14 +88,7 @@ public class HBaseVersion {
       } else if (versionString.startsWith(HBASE_11_VERSION)) {
         currentVersion = Version.HBASE_11;
       } else if (versionString.startsWith(HBASE_12_VERSION)) {
-        VersionNumber ver = VersionNumber.create(versionString);
-        if (ver.getClassifier() != null && ver.getClassifier().startsWith(CDH_CLASSIFIER)) {
-          currentVersion = Version.HBASE_12_CDH;
-        } else {
-          // CDH 5.7 comes with HBase version 1.2.0-CDH5.7.0. However currently there is no
-          // other hadoop distribution that uses HBase 1.2, so the version is set here to UNKNOWN.
-          currentVersion = Version.UNKNOWN;
-        }
+        currentVersion = Version.HBASE_12;
       } else {
         currentVersion = Version.UNKNOWN;
       }
