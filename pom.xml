@@ -24,7 +24,7 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>13</version>
+    <version>17</version>
   </parent>
 
   <groupId>org.apache.tephra</groupId>
@@ -458,28 +458,6 @@
           </executions>
         </plugin>
 
-        <!-- Maven assembly -->
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-assembly-plugin</artifactId>
-          <version>2.4</version>
-          <configuration>
-            <descriptors>
-              <descriptor>src/assemble/bin.xml</descriptor>
-            </descriptors>
-          </configuration>
-        </plugin>
-
-        <!-- Deploy plugin -->
-        <plugin>
-          <groupId>org.apache.maven.plugins</groupId>
-          <artifactId>maven-deploy-plugin</artifactId>
-          <version>2.8</version>
-          <configuration>
-            <deployAtEnd>true</deployAtEnd>
-          </configuration>
-        </plugin>
-
         <!-- Release plugin -->
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -490,6 +468,14 @@
             <allowTimestampedSnapshots>true</allowTimestampedSnapshots>
             <autoVersionSubmodules>true</autoVersionSubmodules>
           </configuration>
+        </plugin>
+
+        <!-- Checksum plugin -->
+        <plugin>
+          <inherited>false</inherited>
+          <groupId>net.ju-n.maven.plugins</groupId>
+          <artifactId>checksum-maven-plugin</artifactId>
+          <version>1.3</version>
         </plugin>
       </plugins>
     </pluginManagement>
@@ -575,106 +561,56 @@
       </build>
     </profile>
 
-    <!-- Profile for release. Generates extra artifacts -->
+    <!-- Profile to generate apache release -->
     <profile>
-      <id>release</id>
+      <id>apache-release</id>
       <build>
-        <pluginManagement>
-          <plugins>
-            <!-- Source jar -->
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-source-plugin</artifactId>
-              <version>2.2.1</version>
-              <configuration>
-                <excludeResources>true</excludeResources>
-              </configuration>
-              <executions>
-                <execution>
-                  <id>attach-sources</id>
-                  <phase>package</phase>
-                  <goals>
-                    <goal>jar-no-fork</goal>
-                  </goals>
-                </execution>
-              </executions>
-            </plugin>
-
-            <!-- Javadoc jar -->
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-javadoc-plugin</artifactId>
-              <version>2.9</version>
-              <configuration>
-                <excludePackageNames>*.internal.*</excludePackageNames>
-                <links>
-                  <link>http://docs.oracle.com/javase/7/docs/api/</link>
-                </links>
-              </configuration>
-              <executions>
-                <execution>
-                  <id>attach-javadoc</id>
-                  <phase>package</phase>
-                  <goals>
-                    <goal>jar</goal>
-                  </goals>
-                </execution>
-              </executions>
-            </plugin>
-
-            <!-- GPG signature -->
-            <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-gpg-plugin</artifactId>
-              <version>1.5</version>
-              <configuration>
-                <passphrase>${gpg.passphrase}</passphrase>
-                <useAgent>${gpg.useagent}</useAgent>
-              </configuration>
-              <executions>
-                <execution>
-                  <goals>
-                    <goal>sign</goal>
-                  </goals>
-                </execution>
-              </executions>
-            </plugin>
-
-            <!-- Nexus deploy plugin -->
-            <plugin>
-              <groupId>org.sonatype.plugins</groupId>
-              <artifactId>nexus-staging-maven-plugin</artifactId>
-              <version>1.6.2</version>
-              <extensions>true</extensions>
-              <configuration>
-                <nexusUrl>https://oss.sonatype.org</nexusUrl>
-                <serverId>sonatype.release</serverId>
-                <stagingProfileId>655dc88dc770c3</stagingProfileId>
-              </configuration>
-            </plugin>
-          </plugins>
-        </pluginManagement>
-
         <plugins>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-source-plugin</artifactId>
-            <version>2.2.1</version>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <configuration>
+              <finalName>apache-tephra-${project.version}</finalName>
+              <formats>
+                <format>tar.gz</format>
+              </formats>
+            </configuration>
           </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <version>2.9</version>
+            <artifactId>maven-remote-resources-plugin</artifactId>
+            <configuration>
+              <!-- Disable this plugin so that it won't generate a DEPENDENCIES file in the source tar -->
+              <skip>true</skip>
+            </configuration>
           </plugin>
+
+          <!-- Compute checksum of release artifact -->
           <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-gpg-plugin</artifactId>
-            <version>1.5</version>
-          </plugin>
-          <plugin>
-            <groupId>org.sonatype.plugins</groupId>
-            <artifactId>nexus-staging-maven-plugin</artifactId>
-            <version>1.6.2</version>
+            <inherited>false</inherited>
+            <groupId>net.ju-n.maven.plugins</groupId>
+            <artifactId>checksum-maven-plugin</artifactId>
+            <executions>
+              <execution>
+                <goals>
+                  <goal>files</goal>
+                </goals>
+              </execution>
+            </executions>
+            <configuration>
+              <algorithms>
+                <algorithm>MD5</algorithm>
+                <algorithm>SHA-512</algorithm>
+              </algorithms>
+              <fileSets>
+                <fileSet>
+                  <directory>${project.build.directory}</directory>
+                  <includes>
+                    <include>apache-tephra-${project.version}-${sourceReleaseAssemblyDescriptor}.tar.gz</include>
+                  </includes>
+                </fileSet>
+              </fileSets>
+            </configuration>
           </plugin>
         </plugins>
       </build>

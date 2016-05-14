@@ -53,7 +53,7 @@ client skips cells associated with any of the excluded transaction IDs.  The rea
 applied through a server-side filter injected by the ``TransactionProcessor`` coprocessor.
 
 TransactionProcessor Coprocessor
-..................................
+................................
 
 The ``TransactionProcessor`` coprocessor is loaded on all HBase tables where transactional reads
 and writes are performed.  When clients read data, it coordinates the server-side filtering
@@ -70,8 +70,9 @@ found in our `Transactions over HBase
 
 
 Is It Building?
-----------------
-Status of continuous integration build at `Travis CI <https://travis-ci.org/caskdata/tephra>`__: |(BuildStatus)|
+---------------
+Status of continuous integration build at
+`Travis CI <https://travis-ci.org/apache/incubator-tephra>`__: |(BuildStatus)|
 
 Requirements
 ------------
@@ -605,7 +606,7 @@ assisting others on the mailing list.
 Bug Reports & Feature Requests
 ..............................
 
-Bugs and tasks are tracked in a public JIRA `issue tracker <https://issues.cask.co/browse/TEPHRA>`__.
+Bugs and tasks are tracked in a public JIRA `issue tracker <https://issues.apache.org/jira/browse/TEPHRA>`__.
 
 Apache Tephra User Groups and Mailing Lists
 ...........................................
@@ -676,7 +677,7 @@ No endorsement by The Apache Software Foundation is implied by the use of these 
 .. |(TM)| unicode:: U+2122 .. trademark sign
    :trim:
 
-.. |(Tephra)| image:: docs/_images/tephra_logo_light_bknd_cask.png
+.. |(Tephra)| image:: docs/_images/tephra_logo_light_background_small.png
 
-.. |(BuildStatus)| image:: https://travis-ci.org/caskdata/tephra.svg?branch=develop
-   :target: https://travis-ci.org/caskdata/tephra
+.. |(BuildStatus)| image:: https://travis-ci.org/apache/incubator-tephra.svg?branch=master
+   :target: https://travis-ci.org/apache/incubator-tephra
