@@ -24,6 +24,7 @@ import com.google.inject.Injector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.TableExistsException;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
@@ -202,7 +203,11 @@ public class BalanceBooks implements Closeable {
         desc.addFamily(columnDesc);
       }
       desc.addCoprocessor(TransactionProcessor.class.getName());
-      admin.createTable(desc);
+      try {
+        admin.createTable(desc);
+      } catch (TableExistsException ex) {
+        LOG.debug("Table {} exists already : {}", tableName, ex);
+      }
     }
   }
 
