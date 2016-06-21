@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+-->
+<project name="Apache Tephra">
+
+  <bannerLeft>
+    <name>Apache Tephra</name>
+    <src>images/tephra_logotype.png</src>
+    <href>http://tephra.incubator.apache.org/index.html</href>
+    <alt>Apache Tephra</alt>
+  </bannerLeft>
+  <bannerRight>
+    <src>http://incubator.apache.org/images/egg-logo.png</src>
+    <href>http://incubator.apache.org/</href>
+  </bannerRight>
+
+  <publishDate position="none"/>
+  <version position="none"/>
+
+  <skin>
+    <groupId>lt.velykis.maven.skins</groupId>
+    <artifactId>reflow-maven-skin</artifactId>
+    <version>1.1.1</version>
+  </skin>
+
+  <body>
+    <head>
+      <link rel="stylesheet" href="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.4.0/styles/default.min.css"/>
+    </head>
+
+    <breadcrumbs position="left">
+      <item name="Apache Tephra" href="http://tephra.incubator.apache.org/index.html"/>
+    </breadcrumbs>
+
+    <menu name="Documentation">
+      <item name="Home" href="./index.html"/>
+      <item name="Getting Started" href="./GettingStarted.html"/>
+      <item name="API (0.9.0-incubating-SNAPSHOT)" href="./apidocs/index.html"/>
+      <item name="API (0.8.0-incubating)" href="./apidocs-0.8.0-incubating/index.html"/>
+    </menu>
+
+    <menu name="Releases">
+      <item name="0.8.0-incubating" href="releases/0.8.0-incubating.html"/>
+    </menu>
+
+    <menu name="Get Involved">
+      <item name="How to Contribute" href="HowToContribute.html"/>
+      <item name="Release Guide" href="ReleaseGuide.html"/>
+      <item name="Mailing Lists" href="mail-lists.html"/>
+      <item name="Sources" href="source-repository.html"/>
+      <item name="Issues" href="issue-tracking.html"/>
+      <item name="Team" href="team-list.html"/>
+    </menu>
+
+    <menu name="ASF">
+      <item name="Apache Incubator" href="http://incubator.apache.org/"/>
+      <item name="Apache Foundation" href="http://www.apache.org/foundation/"/>
+      <item name="How Apache Works" href="http://www.apache.org/foundation/how-it-works.html"/>
+      <item name="The Apache License" href="http://www.apache.org/licenses/LICENSE-2.0.html"/>
+      <item name="Sponsoring Apache" href="http://www.apache.org/foundation/sponsorship.html"/>
+      <item name="Thanks" href="http://www.apache.org/foundation/thanks.html"/>
+    </menu>
+
+    <footer>
+      <div>
+        Apache Tephra, Apache, the Apache feather logo,
+        and the Apache Tephra project logos are trademarks of The Apache Software Foundation.
+        All other marks mentioned may be trademarks or registered trademarks of their respective owners.
+      </div>
+      <script src="http://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.4.0/highlight.min.js"></script>
+    </footer>
+
+  </body>
+
+  <custom>
+    <reflowSkin>
+      <theme>bootswatch-simplex</theme>
+      <smoothScroll>true</smoothScroll>
+      <markPageHeader>false</markPageHeader>
+      <navbarInverse>true</navbarInverse>
+      <bottomNav maxSpan="9" >
+        <column>Documentation</column>
+        <column>Releases</column>
+        <column>Get Involved</column>
+        <column>ASF</column>
+      </bottomNav>
+      <bottomDescription></bottomDescription>
+    </reflowSkin>
+  </custom>
+
+</project>
