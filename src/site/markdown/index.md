@@ -73,8 +73,7 @@ transaction that the cell is associated with failed or a write from a newer tran
 successfully committed to the same column.
 
 More details on how Tephra transactions work and the interactions between these components can be
-found in our [Transactions over HBase](http://www.slideshare.net/alexbaranau/transactions-over-hbase)
-presentation.
+found in our [Presentations](Presentations.html).
 
 ## Is It Building?
 Status of CI build at Travis CI: [![Build Status](https://travis-ci.org/apache/incubator-tephra.svg?branch=master)](https://travis-ci.org/apache/incubator-tephra)
