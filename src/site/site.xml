@@ -90,7 +90,7 @@
 
   <custom>
     <reflowSkin>
-      <theme>bootswatch-simplex</theme>
+      <theme>site</theme>
       <smoothScroll>true</smoothScroll>
       <markPageHeader>false</markPageHeader>
       <navbarInverse>true</navbarInverse>

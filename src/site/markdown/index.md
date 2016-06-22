@@ -21,13 +21,16 @@
 </head>
 
 ## What is Apache Tephra <sup>(TM)</sup>
-__Transactions for Apache HBase <sup>(TM)</sup>__: Apache Tephra provides globally consistent
-transactions on top of Apache HBase. While HBase provides strong consistency with row- or
+Apache Tephra provides globally consistent transactions on top of distributed data stores
+such as [Apache HBase](https://hbase.apache.org). While HBase provides strong consistency with row- or
 region-level ACID operations, it sacrifices cross-region and cross-table consistency in favor of
 scalability. This trade-off requires application developers to handle the complexity of ensuring
 consistency when their modifications span region boundaries. By providing support for global
 transactions that span regions, tables, or multiple RPCs, Tephra simplifies application development
 on top of HBase, without a significant impact on performance or scalability for many workloads.
+
+Tephra is used by the [Apache Phoenix](https://phoenix.apache.org/transactions.html) as well
+to add cross-row and cross-table transaction support with full ACID semantics.
 
 ## How It Works
 Tephra leverages HBase's native data versioning to provide multi-versioned concurrency
@@ -100,16 +103,16 @@ component versions:
 |---------------|---------------|---------------------------------------------------------|
 | __HDFS__      | Apache Hadoop | 2.0.2-alpha through 2.7.x                               |
 |               | CDH or HDP    | (CDH) 5.0.0 through 5.7.0 or (HDP) 2.0, 2.1, 2.2 or 2.3 |
-|               | MapR          | 4.1 (with MapR-FS)                                      |
+|               | MapR          | 4.1 through 5.1 (with MapR-FS)                          |
 | __HBase__     | Apache        | 0.96.x, 0.98.x, 1.0.x, 1.1.x and 1.2.x                  |
 |               | CDH or HDP    | (CDH) 5.0.0 through 5.7.0 or (HDP) 2.0, 2.1, 2.2 or 2.3 |
-|               | MapR          | 4.1 (with Apache HBase)                                 |
+|               | MapR          | 4.1 through 5.1 (with Apache HBase)                     |
 | __ZooKeeper__ | Apache        | Version 3.4.3 through 3.4.5                             |
 |               | CDH or HDP    | (CDH) 5.0.0 through 5.7.0 or (HDP) 2.0, 2.1, 2.2 or 2.3 |
-|               | MapR          | 4.1                                                     |
+|               | MapR          | 4.1 through 5.1                                         |
 
 __Note:__ Components versions shown in this table are those that we have tested and are
 confident of their suitability and compatibility. Later versions of components may work,
-but have not necessarily have been either tested or confirmed compatible.
+but have not necessarily been either tested or confirmed compatible.
 
 Ready to try out Apache Tephra? Checkout the [Getting Started Guide](GettingStarted.html)
