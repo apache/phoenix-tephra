@@ -118,7 +118,7 @@ but have not necessarily been either tested or confirmed compatible.
 Ready to try out Apache Tephra? Checkout the [Getting Started Guide](GettingStarted.html)
 
 ## Disclaimer
-Apache Twill is an effort undergoing incubation at The Apache Software Foundation (ASF),
+Apache Tephra is an effort undergoing incubation at The Apache Software Foundation (ASF),
 sponsored by Incubator. Incubation is required of all newly accepted projects until a
 further review indicates that the infrastructure, communications, and decision making process
 have stabilized in a manner consistent with other successful ASF projects. While incubation
