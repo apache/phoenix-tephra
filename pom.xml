@@ -28,7 +28,7 @@
 
   <groupId>org.apache.tephra</groupId>
   <artifactId>tephra</artifactId>
-  <version>0.9.1-incubating-SNAPSHOT</version>
+  <version>0.9.1-incubating</version>
   <packaging>pom</packaging>
   <name>Apache Tephra</name>
   <description>
@@ -165,7 +165,7 @@
     <connection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-tephra.git</connection>
     <url>https://git-wip-us.apache.org/repos/asf?p=incubator-tephra.git;a=summary</url>
     <developerConnection>scm:git:https://git-wip-us.apache.org/repos/asf/incubator-tephra.git</developerConnection>
-    <tag>HEAD</tag>
+    <tag>v0.9.1-incubating</tag>
   </scm>
 
   <issueManagement>
