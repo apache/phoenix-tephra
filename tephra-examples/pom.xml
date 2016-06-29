@@ -101,4 +101,32 @@
     </dependency>
   </dependencies>
 
+  <profiles>
+    <profile>
+      <id>cdh5.7</id>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-jar-plugin</artifactId>
+            <executions>
+              <execution>
+                <phase>package</phase>
+                <goals>
+                  <goal>jar</goal>
+                </goals>
+                <configuration>
+                  <classifier>cdh5.7</classifier>
+                </configuration>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      <properties>
+        <hadoop.version>2.6.0-cdh5.7.1</hadoop.version>
+        <hbase12.version>1.2.0-cdh5.7.1</hbase12.version>
+      </properties>
+    </profile>
+  </profiles>
+
 </project>
