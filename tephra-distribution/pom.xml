@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra</artifactId>
-    <version>0.9.3-incubating-SNAPSHOT</version>
+    <version>0.9.3-incubating</version>
   </parent>
   
   <artifactId>tephra-distribution</artifactId>
