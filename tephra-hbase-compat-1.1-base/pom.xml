@@ -25,19 +25,14 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>tephra-examples</artifactId>
-  <name>Apache Tephra Examples</name>
+  <artifactId>tephra-hbase-compat-1.1-base</artifactId>
+  <name>Apache Tephra HBase 1.1 Compatibility Base</name>
 
   <packaging>pom</packaging>
   <modules>
-    <module>hbase-0.96</module>
-    <module>hbase-0.98</module>
-    <module>hbase-1.0</module>
-    <module>hbase-1.0-cdh</module>
-    <module>hbase-1.1</module>
-    <module>hbase-1.2</module>
-    <module>cdh-5.7</module>
-    <module>cdh-5.8</module>
+    <module>tephra-hbase-compat-1.2-cdh</module>
+    <module>tephra-hbase-compat-1.1</module>
+    <module>tephra-hbase-compat-1.2</module>
   </modules>
 
   <dependencies>
@@ -50,8 +45,13 @@
       <groupId>org.apache.tephra</groupId>
       <artifactId>tephra-core</artifactId>
       <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.hbase</groupId>
+          <artifactId>hbase</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
-
 
     <!-- Test dependencies -->
     <dependency>
@@ -74,5 +74,4 @@
       <artifactId>jcl-over-slf4j</artifactId>
     </dependency>
   </dependencies>
-
 </project>

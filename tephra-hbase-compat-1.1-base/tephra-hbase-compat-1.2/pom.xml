@@ -20,40 +20,31 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <groupId>org.apache.tephra</groupId>
-    <artifactId>tephra</artifactId>
+    <artifactId>tephra-hbase-compat-1.1-base</artifactId>
     <version>0.9.0-incubating-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>tephra-hbase-compat-1.1</artifactId>
-  <name>Apache Tephra HBase 1.1 Compatibility</name>
+  <artifactId>tephra-hbase-compat-1.2</artifactId>
+  <name>Apache Tephra HBase 1.2 Compatibility</name>
 
   <properties>
-    <!-- HBase 1.1 only supports Hadoop 2.4 or newer -->
-    <hadoop.version>2.4.0</hadoop.version>
+    <hadoop.version>2.5.1</hadoop.version>
+    <hbase12.version>1.2.0</hbase12.version>
+
   </properties>
+
+  <build>
+    <sourceDirectory>../src/main/java</sourceDirectory>
+    <testSourceDirectory>../src/test/java</testSourceDirectory>
+  </build>
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-api</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-core</artifactId>
-      <version>${project.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>org.apache.hbase</groupId>
-          <artifactId>hbase</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-common</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -65,7 +56,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-client</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -77,13 +68,13 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-protocol</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -95,35 +86,22 @@
 
     <!-- Test dependencies -->
     <dependency>
-      <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-core</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>log4j-over-slf4j</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jcl-over-slf4j</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase12.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-testing-util</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase12.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -137,14 +115,4 @@
       </exclusions>
     </dependency>
   </dependencies>
-
-  <profiles>
-    <profile>
-      <id>hbase1.2</id>
-      <properties>
-        <hbase11.version>1.2.1</hbase11.version>
-      </properties>
-    </profile>
-  </profiles>
-
 </project>
