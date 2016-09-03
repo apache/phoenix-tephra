@@ -43,6 +43,7 @@ public class InMemoryTransactionService extends AbstractService {
 
   private final DiscoveryService discoveryService;
   private final String serviceName;
+  // this is Provider, so that we can have multiple instances of it (use a new instance after leader election)
   protected final Provider<TransactionManager> txManagerProvider;
   private Cancellable cancelDiscovery;
   protected TransactionManager txManager;
@@ -55,9 +56,8 @@ public class InMemoryTransactionService extends AbstractService {
   protected final int maxReadBufferBytes;
 
   @Inject
-  public InMemoryTransactionService(Configuration conf,
-                            DiscoveryService discoveryService,
-                            Provider<TransactionManager> txManagerProvider) {
+  public InMemoryTransactionService(Configuration conf, DiscoveryService discoveryService,
+                                    Provider<TransactionManager> txManagerProvider) {
 
     this.discoveryService = discoveryService;
     this.txManagerProvider = txManagerProvider;

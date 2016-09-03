@@ -41,12 +41,14 @@ final class TransactionLocalModule extends AbstractModule {
 
   @Override
   protected void configure() {
+    // some of these classes need to be non-singleton in order to create a new instance during leader() in
+    // TransactionService
     bind(SnapshotCodecProvider.class).in(Singleton.class);
     bind(TransactionStateStorage.class).annotatedWith(Names.named("persist"))
-      .to(LocalFileTransactionStateStorage.class).in(Singleton.class);
-    bind(TransactionStateStorage.class).toProvider(TransactionStateStorageProvider.class).in(Singleton.class);
+      .to(LocalFileTransactionStateStorage.class);
+    bind(TransactionStateStorage.class).toProvider(TransactionStateStorageProvider.class);
 
-    bind(TransactionManager.class).in(Singleton.class);
+    bind(TransactionManager.class);
     bind(TransactionSystemClient.class).to(InMemoryTxSystemClient.class).in(Singleton.class);
     bind(MetricsCollector.class).to(DefaultMetricsCollector.class);
 
