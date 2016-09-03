@@ -107,6 +107,7 @@ public class BalanceBooksTest {
       txService.startAndWait();
     } catch (Exception e) {
       LOG.error("Failed to start service: ", e);
+      throw e;
     }
 
   }
