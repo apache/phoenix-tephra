@@ -29,6 +29,8 @@ branches:
     - /^hotfix\/.*$/
     - /^release\/.*$/
 
+script: mvn test -Dsurefire.redirectTestOutputToFile=false
+
 sudo: false
 
 cache:
