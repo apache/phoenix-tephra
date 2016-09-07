@@ -37,7 +37,9 @@ import org.apache.tephra.runtime.ZKModule;
 import org.apache.twill.zookeeper.ZKClientService;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,12 +54,15 @@ public class BalanceBooksTest {
   private static TransactionService txService;
   private static ZKClientService zkClientService;
 
+  @ClassRule
+  public static TemporaryFolder tmpFolder = new TemporaryFolder();
+
   @BeforeClass
   public static void setup() throws Exception {
     testUtil = new HBaseTestingUtility();
     Configuration conf = testUtil.getConfiguration();
     conf.setBoolean(TxConstants.Manager.CFG_DO_PERSIST, false);
-    conf.set(TxConstants.Manager.CFG_TX_SNAPSHOT_DIR, "/tx.snapshot");
+    conf.set(TxConstants.Manager.CFG_TX_SNAPSHOT_DIR, tmpFolder.newFolder().getAbsolutePath());
 
     // Tune down the connection thread pool size
     conf.setInt("hbase.hconnection.threads.core", 5);
