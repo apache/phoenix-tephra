@@ -293,7 +293,7 @@ public class BalanceBooks implements Closeable {
 
         setBalance(withdrawee, withdraweeNew);
         setBalance(id, ownNew);
-        LOG.info("Client #{}: Withdrew ${} from #{}; withdrawee old={}, new={}; own old={}, new={}",
+        LOG.debug("Client #{}: Withdrew ${} from #{}; withdrawee old={}, new={}; own old={}, new={}",
             id, amount, withdrawee, withdraweeBalance, withdraweeNew, ownBalance, ownNew);
         txContext.finish();
 
@@ -301,7 +301,7 @@ public class BalanceBooks implements Closeable {
         LOG.error("Client #{}: Unhandled client failure", id, ioe);
         txContext.abort();
       } catch (TransactionConflictException tce) {
-        LOG.info("CONFLICT: client #{} attempting to withdraw from #{}", id, withdrawee);
+        LOG.debug("CONFLICT: client #{} attempting to withdraw from #{}", id, withdrawee);
         txContext.abort(tce);
       } catch (TransactionFailureException tfe) {
         LOG.error("Client #{}: Unhandled transaction failure", id, tfe);

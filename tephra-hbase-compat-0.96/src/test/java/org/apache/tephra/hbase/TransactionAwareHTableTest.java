@@ -328,7 +328,6 @@ public class TransactionAwareHTableTest {
         Delete d = new Delete(Bytes.toBytes("row" + i));
         for (int j = 0; j < 10; j++) {
           if (i % 2 == j % 2) {
-            LOG.info("Deleting row={}, column={}", i, j);
             d.deleteColumns(TestBytes.family, Bytes.toBytes(j));
           }
         }
@@ -344,7 +343,6 @@ public class TransactionAwareHTableTest {
         assertEquals(5, r.size());
         for (Map.Entry<byte[], byte[]> entry : r.getFamilyMap(TestBytes.family).entrySet()) {
           int col = Bytes.toInt(entry.getKey());
-          LOG.info("Got row={}, col={}", i, col);
           // each row should only have the opposite mod (odd=even, even=odd)
           assertNotEquals(i % 2, col % 2);
           assertArrayEquals(TestBytes.value, entry.getValue());
