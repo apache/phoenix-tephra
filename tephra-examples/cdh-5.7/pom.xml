@@ -20,90 +20,74 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <groupId>org.apache.tephra</groupId>
-    <artifactId>tephra</artifactId>
+    <artifactId>tephra-examples</artifactId>
     <version>0.9.0-incubating-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>tephra-examples</artifactId>
-  <name>Apache Tephra Examples</name>
+  <artifactId>tephra-examples-cdh-5.7</artifactId>
+  <name>Apache Tephra Examples For CDH 5.7</name>
 
-  <packaging>pom</packaging>
-  <modules>
-    <module>cdh-5.7</module>
-    <module>hbase-1.1</module>
-    <module>hbase-1.2</module>
-  </modules>
+  <repositories>
+    <repository>
+      <id>cloudera</id>
+      <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+    </repository>
+  </repositories>
 
   <properties>
-    <hadoop.version>2.6.0</hadoop.version>
-    <hbase12.version>1.2.1</hbase12.version>
+    <hadoop.version>2.6.0-cdh5.7.0</hadoop.version>
+    <hbase12.version>1.2.0-cdh5.7.0</hbase12.version>
   </properties>
-  
+
+  <build>
+    <sourceDirectory>../src/main/java</sourceDirectory>
+    <testSourceDirectory>../src/test/java</testSourceDirectory>
+  </build>
+
   <dependencies>
     <dependency>
       <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-api</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-core</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-hbase-compat-1.1</artifactId>
+      <artifactId>tephra-hbase-compat-1.2-cdh</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-common</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-client</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-protocol</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
     </dependency>
 
     <!-- Test dependencies -->
     <dependency>
-      <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-core</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-    </dependency>
-    <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase12.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-testing-util</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase12.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>
