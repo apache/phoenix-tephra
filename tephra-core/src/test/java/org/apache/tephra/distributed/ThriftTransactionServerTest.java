@@ -96,6 +96,7 @@ public class ThriftTransactionServerTest {
     conf.setLong(TxConstants.Service.CFG_DATA_TX_CLIENT_TIMEOUT, TimeUnit.HOURS.toMillis(1));
     conf.setInt(TxConstants.Service.CFG_DATA_TX_SERVER_IO_THREADS, 2);
     conf.setInt(TxConstants.Service.CFG_DATA_TX_SERVER_THREADS, 4);
+    conf.setInt(TxConstants.HBase.ZK_SESSION_TIMEOUT, 10000);
 
     injector = Guice.createInjector(
       new ConfigModule(conf),
@@ -235,7 +236,7 @@ public class ThriftTransactionServerTest {
   }
 
   private void waitFor(String errorMessage, Callable<Boolean> callable) throws Exception {
-    for (int i = 0; i < 200; i++) {
+    for (int i = 0; i < 600; i++) {
       boolean value = callable.call();
       if (value) {
         return;
