@@ -29,6 +29,7 @@ import org.apache.tephra.runtime.DiscoveryModules;
 import org.apache.tephra.runtime.TransactionClientModule;
 import org.apache.tephra.runtime.TransactionModules;
 import org.apache.tephra.runtime.ZKModule;
+import org.apache.thrift.TException;
 import org.apache.twill.discovery.DiscoveryServiceClient;
 import org.apache.twill.internal.zookeeper.InMemoryZKServer;
 import org.apache.twill.zookeeper.ZKClientService;
@@ -47,12 +48,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class PooledClientProviderTest {
 
-  public static final int MAX_CLIENT_COUNT = 3;
-  public static final long CLIENT_OBTAIN_TIMEOUT = 10;
+  private static final int MAX_CLIENT_COUNT = 3;
+  private static final long CLIENT_OBTAIN_TIMEOUT = 10;
 
   @ClassRule
   public static TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -114,12 +116,25 @@ public class PooledClientProviderTest {
     final PooledClientProvider clientProvider = new PooledClientProvider(conf,
       injector.getInstance(DiscoveryServiceClient.class));
 
-    // test simple case of get + return. Note: this also initializes the provider's pool, which
+    // Test simple case of get + return. Note: this also initializes the provider's pool, which
     // takes about one second (discovery). Doing it before we test the threads makes it so that one
     // thread doesn't take exceptionally longer than the others.
-    try (CloseableThriftClient closeableThriftClient = clientProvider.getCloseableClient()) {
-      // do nothing with the client
-    }
+
+    // Need to retry, since TransactionServiceMain#start returning doesn't indicate that the TransactionService
+    // has registered itself for discovery yet
+    waitFor("Failed to get client.", new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        try (CloseableThriftClient closeableThriftClient = clientProvider.getCloseableClient()) {
+          // do nothing with the client
+        } catch (TException e) {
+          // simply retry
+          return false;
+        }
+        return true;
+      }
+    });
+
 
     //Now race to get MAX_CLIENT_COUNT+1 clients, exhausting the pool and requesting 1 more.
     List<Future<Integer>> clientIds = new ArrayList<Future<Integer>>();
@@ -159,6 +174,17 @@ public class PooledClientProviderTest {
                         1, numTimeoutExceptions);
 
     executor.shutdown();
+  }
+
+  private void waitFor(String errorMessage, Callable<Boolean> callable) throws Exception {
+    for (int i = 0; i < 600; i++) {
+      boolean value = callable.call();
+      if (value) {
+        return;
+      }
+      TimeUnit.MILLISECONDS.sleep(50);
+    }
+    Assert.fail(errorMessage);
   }
 
   private static class RetrieveClient implements Callable<Integer> {
