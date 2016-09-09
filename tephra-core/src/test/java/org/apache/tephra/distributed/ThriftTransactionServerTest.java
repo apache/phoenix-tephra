@@ -39,6 +39,7 @@ import org.apache.tephra.runtime.DiscoveryModules;
 import org.apache.tephra.runtime.TransactionClientModule;
 import org.apache.tephra.runtime.TransactionModules;
 import org.apache.tephra.runtime.ZKModule;
+import org.apache.tephra.util.Tests;
 import org.apache.twill.internal.zookeeper.InMemoryZKServer;
 import org.apache.twill.zookeeper.ZKClientService;
 import org.apache.zookeeper.WatchedEvent;
@@ -125,7 +126,10 @@ public class ThriftTransactionServerTest {
       txService.startAndWait();
     } catch (Exception e) {
       LOG.error("Failed to start service: ", e);
+      throw e;
     }
+
+    Tests.waitForTxReady(injector.getInstance(TransactionSystemClient.class));
 
     getClient().resetState();
 
@@ -200,7 +204,7 @@ public class ThriftTransactionServerTest {
     waitForThriftStop();
 
     // wait for the thrift rpc server to be in running state again
-    waitFor("Failed to wait for txService to be running.", new Callable<Boolean>() {
+    Tests.waitFor("Failed to wait for txService to be running.", new Callable<Boolean>() {
       @Override
       public Boolean call() throws Exception {
         return Service.State.RUNNING == txService.thriftRPCServerState();
@@ -235,19 +239,8 @@ public class ThriftTransactionServerTest {
     dupZookeeper.close();
   }
 
-  private void waitFor(String errorMessage, Callable<Boolean> callable) throws Exception {
-    for (int i = 0; i < 600; i++) {
-      boolean value = callable.call();
-      if (value) {
-        return;
-      }
-      TimeUnit.MILLISECONDS.sleep(50);
-    }
-    Assert.fail(errorMessage);
-  }
-
   private void waitForThriftStop() throws Exception {
-    waitFor("Failed to wait for txService to stop", new Callable<Boolean>() {
+    Tests.waitFor("Failed to wait for txService to stop", new Callable<Boolean>() {
       @Override
       public Boolean call() throws Exception {
         return Service.State.RUNNING != txService.thriftRPCServerState();
@@ -264,7 +257,7 @@ public class ThriftTransactionServerTest {
   }
 
   private static class SlowTransactionLog extends InMemoryTransactionStateStorage.InMemoryTransactionLog {
-    public SlowTransactionLog(long timestamp) {
+    SlowTransactionLog(long timestamp) {
       super(timestamp);
     }
 
