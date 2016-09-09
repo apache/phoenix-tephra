@@ -18,9 +18,8 @@
 
 package org.apache.tephra.runtime;
 
-import com.google.inject.AbstractModule;
+import com.google.inject.PrivateModule;
 import com.google.inject.Scopes;
-import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.google.inject.name.Names;
 import org.apache.tephra.DefaultTransactionExecutor;
@@ -38,21 +37,25 @@ import org.apache.tephra.snapshot.SnapshotCodecProvider;
 /**
  * Guice bindings for running in single-node mode (persistence to local disk and in-memory client).
  */
-final class TransactionLocalModule extends AbstractModule {
+final class TransactionLocalModule extends PrivateModule {
 
   @Override
   protected void configure() {
-    bind(SnapshotCodecProvider.class).in(Singleton.class);
+    bind(SnapshotCodecProvider.class).in(Scopes.SINGLETON);
     bind(TransactionStateStorage.class).annotatedWith(Names.named("persist"))
       .to(LocalFileTransactionStateStorage.class).in(Scopes.SINGLETON);
     bind(TransactionStateStorage.class).toProvider(TransactionStateStorageProvider.class).in(Scopes.SINGLETON);
 
     bind(TransactionManager.class).in(Scopes.SINGLETON);
-    bind(TransactionSystemClient.class).to(InMemoryTxSystemClient.class).in(Singleton.class);
+    bind(TransactionSystemClient.class).to(InMemoryTxSystemClient.class).in(Scopes.SINGLETON);
     bind(MetricsCollector.class).to(DefaultMetricsCollector.class);
 
     install(new FactoryModuleBuilder()
               .implement(TransactionExecutor.class, DefaultTransactionExecutor.class)
               .build(TransactionExecutorFactory.class));
+
+    expose(TransactionManager.class);
+    expose(TransactionSystemClient.class);
+    expose(TransactionExecutorFactory.class);
   }
 }

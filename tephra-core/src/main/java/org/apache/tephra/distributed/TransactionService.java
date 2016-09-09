@@ -19,16 +19,19 @@
 package org.apache.tephra.distributed;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.AbstractService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.inject.Inject;
 import com.google.inject.Provider;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.TransactionManager;
+import org.apache.tephra.TxConstants;
 import org.apache.tephra.distributed.thrift.TTransactionServer;
-import org.apache.tephra.inmemory.InMemoryTransactionService;
 import org.apache.tephra.rpc.ThriftRPCServer;
 import org.apache.twill.api.ElectionHandler;
+import org.apache.twill.common.Cancellable;
+import org.apache.twill.discovery.Discoverable;
 import org.apache.twill.discovery.DiscoveryService;
 import org.apache.twill.internal.ServiceListenerAdapter;
 import org.apache.twill.internal.zookeeper.LeaderElection;
@@ -42,15 +45,29 @@ import java.net.UnknownHostException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nullable;
 
 /**
  *
  */
-public final class TransactionService extends InMemoryTransactionService {
+public class TransactionService extends AbstractService {
   private static final Logger LOG = LoggerFactory.getLogger(TransactionService.class);
   private LeaderElection leaderElection;
   private final ZKClient zkClient;
+  private final DiscoveryService discoveryService;
+  private final Provider<TransactionManager> txManagerProvider;
 
+  private final String serviceName;
+  private Cancellable cancelDiscovery;
+
+  // thrift server config
+  private final String address;
+  private final int port;
+  private final int threads;
+  private final int ioThreads;
+  private final int maxReadBufferBytes;
+
+  private TransactionManager txManager;
   private ThriftRPCServer<TransactionServiceThriftHandler, TTransactionServer> server;
 
   @Inject
@@ -58,12 +75,34 @@ public final class TransactionService extends InMemoryTransactionService {
                             ZKClient zkClient,
                             DiscoveryService discoveryService,
                             Provider<TransactionManager> txManagerProvider) {
-    super(conf, discoveryService, txManagerProvider);
     this.zkClient = zkClient;
+    this.discoveryService = discoveryService;
+    this.txManagerProvider = txManagerProvider;
+
+    serviceName = conf.get(TxConstants.Service.CFG_DATA_TX_DISCOVERY_SERVICE_NAME,
+                           TxConstants.Service.DEFAULT_DATA_TX_DISCOVERY_SERVICE_NAME);
+
+    address = conf.get(TxConstants.Service.CFG_DATA_TX_BIND_ADDRESS, TxConstants.Service.DEFAULT_DATA_TX_BIND_ADDRESS);
+    port = conf.getInt(TxConstants.Service.CFG_DATA_TX_BIND_PORT, TxConstants.Service.DEFAULT_DATA_TX_BIND_PORT);
+
+    // Retrieve the number of threads for the service
+    threads = conf.getInt(TxConstants.Service.CFG_DATA_TX_SERVER_THREADS,
+                          TxConstants.Service.DEFAULT_DATA_TX_SERVER_THREADS);
+    ioThreads = conf.getInt(TxConstants.Service.CFG_DATA_TX_SERVER_IO_THREADS,
+                            TxConstants.Service.DEFAULT_DATA_TX_SERVER_IO_THREADS);
+
+    maxReadBufferBytes = conf.getInt(TxConstants.Service.CFG_DATA_TX_THRIFT_MAX_READ_BUFFER,
+                                     TxConstants.Service.DEFAULT_DATA_TX_THRIFT_MAX_READ_BUFFER);
+
+    LOG.info("Configuring TransactionService" +
+               ", address: " + address +
+               ", port: " + port +
+               ", threads: " + threads +
+               ", io threads: " + ioThreads +
+               ", max read buffer (bytes): " + maxReadBufferBytes);
   }
 
-  @Override
-  protected InetSocketAddress getAddress() {
+  private InetSocketAddress getAddress() {
     if (address.equals("0.0.0.0")) {
       // resolve hostname
       try {
@@ -112,6 +151,7 @@ public final class TransactionService extends InMemoryTransactionService {
       public void follower() {
         // First stop the transaction server as un-registering from discovery can block sometimes.
         // That can lead to multiple transaction servers being active at the same time.
+        txManager = null;
         if (server != null && server.isRunning()) {
           server.stopAndWait();
         }
@@ -140,7 +180,7 @@ public final class TransactionService extends InMemoryTransactionService {
     notifyFailed(cause);
   }
 
-  protected void internalStop() {
+  private void internalStop() {
     if (leaderElection != null) {
       // NOTE: if was a leader this will cause loosing of leadership which in callback above will
       //       de-register service in discovery service and stop the service if needed
@@ -152,5 +192,32 @@ public final class TransactionService extends InMemoryTransactionService {
         LOG.error("Exception when cancelling leader election.", e);
       }
     }
+  }
+
+  private void undoRegister() {
+    if (cancelDiscovery != null) {
+      cancelDiscovery.cancel();
+    }
+  }
+
+  private void doRegister() {
+    cancelDiscovery = discoveryService.register(new Discoverable() {
+      @Override
+      public String getName() {
+        return serviceName;
+      }
+
+      @Override
+      public InetSocketAddress getSocketAddress() {
+        return getAddress();
+      }
+    });
+  }
+
+  @SuppressWarnings("WeakerAccess")
+  @VisibleForTesting
+  @Nullable
+  public TransactionManager getTransactionManager() {
+    return txManager;
   }
 }

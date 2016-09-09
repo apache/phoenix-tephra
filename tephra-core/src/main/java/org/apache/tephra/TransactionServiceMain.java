@@ -24,8 +24,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.distributed.TransactionService;
 import org.apache.tephra.runtime.ConfigModule;
 import org.apache.tephra.runtime.DiscoveryModules;
-import org.apache.tephra.runtime.TransactionClientModule;
-import org.apache.tephra.runtime.TransactionModules;
+import org.apache.tephra.runtime.TransactionServiceModule;
 import org.apache.tephra.runtime.ZKModule;
 import org.apache.tephra.util.ConfigurationFactory;
 import org.apache.twill.zookeeper.ZKClientService;
@@ -104,8 +103,7 @@ public class TransactionServiceMain {
       new ConfigModule(conf),
       new ZKModule(),
       new DiscoveryModules().getDistributedModules(),
-      new TransactionModules().getDistributedModules(),
-      new TransactionClientModule()
+      new TransactionServiceModule()
     );
 
     ZKClientService zkClientService = injector.getInstance(ZKClientService.class);

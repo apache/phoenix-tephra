@@ -18,14 +18,10 @@
 
 package org.apache.tephra;
 
-import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.Scopes;
-import com.google.inject.util.Modules;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.distributed.TransactionService;
-import org.apache.tephra.persist.InMemoryTransactionStateStorage;
 import org.apache.tephra.persist.TransactionStateStorage;
 import org.apache.tephra.runtime.ConfigModule;
 import org.apache.tephra.runtime.DiscoveryModules;
@@ -33,9 +29,11 @@ import org.apache.tephra.runtime.TransactionClientModule;
 import org.apache.tephra.runtime.TransactionModules;
 import org.apache.tephra.runtime.ZKModule;
 import org.apache.tephra.util.Tests;
+import org.apache.twill.discovery.DiscoveryService;
 import org.apache.twill.internal.zookeeper.InMemoryZKServer;
 import org.apache.twill.zookeeper.ZKClientService;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -70,13 +68,7 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
       new ConfigModule(conf),
       new ZKModule(),
       new DiscoveryModules().getDistributedModules(),
-      Modules.override(new TransactionModules().getDistributedModules())
-        .with(new AbstractModule() {
-          @Override
-          protected void configure() {
-            bind(TransactionStateStorage.class).to(InMemoryTransactionStateStorage.class).in(Scopes.SINGLETON);
-          }
-        }),
+      new TransactionModules().getDistributedModules(),
       new TransactionClientModule()
     );
 
@@ -84,12 +76,13 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
     zkClientService.startAndWait();
 
     // start a tx server
-    txService = injector.getInstance(TransactionService.class);
-    storage = injector.getInstance(TransactionStateStorage.class);
+    DiscoveryService discoveryService = injector.getInstance(DiscoveryService.class);
+    txService =
+      new TransactionService(conf, zkClientService, discoveryService,
+                             new TestTransactionManagerProvider(conf, zkClientService));
     txClient = injector.getInstance(TransactionSystemClient.class);
     try {
       LOG.info("Starting transaction service");
-      storage.startAndWait();
       txService.startAndWait();
     } catch (Exception e) {
       LOG.error("Failed to start service: ", e);
@@ -97,6 +90,8 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
     }
 
     Tests.waitForTxReady(txClient);
+    Assert.assertNotNull(txService.getTransactionManager());
+    storage = txService.getTransactionManager().getTransactionStateStorage();
   }
   
   @Before
@@ -107,7 +102,6 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
   @AfterClass
   public static void stop() throws Exception {
     txService.stopAndWait();
-    storage.stopAndWait();
     zkClientService.stopAndWait();
     zkServer.stopAndWait();
   }

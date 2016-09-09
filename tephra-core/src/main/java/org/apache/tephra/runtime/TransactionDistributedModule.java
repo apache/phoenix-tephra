@@ -18,9 +18,8 @@
 
 package org.apache.tephra.runtime;
 
-import com.google.inject.AbstractModule;
+import com.google.inject.PrivateModule;
 import com.google.inject.Scopes;
-import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.google.inject.name.Names;
 import org.apache.tephra.DefaultTransactionExecutor;
@@ -38,23 +37,25 @@ import org.apache.tephra.snapshot.SnapshotCodecProvider;
 /**
  * Guice bindings for running in distributed mode on a cluster.
  */
-final class TransactionDistributedModule extends AbstractModule {
+final class TransactionDistributedModule extends PrivateModule {
 
   @Override
   protected void configure() {
-    // some of these classes need to be non-singleton in order to create a new instance during leader() in
-    // TransactionService
-    bind(SnapshotCodecProvider.class).in(Singleton.class);
-    bind(TransactionStateStorage.class).annotatedWith(Names.named("persist")).to(HDFSTransactionStateStorage.class);
-    bind(TransactionStateStorage.class).toProvider(TransactionStateStorageProvider.class);
+    bind(SnapshotCodecProvider.class).in(Scopes.SINGLETON);
+    bind(TransactionStateStorage.class).annotatedWith(Names.named("persist"))
+      .to(HDFSTransactionStateStorage.class).in(Scopes.SINGLETON);
+    bind(TransactionStateStorage.class).toProvider(TransactionStateStorageProvider.class).in(Scopes.SINGLETON);
 
-    // to catch issues during configure time
-    bind(TransactionManager.class);
+    bind(TransactionManager.class).in(Scopes.SINGLETON);
     bind(TransactionSystemClient.class).to(TransactionServiceClient.class).in(Scopes.SINGLETON);
-    bind(MetricsCollector.class).to(DefaultMetricsCollector.class);
+    bind(MetricsCollector.class).to(DefaultMetricsCollector.class).in(Scopes.SINGLETON);
 
     install(new FactoryModuleBuilder()
-        .implement(TransactionExecutor.class, DefaultTransactionExecutor.class)
-        .build(TransactionExecutorFactory.class));
+              .implement(TransactionExecutor.class, DefaultTransactionExecutor.class)
+              .build(TransactionExecutorFactory.class));
+
+    expose(TransactionManager.class);
+    expose(TransactionSystemClient.class);
+    expose(TransactionExecutorFactory.class);
   }
 }
