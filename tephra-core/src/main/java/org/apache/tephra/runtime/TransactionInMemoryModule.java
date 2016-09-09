@@ -20,7 +20,6 @@ package org.apache.tephra.runtime;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Scopes;
-import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import org.apache.tephra.DefaultTransactionExecutor;
 import org.apache.tephra.TransactionExecutor;
@@ -39,16 +38,12 @@ import org.apache.tephra.snapshot.SnapshotCodecProvider;
  * test classes, as the transaction state cannot be recovered in the case of a failure.
  */
 public class TransactionInMemoryModule extends AbstractModule {
-  public TransactionInMemoryModule() {
-  }
 
   @Override
   protected void configure() {
-    // some of these classes need to be non-singleton in order to create a new instance during leader() in
-    // TransactionService
     bind(SnapshotCodecProvider.class).in(Scopes.SINGLETON);
-    bind(TransactionStateStorage.class).to(NoOpTransactionStateStorage.class);
-    bind(TransactionManager.class);
+    bind(TransactionStateStorage.class).to(NoOpTransactionStateStorage.class).in(Scopes.SINGLETON);
+    bind(TransactionManager.class).in(Scopes.SINGLETON);
     bind(TransactionSystemClient.class).to(InMemoryTxSystemClient.class).in(Scopes.SINGLETON);
     // no metrics output for in-memory
     bind(MetricsCollector.class).to(TxMetricsCollector.class);

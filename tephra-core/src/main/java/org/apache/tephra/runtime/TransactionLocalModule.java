@@ -19,6 +19,7 @@
 package org.apache.tephra.runtime;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.google.inject.name.Names;
@@ -41,14 +42,12 @@ final class TransactionLocalModule extends AbstractModule {
 
   @Override
   protected void configure() {
-    // some of these classes need to be non-singleton in order to create a new instance during leader() in
-    // TransactionService
     bind(SnapshotCodecProvider.class).in(Singleton.class);
     bind(TransactionStateStorage.class).annotatedWith(Names.named("persist"))
-      .to(LocalFileTransactionStateStorage.class);
-    bind(TransactionStateStorage.class).toProvider(TransactionStateStorageProvider.class);
+      .to(LocalFileTransactionStateStorage.class).in(Scopes.SINGLETON);
+    bind(TransactionStateStorage.class).toProvider(TransactionStateStorageProvider.class).in(Scopes.SINGLETON);
 
-    bind(TransactionManager.class);
+    bind(TransactionManager.class).in(Scopes.SINGLETON);
     bind(TransactionSystemClient.class).to(InMemoryTxSystemClient.class).in(Singleton.class);
     bind(MetricsCollector.class).to(DefaultMetricsCollector.class);
 
