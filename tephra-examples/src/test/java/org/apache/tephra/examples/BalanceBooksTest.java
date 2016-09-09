@@ -25,6 +25,7 @@ import com.google.inject.Scopes;
 import com.google.inject.util.Modules;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
+import org.apache.tephra.TransactionSystemClient;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.distributed.TransactionService;
 import org.apache.tephra.persist.InMemoryTransactionStateStorage;
@@ -34,6 +35,7 @@ import org.apache.tephra.runtime.DiscoveryModules;
 import org.apache.tephra.runtime.TransactionClientModule;
 import org.apache.tephra.runtime.TransactionModules;
 import org.apache.tephra.runtime.ZKModule;
+import org.apache.tephra.util.Tests;
 import org.apache.twill.zookeeper.ZKClientService;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -110,6 +112,7 @@ public class BalanceBooksTest {
       throw e;
     }
 
+    Tests.waitForTxReady(injector.getInstance(TransactionSystemClient.class));
   }
 
   @AfterClass

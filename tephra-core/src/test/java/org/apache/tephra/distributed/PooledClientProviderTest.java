@@ -29,6 +29,7 @@ import org.apache.tephra.runtime.DiscoveryModules;
 import org.apache.tephra.runtime.TransactionClientModule;
 import org.apache.tephra.runtime.TransactionModules;
 import org.apache.tephra.runtime.ZKModule;
+import org.apache.tephra.util.Tests;
 import org.apache.thrift.TException;
 import org.apache.twill.discovery.DiscoveryServiceClient;
 import org.apache.twill.internal.zookeeper.InMemoryZKServer;
@@ -48,7 +49,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public class PooledClientProviderTest {
@@ -122,7 +122,8 @@ public class PooledClientProviderTest {
 
     // Need to retry, since TransactionServiceMain#start returning doesn't indicate that the TransactionService
     // has registered itself for discovery yet
-    waitFor("Failed to get client.", new Callable<Boolean>() {
+    Tests.waitFor("Failed to get client.", new Callable<Boolean>() {
+      @SuppressWarnings({"unused", "EmptyTryBlock"})
       @Override
       public Boolean call() throws Exception {
         try (CloseableThriftClient closeableThriftClient = clientProvider.getCloseableClient()) {
@@ -175,17 +176,6 @@ public class PooledClientProviderTest {
                         1, numTimeoutExceptions);
 
     executor.shutdownNow();
-  }
-
-  private void waitFor(String errorMessage, Callable<Boolean> callable) throws Exception {
-    for (int i = 0; i < 600; i++) {
-      boolean value = callable.call();
-      if (value) {
-        return;
-      }
-      TimeUnit.MILLISECONDS.sleep(50);
-    }
-    Assert.fail(errorMessage);
   }
 
   private static class RetrieveClient implements Callable<Integer> {
