@@ -16,12 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.tephra;
+package org.apache.tephra.distributed;
 
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.tephra.distributed.TransactionService;
+import org.apache.tephra.TestTransactionManagerProvider;
+import org.apache.tephra.TransactionSystemClient;
+import org.apache.tephra.TransactionSystemTest;
+import org.apache.tephra.TxConstants;
 import org.apache.tephra.persist.TransactionStateStorage;
 import org.apache.tephra.runtime.ConfigModule;
 import org.apache.tephra.runtime.DiscoveryModules;
@@ -45,10 +48,10 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
   private static final Logger LOG = LoggerFactory.getLogger(ThriftTransactionSystemTest.class);
   
   private static InMemoryZKServer zkServer;
-  private static ZKClientService zkClientService;
-  private static TransactionService txService;
-  private static TransactionStateStorage storage;
-  private static TransactionSystemClient txClient;
+  static ZKClientService zkClientService;
+  static TransactionService txService;
+  static TransactionSystemClient txClient;
+  static Configuration conf;
 
   @ClassRule
   public static TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -58,7 +61,7 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
     zkServer = InMemoryZKServer.builder().setDataDir(tmpFolder.newFolder()).build();
     zkServer.startAndWait();
 
-    Configuration conf = new Configuration();
+    conf = new Configuration();
     conf.setBoolean(TxConstants.Manager.CFG_DO_PERSIST, false);
     conf.set(TxConstants.Service.CFG_DATA_TX_ZOOKEEPER_QUORUM, zkServer.getConnectionStr());
     conf.set(TxConstants.Service.CFG_DATA_TX_CLIENT_RETRY_STRATEGY, "n-times");
@@ -90,8 +93,6 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
     }
 
     Tests.waitForTxReady(txClient);
-    Assert.assertNotNull(txService.getTransactionManager());
-    storage = txService.getTransactionManager().getTransactionStateStorage();
   }
   
   @Before
@@ -113,6 +114,7 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
 
   @Override
   protected TransactionStateStorage getStateStorage() throws Exception {
-    return storage;
+    Assert.assertNotNull(txService.getTransactionManager());
+    return txService.getTransactionManager().getTransactionStateStorage();
   }
 }

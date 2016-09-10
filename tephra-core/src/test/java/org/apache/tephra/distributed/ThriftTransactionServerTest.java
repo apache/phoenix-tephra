@@ -19,7 +19,6 @@
 package org.apache.tephra.distributed;
 
 import com.google.common.util.concurrent.Service;
-import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
@@ -28,7 +27,6 @@ import com.google.inject.Module;
 import com.google.inject.Scopes;
 import com.google.inject.util.Modules;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.tephra.ThriftTransactionSystemTest;
 import org.apache.tephra.Transaction;
 import org.apache.tephra.TransactionSystemClient;
 import org.apache.tephra.TxConstants;
@@ -46,9 +44,6 @@ import org.apache.tephra.util.Tests;
 import org.apache.twill.discovery.DiscoveryService;
 import org.apache.twill.internal.zookeeper.InMemoryZKServer;
 import org.apache.twill.zookeeper.ZKClientService;
-import org.apache.zookeeper.WatchedEvent;
-import org.apache.zookeeper.Watcher;
-import org.apache.zookeeper.ZooKeeper;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -179,7 +174,7 @@ public class ThriftTransactionServerTest {
     TimeUnit.SECONDS.sleep(1);
 
     // Expire zookeeper session, which causes Thrift server to stop.
-    expireZkSession(zkClientService);
+    Tests.expireZkSession(zkClientService);
     waitForThriftStop();
 
     // Stop Zookeeper client so that it does not re-connect to Zookeeper and start Thrift server again.
@@ -203,7 +198,7 @@ public class ThriftTransactionServerTest {
     txClient.commit(tx);
 
     // Expire zookeeper session, which causes Thrift server to stop running.
-    expireZkSession(zkClientService);
+    Tests.expireZkSession(zkClientService);
     waitForThriftStop();
 
     // wait for the thrift rpc server to be in running state again
@@ -219,27 +214,6 @@ public class ThriftTransactionServerTest {
     // verify that we can start and commit a transaction after becoming leader again
     tx = txClient.startShort();
     txClient.commit(tx);
-  }
-
-  private void expireZkSession(ZKClientService zkClientService) throws Exception {
-    ZooKeeper zooKeeper = zkClientService.getZooKeeperSupplier().get();
-    final SettableFuture<?> connectFuture = SettableFuture.create();
-    Watcher watcher = new Watcher() {
-      @Override
-      public void process(WatchedEvent event) {
-        if (event.getState() == Event.KeeperState.SyncConnected) {
-          connectFuture.set(null);
-        }
-      }
-    };
-
-    // Create another Zookeeper session with the same sessionId so that the original one expires.
-    ZooKeeper dupZookeeper =
-      new ZooKeeper(zkClientService.getConnectString(), zooKeeper.getSessionTimeout(), watcher,
-                    zooKeeper.getSessionId(), zooKeeper.getSessionPasswd());
-    connectFuture.get(30, TimeUnit.SECONDS);
-    Assert.assertEquals("Failed to re-create current session", dupZookeeper.getState(), ZooKeeper.States.CONNECTED);
-    dupZookeeper.close();
   }
 
   private void waitForThriftStop() throws Exception {
