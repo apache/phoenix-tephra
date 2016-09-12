@@ -18,7 +18,7 @@
 
 package org.apache.tephra.runtime;
 
-import com.google.inject.AbstractModule;
+import com.google.inject.PrivateModule;
 import com.google.inject.Scopes;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import org.apache.tephra.DefaultTransactionExecutor;
@@ -37,7 +37,7 @@ import org.apache.tephra.snapshot.SnapshotCodecProvider;
  * Guice bindings for running completely in-memory (no persistence).  This should only be used for
  * test classes, as the transaction state cannot be recovered in the case of a failure.
  */
-public class TransactionInMemoryModule extends AbstractModule {
+public class TransactionInMemoryModule extends PrivateModule {
 
   @Override
   protected void configure() {
@@ -51,5 +51,9 @@ public class TransactionInMemoryModule extends AbstractModule {
     install(new FactoryModuleBuilder()
               .implement(TransactionExecutor.class, DefaultTransactionExecutor.class)
               .build(TransactionExecutorFactory.class));
+
+    expose(TransactionManager.class);
+    expose(TransactionSystemClient.class);
+    expose(TransactionExecutorFactory.class);
   }
 }

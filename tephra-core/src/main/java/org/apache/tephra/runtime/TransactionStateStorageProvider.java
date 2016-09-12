@@ -18,11 +18,9 @@
 package org.apache.tephra.runtime;
 
 import com.google.inject.Inject;
-import com.google.inject.Injector;
-import com.google.inject.Key;
 import com.google.inject.Provider;
 import com.google.inject.Singleton;
-import com.google.inject.name.Names;
+import com.google.inject.name.Named;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.persist.NoOpTransactionStateStorage;
@@ -36,20 +34,24 @@ import org.apache.tephra.persist.TransactionStateStorage;
 public final class TransactionStateStorageProvider implements Provider<TransactionStateStorage> {
 
   private final Configuration cConf;
-  private final Injector injector;
+  private final Provider<TransactionStateStorage> storageProvider;
+  private final Provider<NoOpTransactionStateStorage> noOpTransactionStateStorageProvider;
 
   @Inject
-  TransactionStateStorageProvider(Configuration cConf, Injector injector) {
+  TransactionStateStorageProvider(Configuration cConf,
+                                  Provider<NoOpTransactionStateStorage> noOpTransactionStateStorageProvider,
+                                  @Named("persist") Provider<TransactionStateStorage> storageProvider) {
     this.cConf = cConf;
-    this.injector = injector;
+    this.storageProvider = storageProvider;
+    this.noOpTransactionStateStorageProvider = noOpTransactionStateStorageProvider;
   }
 
   @Override
   public TransactionStateStorage get() {
     if (cConf.getBoolean(TxConstants.Manager.CFG_DO_PERSIST, true)) {
-      return injector.getInstance(Key.get(TransactionStateStorage.class, Names.named("persist")));
+      return storageProvider.get();
     } else {
-      return injector.getInstance(NoOpTransactionStateStorage.class);
+      return noOpTransactionStateStorageProvider.get();
     }
   }
 }

@@ -19,8 +19,13 @@
 
 package org.apache.tephra.util;
 
+import com.google.common.util.concurrent.SettableFuture;
 import org.apache.tephra.TransactionSystemClient;
 import org.apache.tephra.TxConstants;
+import org.apache.twill.zookeeper.ZKClientService;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
 import org.junit.Assert;
 
 import java.util.concurrent.Callable;
@@ -55,5 +60,26 @@ public final class Tests {
         }
       }
     });
+  }
+
+  public static void expireZkSession(ZKClientService zkClientService) throws Exception {
+    ZooKeeper zooKeeper = zkClientService.getZooKeeperSupplier().get();
+    final SettableFuture<?> connectFuture = SettableFuture.create();
+    Watcher watcher = new Watcher() {
+      @Override
+      public void process(WatchedEvent event) {
+        if (event.getState() == Event.KeeperState.SyncConnected) {
+          connectFuture.set(null);
+        }
+      }
+    };
+
+    // Create another Zookeeper session with the same sessionId so that the original one expires.
+    ZooKeeper dupZookeeper =
+      new ZooKeeper(zkClientService.getConnectString(), zooKeeper.getSessionTimeout(), watcher,
+                    zooKeeper.getSessionId(), zooKeeper.getSessionPasswd());
+    connectFuture.get(30, TimeUnit.SECONDS);
+    Assert.assertEquals("Failed to re-create current session", dupZookeeper.getState(), ZooKeeper.States.CONNECTED);
+    dupZookeeper.close();
   }
 }

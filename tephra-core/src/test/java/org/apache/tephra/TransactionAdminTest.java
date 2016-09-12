@@ -33,6 +33,7 @@ import org.apache.tephra.runtime.TransactionClientModule;
 import org.apache.tephra.runtime.TransactionModules;
 import org.apache.tephra.runtime.ZKModule;
 import org.apache.tephra.util.Tests;
+import org.apache.twill.discovery.DiscoveryService;
 import org.apache.twill.internal.zookeeper.InMemoryZKServer;
 import org.apache.twill.zookeeper.ZKClientService;
 import org.junit.AfterClass;
@@ -90,7 +91,10 @@ public class TransactionAdminTest {
     zkClientService.startAndWait();
 
     // start a tx server
-    txService = injector.getInstance(TransactionService.class);
+    DiscoveryService discoveryService = injector.getInstance(DiscoveryService.class);
+    txService =
+      new TransactionService(conf, zkClientService, discoveryService,
+                             new TestTransactionManagerProvider(conf, zkClientService));
     txClient = injector.getInstance(TransactionSystemClient.class);
     try {
       LOG.info("Starting transaction service");

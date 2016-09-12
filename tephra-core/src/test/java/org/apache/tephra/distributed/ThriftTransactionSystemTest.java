@@ -16,16 +16,15 @@
  * limitations under the License.
  */
 
-package org.apache.tephra;
+package org.apache.tephra.distributed;
 
-import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.Scopes;
-import com.google.inject.util.Modules;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.tephra.distributed.TransactionService;
-import org.apache.tephra.persist.InMemoryTransactionStateStorage;
+import org.apache.tephra.TestTransactionManagerProvider;
+import org.apache.tephra.TransactionSystemClient;
+import org.apache.tephra.TransactionSystemTest;
+import org.apache.tephra.TxConstants;
 import org.apache.tephra.persist.TransactionStateStorage;
 import org.apache.tephra.runtime.ConfigModule;
 import org.apache.tephra.runtime.DiscoveryModules;
@@ -33,9 +32,11 @@ import org.apache.tephra.runtime.TransactionClientModule;
 import org.apache.tephra.runtime.TransactionModules;
 import org.apache.tephra.runtime.ZKModule;
 import org.apache.tephra.util.Tests;
+import org.apache.twill.discovery.DiscoveryService;
 import org.apache.twill.internal.zookeeper.InMemoryZKServer;
 import org.apache.twill.zookeeper.ZKClientService;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -47,10 +48,10 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
   private static final Logger LOG = LoggerFactory.getLogger(ThriftTransactionSystemTest.class);
   
   private static InMemoryZKServer zkServer;
-  private static ZKClientService zkClientService;
-  private static TransactionService txService;
-  private static TransactionStateStorage storage;
-  private static TransactionSystemClient txClient;
+  static ZKClientService zkClientService;
+  static TransactionService txService;
+  static TransactionSystemClient txClient;
+  static Configuration conf;
 
   @ClassRule
   public static TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -60,7 +61,7 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
     zkServer = InMemoryZKServer.builder().setDataDir(tmpFolder.newFolder()).build();
     zkServer.startAndWait();
 
-    Configuration conf = new Configuration();
+    conf = new Configuration();
     conf.setBoolean(TxConstants.Manager.CFG_DO_PERSIST, false);
     conf.set(TxConstants.Service.CFG_DATA_TX_ZOOKEEPER_QUORUM, zkServer.getConnectionStr());
     conf.set(TxConstants.Service.CFG_DATA_TX_CLIENT_RETRY_STRATEGY, "n-times");
@@ -70,13 +71,7 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
       new ConfigModule(conf),
       new ZKModule(),
       new DiscoveryModules().getDistributedModules(),
-      Modules.override(new TransactionModules().getDistributedModules())
-        .with(new AbstractModule() {
-          @Override
-          protected void configure() {
-            bind(TransactionStateStorage.class).to(InMemoryTransactionStateStorage.class).in(Scopes.SINGLETON);
-          }
-        }),
+      new TransactionModules().getDistributedModules(),
       new TransactionClientModule()
     );
 
@@ -84,12 +79,13 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
     zkClientService.startAndWait();
 
     // start a tx server
-    txService = injector.getInstance(TransactionService.class);
-    storage = injector.getInstance(TransactionStateStorage.class);
+    DiscoveryService discoveryService = injector.getInstance(DiscoveryService.class);
+    txService =
+      new TransactionService(conf, zkClientService, discoveryService,
+                             new TestTransactionManagerProvider(conf, zkClientService));
     txClient = injector.getInstance(TransactionSystemClient.class);
     try {
       LOG.info("Starting transaction service");
-      storage.startAndWait();
       txService.startAndWait();
     } catch (Exception e) {
       LOG.error("Failed to start service: ", e);
@@ -107,7 +103,6 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
   @AfterClass
   public static void stop() throws Exception {
     txService.stopAndWait();
-    storage.stopAndWait();
     zkClientService.stopAndWait();
     zkServer.stopAndWait();
   }
@@ -119,6 +114,7 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
 
   @Override
   protected TransactionStateStorage getStateStorage() throws Exception {
-    return storage;
+    Assert.assertNotNull(txService.getTransactionManager());
+    return txService.getTransactionManager().getTransactionStateStorage();
   }
 }
