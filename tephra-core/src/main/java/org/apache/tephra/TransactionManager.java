@@ -18,6 +18,7 @@
 
 package org.apache.tephra;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Stopwatch;
@@ -1263,6 +1264,12 @@ public class TransactionManager extends AbstractService {
                ", in progress = " + inProgress.size() +
                ", committing = " + committingChangeSets.size() +
                ", committed = " + committedChangeSets.size());
+  }
+
+  @SuppressWarnings("unused")
+  @VisibleForTesting
+  public TransactionStateStorage getTransactionStateStorage() {
+    return persistor;
   }
 
   private abstract static class DaemonThreadExecutor extends Thread {
