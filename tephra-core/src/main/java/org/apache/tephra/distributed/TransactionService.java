@@ -42,6 +42,7 @@ import java.net.UnknownHostException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import javax.annotation.Nullable;
 
 /**
  *
@@ -152,5 +153,12 @@ public final class TransactionService extends InMemoryTransactionService {
         LOG.error("Exception when cancelling leader election.", e);
       }
     }
+  }
+
+  @SuppressWarnings({"WeakerAccess", "unused"})
+  @VisibleForTesting
+  @Nullable
+  public TransactionManager getTransactionManager() {
+    return txManager;
   }
 }
