@@ -28,7 +28,7 @@
 
   <groupId>org.apache.tephra</groupId>
   <artifactId>tephra</artifactId>
-  <version>0.9.0-incubating-SNAPSHOT</version>
+  <version>0.10.0-incubating-SNAPSHOT</version>
   <packaging>pom</packaging>
   <name>Apache Tephra</name>
   <description>
@@ -156,7 +156,7 @@
     <module>tephra-hbase-compat-0.98</module>
     <module>tephra-hbase-compat-1.0</module>
     <module>tephra-hbase-compat-1.0-cdh</module>
-    <module>tephra-hbase-compat-1.1</module>
+    <module>tephra-hbase-compat-1.1-base</module>
     <module>tephra-examples</module>
     <module>tephra-distribution</module>
   </modules>
@@ -210,6 +210,8 @@
     <hbase10.version>1.0.1.1</hbase10.version>
     <hbase10cdh.version>1.0.0-cdh5.4.2</hbase10cdh.version>
     <hbase11.version>1.1.1</hbase11.version>
+    <hbase12cdh.version>1.2.0-cdh5.7.0</hbase12cdh.version>
+    <hbase12.version>1.2.0</hbase12.version>
     <junit.version>4.11</junit.version>
     <slf4j.version>1.7.5</slf4j.version>
     <thrift.version>0.9.0</thrift.version>
@@ -315,6 +317,12 @@
         <artifactId>hadoop-common</artifactId>
         <version>${hadoop.version}</version>
         <scope>provided</scope>
+        <exclusions>
+          <exclusion>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-log4j12</artifactId>
+          </exclusion>
+        </exclusions>
       </dependency>
       <dependency>
         <groupId>org.apache.hadoop</groupId>
@@ -346,6 +354,18 @@
           </exclusion>
         </exclusions>
       </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>log4j-over-slf4j</artifactId>
+        <version>${slf4j.version}</version>
+        <scope>test</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>jcl-over-slf4j</artifactId>
+        <version>${slf4j.version}</version>
+        <scope>test</scope>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 
@@ -369,7 +389,7 @@
           <artifactId>maven-surefire-plugin</artifactId>
           <version>2.14.1</version>
           <configuration>
-            <argLine>-Xmx4096m -Djava.awt.headless=true -XX:MaxPermSize=256m</argLine>
+            <argLine>-Xmx4096m -Djava.awt.headless=true -XX:MaxPermSize=256m -Djava.net.preferIPv4Stack=true</argLine>
             <redirectTestOutputToFile>${surefire.redirectTestOutputToFile}</redirectTestOutputToFile>
             <reuseForks>false</reuseForks>
             <reportFormat>plain</reportFormat>

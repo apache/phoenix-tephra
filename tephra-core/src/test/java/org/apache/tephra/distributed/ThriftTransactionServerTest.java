@@ -27,6 +27,7 @@ import com.google.inject.Scopes;
 import com.google.inject.util.Modules;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.ThriftTransactionSystemTest;
+import org.apache.tephra.Transaction;
 import org.apache.tephra.TransactionSystemClient;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.persist.InMemoryTransactionStateStorage;
@@ -38,15 +39,15 @@ import org.apache.tephra.runtime.DiscoveryModules;
 import org.apache.tephra.runtime.TransactionClientModule;
 import org.apache.tephra.runtime.TransactionModules;
 import org.apache.tephra.runtime.ZKModule;
+import org.apache.tephra.util.Tests;
 import org.apache.twill.internal.zookeeper.InMemoryZKServer;
 import org.apache.twill.zookeeper.ZKClientService;
 import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -55,6 +56,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -62,6 +64,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * This tests whether transaction service hangs on stop when heavily loaded - https://issues.cask.co/browse/TEPHRA-132
+ * as well as proper handling of zk election https://issues.cask.co/browse/TEPHRA-179.
  */
 public class ThriftTransactionServerTest {
   private static final Logger LOG = LoggerFactory.getLogger(ThriftTransactionSystemTest.class);
@@ -70,17 +73,18 @@ public class ThriftTransactionServerTest {
   private static ZKClientService zkClientService;
   private static TransactionService txService;
   private static TransactionStateStorage storage;
-  static Injector injector;
+  private static Injector injector;
 
   private static final int NUM_CLIENTS = 17;
-  private static final CountDownLatch STORAGE_WAIT_LATCH = new CountDownLatch(1);
-  private static final CountDownLatch CLIENTS_DONE_LATCH = new CountDownLatch(NUM_CLIENTS);
+  // storageWaitLatch is used to simulate slow HDFS writes for TEPHRA-132
+  private static CountDownLatch storageWaitLatch;
+  private static CountDownLatch clientsDoneLatch;
 
   @ClassRule
   public static TemporaryFolder tmpFolder = new TemporaryFolder();
 
-  @BeforeClass
-  public static void start() throws Exception {
+  @Before
+  public void start() throws Exception {
     zkServer = InMemoryZKServer.builder().setDataDir(tmpFolder.newFolder()).build();
     zkServer.startAndWait();
 
@@ -93,6 +97,7 @@ public class ThriftTransactionServerTest {
     conf.setLong(TxConstants.Service.CFG_DATA_TX_CLIENT_TIMEOUT, TimeUnit.HOURS.toMillis(1));
     conf.setInt(TxConstants.Service.CFG_DATA_TX_SERVER_IO_THREADS, 2);
     conf.setInt(TxConstants.Service.CFG_DATA_TX_SERVER_THREADS, 4);
+    conf.setInt(TxConstants.HBase.ZK_SESSION_TIMEOUT, 10000);
 
     injector = Guice.createInjector(
       new ConfigModule(conf),
@@ -103,6 +108,8 @@ public class ThriftTransactionServerTest {
           @Override
           protected void configure() {
             bind(TransactionStateStorage.class).to(SlowTransactionStorage.class).in(Scopes.SINGLETON);
+            // overriding this to make it non-singleton
+            bind(TransactionSystemClient.class).to(TransactionServiceClient.class);
           }
         }),
       new TransactionClientModule()
@@ -119,16 +126,19 @@ public class ThriftTransactionServerTest {
       txService.startAndWait();
     } catch (Exception e) {
       LOG.error("Failed to start service: ", e);
+      throw e;
     }
-  }
 
-  @Before
-  public void reset() throws Exception {
+    Tests.waitForTxReady(injector.getInstance(TransactionSystemClient.class));
+
     getClient().resetState();
+
+    storageWaitLatch = new CountDownLatch(1);
+    clientsDoneLatch = new CountDownLatch(NUM_CLIENTS);
   }
 
-  @AfterClass
-  public static void stop() throws Exception {
+  @After
+  public void stop() throws Exception {
     txService.stopAndWait();
     storage.stopAndWait();
     zkClientService.stopAndWait();
@@ -141,6 +151,8 @@ public class ThriftTransactionServerTest {
 
   @Test
   public void testThriftServerStop() throws Exception {
+    Assert.assertEquals(Service.State.RUNNING, txService.thriftRPCServerState());
+
     int nThreads = NUM_CLIENTS;
     ExecutorService executorService = Executors.newFixedThreadPool(nThreads);
     for (int i = 0; i < nThreads; ++i) {
@@ -149,7 +161,8 @@ public class ThriftTransactionServerTest {
         public void run() {
           try {
             TransactionSystemClient txClient = getClient();
-            CLIENTS_DONE_LATCH.countDown();
+            clientsDoneLatch.countDown();
+            // this will hang, due to the slow edit log (until the latch in it is stopped)
             txClient.startShort();
           } catch (Exception e) {
             // Exception expected
@@ -158,21 +171,51 @@ public class ThriftTransactionServerTest {
       });
     }
 
-    // Wait till all clients finish sending reqeust to transaction manager
-    CLIENTS_DONE_LATCH.await();
+    // Wait till all clients finish sending request to transaction manager
+    clientsDoneLatch.await();
     TimeUnit.SECONDS.sleep(1);
 
     // Expire zookeeper session, which causes Thrift server to stop.
     expireZkSession(zkClientService);
-    waitForThriftTermination();
+    waitForThriftStop();
 
-    // Stop Zookeeper client so that it does not re-connect to Zookeeper and start Thrift sever again.
+    // Stop Zookeeper client so that it does not re-connect to Zookeeper and start Thrift server again.
     zkClientService.stopAndWait();
-    STORAGE_WAIT_LATCH.countDown();
+    storageWaitLatch.countDown();
     TimeUnit.SECONDS.sleep(1);
 
     // Make sure Thrift server stopped.
     Assert.assertEquals(Service.State.TERMINATED, txService.thriftRPCServerState());
+  }
+
+  @Test
+  public void testThriftServerRestart() throws Exception {
+    // we don't need a slow Transaction Log for this test case
+    storageWaitLatch.countDown();
+    Assert.assertEquals(Service.State.RUNNING, txService.thriftRPCServerState());
+
+    // simply start + commit transaction
+    TransactionSystemClient txClient = getClient();
+    Transaction tx = txClient.startShort();
+    txClient.commit(tx);
+
+    // Expire zookeeper session, which causes Thrift server to stop running.
+    expireZkSession(zkClientService);
+    waitForThriftStop();
+
+    // wait for the thrift rpc server to be in running state again
+    Tests.waitFor("Failed to wait for txService to be running.", new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        return Service.State.RUNNING == txService.thriftRPCServerState();
+      }
+    });
+
+    // we need to get a new txClient, because the old one will no longer work after the thrift server restart
+    txClient = getClient();
+    // verify that we can start and commit a transaction after becoming leader again
+    tx = txClient.startShort();
+    txClient.commit(tx);
   }
 
   private void expireZkSession(ZKClientService zkClientService) throws Exception {
@@ -188,7 +231,7 @@ public class ThriftTransactionServerTest {
     };
 
     // Create another Zookeeper session with the same sessionId so that the original one expires.
-    final ZooKeeper dupZookeeper =
+    ZooKeeper dupZookeeper =
       new ZooKeeper(zkClientService.getConnectString(), zooKeeper.getSessionTimeout(), watcher,
                     zooKeeper.getSessionId(), zooKeeper.getSessionPasswd());
     connectFuture.get(30, TimeUnit.SECONDS);
@@ -196,13 +239,16 @@ public class ThriftTransactionServerTest {
     dupZookeeper.close();
   }
 
-  private void waitForThriftTermination() throws InterruptedException {
-    int count = 0;
-    while (txService.thriftRPCServerState() != Service.State.TERMINATED && count++ < 200) {
-      TimeUnit.MILLISECONDS.sleep(50);
-    }
+  private void waitForThriftStop() throws Exception {
+    Tests.waitFor("Failed to wait for txService to stop", new Callable<Boolean>() {
+      @Override
+      public Boolean call() throws Exception {
+        return Service.State.RUNNING != txService.thriftRPCServerState();
+      }
+    });
   }
 
+  // the edit log will block until a countdown latch is decremented to simulate heavy load for TEPHRA-132
   private static class SlowTransactionStorage extends InMemoryTransactionStateStorage {
     @Override
     public TransactionLog createLog(long timestamp) throws IOException {
@@ -211,14 +257,14 @@ public class ThriftTransactionServerTest {
   }
 
   private static class SlowTransactionLog extends InMemoryTransactionStateStorage.InMemoryTransactionLog {
-    public SlowTransactionLog(long timestamp) {
+    SlowTransactionLog(long timestamp) {
       super(timestamp);
     }
 
     @Override
     public void append(TransactionEdit edit) throws IOException {
       try {
-        STORAGE_WAIT_LATCH.await();
+        storageWaitLatch.await();
       } catch (InterruptedException e) {
         LOG.error("Got exception: ", e);
       }
@@ -228,7 +274,7 @@ public class ThriftTransactionServerTest {
     @Override
     public void append(List<TransactionEdit> edits) throws IOException {
       try {
-        STORAGE_WAIT_LATCH.await();
+        storageWaitLatch.await();
       } catch (InterruptedException e) {
         LOG.error("Got exception: ", e);
       }

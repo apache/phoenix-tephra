@@ -20,50 +20,31 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
     <groupId>org.apache.tephra</groupId>
-    <artifactId>tephra</artifactId>
+    <artifactId>tephra-hbase-compat-1.1-base</artifactId>
     <version>0.10.0-incubating-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>tephra-examples</artifactId>
-  <name>Apache Tephra Examples</name>
-
-  <packaging>pom</packaging>
-  <modules>
-    <module>hbase-0.96</module>
-    <module>hbase-0.98</module>
-    <module>hbase-1.0</module>
-    <module>hbase-1.0-cdh</module>
-    <module>hbase-1.1</module>
-    <module>hbase-1.2</module>
-    <module>cdh-5.7</module>
-    <module>cdh-5.8</module>
-  </modules>
+  <artifactId>tephra-hbase-compat-1.2</artifactId>
+  <name>Apache Tephra HBase 1.2 Compatibility</name>
 
   <properties>
-    <hadoop.version>2.6.0</hadoop.version>
+    <hadoop.version>2.5.1</hadoop.version>
+    <hbase12.version>1.2.0</hbase12.version>
+
   </properties>
+
+  <build>
+    <sourceDirectory>../src/main/java</sourceDirectory>
+    <testSourceDirectory>../src/test/java</testSourceDirectory>
+  </build>
 
   <dependencies>
     <dependency>
-      <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-api</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-core</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-hbase-compat-1.0</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-common</artifactId>
-      <version>${hbase10.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -75,7 +56,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-client</artifactId>
-      <version>${hbase10.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -87,13 +68,13 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-protocol</artifactId>
-      <version>${hbase10.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase10.version}</version>
+      <version>${hbase12.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -103,31 +84,11 @@
       </exclusions>
     </dependency>
 
-
     <!-- Test dependencies -->
-    <dependency>
-      <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-core</artifactId>
-      <version>${project.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>log4j-over-slf4j</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>jcl-over-slf4j</artifactId>
-    </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase10.version}</version>
+      <version>${hbase12.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
       <exclusions>
@@ -140,7 +101,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-testing-util</artifactId>
-      <version>${hbase10.version}</version>
+      <version>${hbase12.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -154,17 +115,4 @@
       </exclusions>
     </dependency>
   </dependencies>
-
-  <build>
-    <plugins>
-      <plugin>
-        <!-- Disable deploy of examples -->
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-deploy-plugin</artifactId>
-        <configuration>
-          <skip>true</skip>
-        </configuration>
-      </plugin>
-    </plugins>
-  </build>
 </project>

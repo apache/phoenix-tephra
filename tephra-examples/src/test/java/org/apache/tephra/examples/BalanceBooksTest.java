@@ -25,6 +25,7 @@ import com.google.inject.Scopes;
 import com.google.inject.util.Modules;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
+import org.apache.tephra.TransactionSystemClient;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.distributed.TransactionService;
 import org.apache.tephra.persist.InMemoryTransactionStateStorage;
@@ -34,10 +35,13 @@ import org.apache.tephra.runtime.DiscoveryModules;
 import org.apache.tephra.runtime.TransactionClientModule;
 import org.apache.tephra.runtime.TransactionModules;
 import org.apache.tephra.runtime.ZKModule;
+import org.apache.tephra.util.Tests;
 import org.apache.twill.zookeeper.ZKClientService;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,12 +56,15 @@ public class BalanceBooksTest {
   private static TransactionService txService;
   private static ZKClientService zkClientService;
 
+  @ClassRule
+  public static TemporaryFolder tmpFolder = new TemporaryFolder();
+
   @BeforeClass
   public static void setup() throws Exception {
     testUtil = new HBaseTestingUtility();
     Configuration conf = testUtil.getConfiguration();
     conf.setBoolean(TxConstants.Manager.CFG_DO_PERSIST, false);
-    conf.set(TxConstants.Manager.CFG_TX_SNAPSHOT_DIR, "/tx.snapshot");
+    conf.set(TxConstants.Manager.CFG_TX_SNAPSHOT_DIR, tmpFolder.newFolder().getAbsolutePath());
 
     // Tune down the connection thread pool size
     conf.setInt("hbase.hconnection.threads.core", 5);
@@ -102,8 +109,10 @@ public class BalanceBooksTest {
       txService.startAndWait();
     } catch (Exception e) {
       LOG.error("Failed to start service: ", e);
+      throw e;
     }
 
+    Tests.waitForTxReady(injector.getInstance(TransactionSystemClient.class));
   }
 
   @AfterClass

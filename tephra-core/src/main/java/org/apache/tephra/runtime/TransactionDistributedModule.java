@@ -19,6 +19,7 @@
 package org.apache.tephra.runtime;
 
 import com.google.inject.AbstractModule;
+import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
 import com.google.inject.name.Names;
@@ -41,14 +42,16 @@ final class TransactionDistributedModule extends AbstractModule {
 
   @Override
   protected void configure() {
+    // some of these classes need to be non-singleton in order to create a new instance during leader() in
+    // TransactionService
     bind(SnapshotCodecProvider.class).in(Singleton.class);
-    bind(TransactionStateStorage.class).annotatedWith(Names.named("persist"))
-      .to(HDFSTransactionStateStorage.class).in(Singleton.class);
-    bind(TransactionStateStorage.class).toProvider(TransactionStateStorageProvider.class).in(Singleton.class);
+    bind(TransactionStateStorage.class).annotatedWith(Names.named("persist")).to(HDFSTransactionStateStorage.class);
+    bind(TransactionStateStorage.class).toProvider(TransactionStateStorageProvider.class);
 
-    bind(TransactionManager.class).in(Singleton.class);
-    bind(TransactionSystemClient.class).to(TransactionServiceClient.class).in(Singleton.class);
-    bind(MetricsCollector.class).to(DefaultMetricsCollector.class).in(Singleton.class);
+    // to catch issues during configure time
+    bind(TransactionManager.class);
+    bind(TransactionSystemClient.class).to(TransactionServiceClient.class).in(Scopes.SINGLETON);
+    bind(MetricsCollector.class).to(DefaultMetricsCollector.class);
 
     install(new FactoryModuleBuilder()
         .implement(TransactionExecutor.class, DefaultTransactionExecutor.class)
