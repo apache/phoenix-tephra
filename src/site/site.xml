@@ -51,12 +51,14 @@
       <item name="Home" href="./index.html"/>
       <item name="Getting Started" href="./GettingStarted.html"/>
       <item name="Presentations" href="./Presentations.html"/>
-      <item name="API (0.9.0-incubating-SNAPSHOT)" href="./apidocs/index.html"/>
+      <item name="API (0.10.0-incubating-SNAPSHOT)" href="./apidocs/index.html"/>
+      <item name="API (0.9.0-incubating)" href="./apidocs-0.9.0-incubating/index.html"/>
       <item name="API (0.8.0-incubating)" href="./apidocs-0.8.0-incubating/index.html"/>
     </menu>
 
     <menu name="Releases">
       <item name="0.8.0-incubating" href="releases/0.8.0-incubating.html"/>
+      <item name="0.9.0-incubating" href="releases/0.9.0-incubating.html"/>
     </menu>
 
     <menu name="Get Involved">

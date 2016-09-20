@@ -93,12 +93,33 @@ with Apache HBase 1.0.x):
   </dependency>
 ```
 
-For HBase 1.1.x or HBase 1.2.x:
+For HBase 1.1.x (except 1.1.5):
 
 ```xml
   <dependency>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-1.1</artifactId>
+    <version>${tephra.version}</version>
+  </dependency>
+```
+
+For HBase 1.2.x (except 1.2.2):
+
+```xml
+  <dependency>
+    <groupId>org.apache.tephra</groupId>
+    <artifactId>tephra-hbase-compat-1.2</artifactId>
+    <version>${tephra.version}</version>
+  </dependency>
+```
+
+If you are running the CDH 5.7, or 5.8 version of HBase 1.2.x (this version contains API incompatibilities
+with Apache HBase 1.2.x):
+
+```xml
+  <dependency>
+    <groupId>org.apache.tephra</groupId>
+    <artifactId>tephra-hbase-compat-1.2-cdh</artifactId>
     <version>${tephra.version}</version>
   </dependency>
 ```

@@ -110,6 +110,12 @@ repository.apache.org repository. Also it creates a source tarball
 1. Create a CHANGES.txt file to describe the changes in the release and checkin the file to
    `dist.apache.org/repos/dist/dev/incubator/tephra/${RELEASE_VERSION}-incubating-rc1/CHANGES.txt`.
 1. Close the staging repository at <https://repository.apache.org>
+    1. Login to <https://repository.apache.org>.
+    1. Go to "Staging Repos".
+    1. Find the "orgapachetephra" repo with the Tephra release. Be sure to expand the contents of the
+       repo to confirm that it contains the correct Tephra artifacts.
+    1. Click on the "Close" button at top, and enter a brief description, such as "Apache Tephra N.N.N
+       release".
 
 
 ### Update POM Version in master
@@ -173,11 +179,11 @@ close the vote by replying to the voting thread. Here is a template for the repl
 
 ```
   Subject: [RESULT][VOTE] Release of Apache Tephra-${RELEASE_VERSION}-incubating [rc1]
-  ==================================================================================
+  ====================================================================================
 
   Hi all,
 
-  After being opened for over 72 hours, the vote for releasing Apache Tephra
+  After being open for over 72 hours, the vote for releasing Apache Tephra
   ${RELEASE_VERSION}-incubating passed with n binding +1s and no 0 or -1.
 
   Binding +1s:
@@ -217,4 +223,51 @@ Release the source tarball:
 1. Copy the release artifacts and CHANGES.txt from the dev to release directory at
    `dist.apache.org/repos/dist/release/incubator/tephra/${RELEASE_VERSION}-incubating`
 
-Finally, announce the release on the mailing lists: dev@tephra and announce@
+Finally, announce the release on the mailing lists: dev@tephra and announce@.
+Here is a template for the announce email:
+
+```
+  Subject: [ANNOUNCE] Apache Tephra-${RELEASE_VERSION}-incubating released
+  ==================================================================================
+
+  Hi All,
+  
+  The Apache Tephra team is excited to announce the latest release of
+  Apache Tephra-${RELEASE_VERSION}-incubating. This is the [Nth] release of Apache Tephra.
+  
+  Apache Tephra is a transaction engine for distributed data stores like
+  Apache HBase. It provides ACID semantics for concurrent data operations
+  that span over region boundaries in HBase using Optimistic Concurrency Control.
+  
+  The release artifacts are available at
+  http://www.apache.org/dyn/closer.cgi/incubator/tephra/${RELEASE_VERSION}-incubating/src
+  
+  Maven artifacts have also been made available on repository.apache.org.
+  
+  We would like to thank all the contributors that made this release possible.
+  
+  Thanks,
+  The Apache Tephra (incubating) Team
+  
+  =====
+  
+  *Disclaimer*
+  
+  Apache Tephra is an effort undergoing incubation at The Apache Software
+  Foundation (ASF), sponsored by the name of Apache Incubator PMC. Incubation
+  is required of all newly accepted projects until a further review indicates
+  that the infrastructure, communications, and decision making process have
+  stabilized in a manner consistent with other successful ASF projects. While
+  incubation status is not necessarily a reflection of the completeness or
+  stability of the code, it does indicate that the project has yet to be
+  fully endorsed by the ASF.
+  
+```
+
+## Update Website with the new Release
+
+```sh
+  git checkout master
+  git merge release/N.N.N
+  git push origin master
+```
