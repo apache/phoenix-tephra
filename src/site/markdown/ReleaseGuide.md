@@ -101,7 +101,7 @@ Perform the release by running:
 
 This will checkout the source code using the release tag, build the release and deploy it to the
 repository.apache.org repository. Also it creates a source tarball
-`apache-tephra-0.8.0-incubating-SNAPSHOT-source-release.tar.gz` under the `target` directory.
+`apache-tephra-${RELEASE_VERSION}-incubating-SNAPSHOT-source-release.tar.gz` under the `target` directory.
 
 ### Prepare Release Artifacts
 1. Checkin the source release tarball, together with the signature, md5 and sha512 files found in
@@ -265,9 +265,90 @@ Here is a template for the announce email:
 ```
 
 ## Update Website with the new Release
+Build javadocs for the release version using the command below. The javadocs for the
+release version will be under `target/site/apidocs`:
 
 ```sh
-  git checkout master
-  git merge release/N.N.N
-  git push origin master
+git pull
+git checkout v${RELEASE_VERSION}-incubating
+mvn clean javadoc:aggregate -DskipTests
+```
+
+Merge `master` into the `site` branch:
+
+```sh
+git checkout site
+git merge --no-ff origin/master
+```
+
+Copy over the release javadocs to `src/site/resources`:
+
+```sh
+cp -r target/site/apidocs src/site/resources/apidocs-${RELEASE_VERSION}-incubating
+```
+
+Create a corresponding release markdown file `src/site/markdown/releases/${RELEASE_VERSION}-incubating.md`.
+
+Update `src/site/site.xml` to include the new release
+
+  - Update section "Documentation" to point to the javadocs for the release version.
+  - Update section "Releases" to point to the new release markdown.
+
+Update the following sections of documentation if needed
+
+  - "Getting Started" section in `site/markdown/GettingStarted.md`
+  - "Hadoop/HBase Environment" `section in site/markdown/index.md`
+
+Build javadocs for the next development version:
+
+```sh
+git checkout master
+mvn clean package javadoc:aggregate -DskipTests
+```
+
+Copy over the development javadocs to `src/site/resources`:
+
+```sh
+git checkout site
+rm -rf src/site/resources/apidocs
+cp -r target/site/apidocs src/site/resources/apidocs
+```
+
+Build the website:
+
+```sh
+mvn clean site -P site -DskipTests
+```
+
+Verify the website:
+
+```sh
+open target/site/index.html
+```
+
+Checkout Tephra site from `https://svn.apache.org/repos/asf/incubator/tephra/site` if needed:
+
+```sh
+svn co https://svn.apache.org/repos/asf/incubator/tephra [working-dir]/tephra-site
+```
+
+Rsync the files in `target/site` to `https://svn.apache.org/repos/asf/incubator/tephra/site`:
+
+```sh
+cd [tephra-src-git-dir]
+rsync -a target/site [working-dir]/tephra-site
+cd [working-dir]/tephra-site
+```
+
+Verify the website again:
+
+```sh
+open site/index.html
+```
+
+Commit the site chagnes:
+
+```sh
+svn add [new-release-dirs]
+svn commit -m "Apache Tephra site for release N.N.N"
 ```
