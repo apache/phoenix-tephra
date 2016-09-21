@@ -313,18 +313,6 @@ public class TxConstants {
   }
 
   /**
-   * Configuration for the TransactionDataJanitor coprocessor.
-   */
-  public static final class DataJanitor {
-    /**
-     * Whether or not the TransactionDataJanitor coprocessor should be enabled on tables.
-     * Disable for testing.
-     */
-    public static final String CFG_TX_JANITOR_ENABLE = "data.tx.janitor.enable";
-    public static final boolean DEFAULT_TX_JANITOR_ENABLE = true;
-  }
-
-  /**
    * Configuration for the transaction snapshot persistence.
    */
   public static final class Persist {
