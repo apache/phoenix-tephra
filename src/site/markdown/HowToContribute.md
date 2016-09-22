@@ -54,18 +54,22 @@ these steps to get your contributions in:
 
 Committer can merge code changes that are already reviewed into the `master` branch with the following steps:
 
-1. Make sure the GitHub pull request is squashed into one commit. If not, ask the patch contributor to help doing so.
+1. Checkout the master branch from the Apache git repository (`https://git-wip-us.apache.org/repos/asf/incubator-tephra.git`).
 
-2. Download the patch file from GitHub. You can append `.patch` to the end of the GitHub pull request URL to get the patch file.
+2. Make sure the GitHub pull request is squashed into one commit. If not, ask the patch contributor to help doing so.
+
+3. Download the patch file from GitHub. You can append `.patch` to the end of the GitHub pull request URL to get the patch file.
 
         curl -L -O https://github.com/apache/incubator-tephra/pull/${PR_NUMBER}.patch
-3. Edit the patch file and add the following line in the commit message for closing the pull request.
+
+4. Edit the patch file and add the following line in the commit message (that is, between the subject and the `--`)
+  for closing the pull request.
 
         This closes #${PR_NUMBER} from GitHub.
-4. Apply the patch and push it back to remote repo. Make sure you apply it on the latest `master` branch.
+5. Apply the patch and push it back to remote repo. Make sure you apply it on the latest `master` branch.
 
         git checkout master
         git pull origin master
-        git am --signoff < ${PR_NUMBER}
+        git am --signoff < ${PR_NUMBER}.patch
         git push origin master
-5. Close the JIRA issue associated with the patch.
+6. Close the JIRA issue associated with the patch.
