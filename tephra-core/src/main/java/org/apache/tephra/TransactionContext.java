@@ -89,6 +89,36 @@ public class TransactionContext {
    */
   public void start() throws TransactionFailureException {
     currentTx = txClient.startShort();
+    startAllTxAwares();
+  }
+
+  /**
+   * Starts a new transaction.  Calling this will initiate a new transaction using the {@link TransactionSystemClient},
+   * and pass the returned transaction to {@link TransactionAware#startTx(Transaction)} for each registered
+   * TransactionAware.  If an exception is encountered, the transaction will be aborted and a
+   * {@code TransactionFailureException} wrapping the root cause will be thrown.
+   *
+   * @param timeout the transaction timeout for the transaction
+   *
+   * @throws TransactionFailureException if an exception occurs starting the transaction with any registered
+   *     TransactionAware
+   */
+  public void start(int timeout) throws TransactionFailureException {
+    currentTx = txClient.startShort(timeout);
+    startAllTxAwares();
+  }
+
+  /**
+   * This is a helper for {@link #start()} and {@link #start(int)}.
+   *
+   * Passes the current transaction to {@link TransactionAware#startTx(Transaction)} for each registered
+   * TransactionAware. If an exception is encountered, the transaction will be aborted and a
+   * {@code TransactionFailureException} wrapping the root cause will be thrown.
+   *
+   * @throws TransactionFailureException if an exception occurs starting the transaction with any registered
+   *     TransactionAware
+   */
+  private void startAllTxAwares() throws TransactionFailureException {
     for (TransactionAware txAware : txAwares) {
       try {
         txAware.startTx(currentTx);
@@ -97,6 +127,7 @@ public class TransactionContext {
                                        txAware.getTransactionAwareName(), currentTx.getTransactionId());
         LOG.warn(message, e);
         txClient.abort(currentTx);
+        currentTx = null;
         throw new TransactionFailureException(message, e);
       }
     }
