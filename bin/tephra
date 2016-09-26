@@ -56,7 +56,7 @@ APP=`basename $0`
 # Load component common environment file too
 . $bin/tephra-env.sh
 
-pid=$PID_DIR/tephra-service-${IDENT_STRING}.pid
+tephra_pid=$TEPHRA_PID_DIR/tephra-service-${IDENT_STRING}.pid
 
 # In other environment, the jars are expected to be in <HOME>/lib directory.
 # Load all the jar files. Not ideal, but we need to load only the things that
@@ -73,15 +73,15 @@ if [ -d "$conf" ]; then
 fi
 
 # Set Log location
-if [ ! -e $LOG_DIR ]; then
-  mkdir -p $LOG_DIR;
+if [ ! -e $TEPHRA_LOG_DIR ]; then
+  mkdir -p $TEPHRA_LOG_DIR;
 fi
-export LOG_PREFIX="tephra-service-$IDENT_STRING-$HOSTNAME"
-export LOGFILE=$LOG_PREFIX.log
-loglog="${LOG_DIR}/${LOGFILE}"
+TEPHRA_LOG_PREFIX="tephra-service-$IDENT_STRING-$HOSTNAME"
+TEPHRA_LOGFILE=$TEPHRA_LOG_PREFIX.log
+loglog="${TEPHRA_LOG_DIR}/${TEPHRA_LOGFILE}"
 
 # set the classpath to include hadoop and hbase dependencies
-set_classpath()
+tephra_set_classpath()
 {
   COMP_HOME=$1
   if [ -n "$HBASE_HOME" ]; then
@@ -93,11 +93,11 @@ set_classpath()
   export HBASE_CP
 
   if [ -n "$HBASE_CP" ]; then
-    CP=$COMP_HOME/lib/*:$HBASE_CP:$COMP_HOME/conf/:$EXTRA_CLASSPATH
+    CP=$COMP_HOME/lib/*:$HBASE_CP:$COMP_HOME/conf/:$TEPHRA_EXTRA_CLASSPATH
   else
-    # assume Hadoop/HBase libs are included via EXTRA_CLASSPATH
+    # assume Hadoop/HBase libs are included via TEPHRA_EXTRA_CLASSPATH
     echo "WARN: could not find Hadoop and HBase libraries"
-    CP=$COMP_HOME/lib/*:$COMP_HOME/conf/:$EXTRA_CLASSPATH
+    CP=$COMP_HOME/lib/*:$COMP_HOME/conf/:$TEPHRA_EXTRA_CLASSPATH
   fi
 
   # Setup classpaths.
@@ -111,7 +111,7 @@ set_classpath()
 }
 
 # Attempts to find JAVA in few ways.
-set_java ()
+tephra_set_java ()
 {
   # Determine the Java command to use to start the JVM.
   if [ -n "$JAVA_HOME" ] ; then
@@ -137,15 +137,15 @@ location of your Java installation." >&2 ; exit 1; }
 }
 
 # checks if there exists a PID that is already running. return 0 idempotently
-check_before_start()
+tephra_check_before_start()
 {
-  if [ ! -d "$PID_DIR" ]; then
-    mkdir -p "$PID_DIR"
+  if [ ! -d "$TEPHRA_PID_DIR" ]; then
+    mkdir -p "$TEPHRA_PID_DIR"
   fi
-  if [ -f $pid ]; then
-    if kill -0 `cat $pid` > /dev/null 2>&1; then
-      #echo "$APP $SERVICE running as process `cat $pid`. Stop it first."
-      echo "$APP running as process `cat $pid`. Stop it first."
+  if [ -f $tephra_pid ]; then
+    if kill -0 `cat $tephra_pid` > /dev/null 2>&1; then
+      #echo "$APP $SERVICE running as process `cat $tephra_pid`. Stop it first."
+      echo "$APP running as process `cat $tephra_pid`. Stop it first."
       exit 0
     fi
   fi
@@ -158,12 +158,12 @@ fi
 
 start() {
   # Setup classpaths.
-  set_classpath $APP_HOME
+  tephra_set_classpath $APP_HOME
 
   # sets the JAVA variable.
-  set_java
+  tephra_set_java
 
-  check_before_start
+  tephra_check_before_start
 
   echo "`date` Starting $APP service on `hostname`"
   echo "`date` Starting $APP service on `hostname`" >> $loglog
@@ -171,33 +171,33 @@ start() {
 
   export MAIN_CLASS="org.apache.tephra.TransactionServiceMain"
   echo "Running class $MAIN_CLASS"
-  echo "Command: " "$JAVA" $OPTS -cp $CLASSPATH $JAVA_HEAPMAX $MAIN_CLASS >>$loglog
-  nohup nice -n $NICENESS "$JAVA" $OPTS -cp $CLASSPATH $JAVA_HEAPMAX ${MAIN_CLASS} </dev/null >>$loglog 2>&1 &
-  echo $! >$pid
+  echo "Command: " "$JAVA" $TEPHRA_OPTS -cp $CLASSPATH $TEPHRA_JAVA_HEAPMAX $MAIN_CLASS >>$loglog
+  nohup nice -n $NICENESS "$JAVA" $TEPHRA_OPTS -cp $CLASSPATH $TEPHRA_JAVA_HEAPMAX ${MAIN_CLASS} </dev/null >>$loglog 2>&1 &
+  echo $! >$tephra_pid
 }
 
 stop() {
-  if [ -f $pid ]; then
-    pidToKill=`cat $pid`
+  if [ -f $tephra_pid ]; then
+    tephra_pidToKill=`cat $tephra_pid`
     # kill -0 == see if the PID exists
-    if kill -0 $pidToKill > /dev/null 2>&1; then
+    if kill -0 $tephra_pidToKill > /dev/null 2>&1; then
       echo -n stopping $command
       echo "`date` Terminating $command" >> $loglog
-      kill $pidToKill > /dev/null 2>&1
-      while kill -0 $pidToKill > /dev/null 2>&1;
+      kill $tephra_pidToKill > /dev/null 2>&1
+      while kill -0 $tephra_pidToKill > /dev/null 2>&1;
       do
         echo -n "."
         sleep 1;
       done
-      rm $pid
+      rm $tephra_pid
       echo
     else
       retval=$?
-      echo nothing to stop because kill -0 of pid $pidToKill failed with status $retval
+      echo nothing to stop because kill -0 of PID $tephra_pidToKill failed with status $retval
     fi
-    rm -f $pid
+    rm -f $tephra_pid
   else
-    echo nothing to stop because no pid file $pid
+    echo nothing to stop because no PID file $tephra_pid
   fi
 }
 
@@ -230,13 +230,13 @@ condrestart(){
 rh_status() {
     echo "checking status"
     # call sourced status function
-    status -p $pid 
+    status -p $tephra_pid
 }
 
 ub_status() {
     echo "checking status"
     # call sourced status function
-    status_of_proc -p $pid "$0" "$APP"
+    status_of_proc -p $tephra_pid "$0" "$APP"
 }
 
 # Executes a specific class' main method with the classpath and environment setup
@@ -249,13 +249,13 @@ run() {
         exit 1
     fi
     # Setup classpaths.
-    set_classpath $APP_HOME
+    tephra_set_classpath $APP_HOME
 
     # sets the JAVA variable.
-    set_java
+    tephra_set_java
 
     echo "Running class $classname"
-    "$JAVA" $OPTS -cp $CLASSPATH $JAVA_HEAPMAX $classname $@
+    "$JAVA" $TEPHRA_OPTS -cp $CLASSPATH $TEPHRA_JAVA_HEAPMAX $classname $@
 }
 
 case "$1" in
@@ -291,8 +291,8 @@ case "$1" in
   ;;
 
   classpath)
-    set_classpath $APP_HOME
-    set_java
+    tephra_set_classpath $APP_HOME
+    tephra_set_java
     echo $CLASSPATH
   ;;
 
