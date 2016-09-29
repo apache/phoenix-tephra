@@ -165,15 +165,19 @@ start() {
 
   check_before_start
 
-  echo "`date` Starting $APP service on `hostname`"
-  echo "`date` Starting $APP service on `hostname`" >> $loglog
+  echo "`date` Starting $APP service on `hostname`" | tee -a $loglog
   echo "`ulimit -a`" >> $loglog 2>&1
 
   export MAIN_CLASS="org.apache.tephra.TransactionServiceMain"
-  echo "Running class $MAIN_CLASS"
-  echo "Command: " "$JAVA" $OPTS -cp $CLASSPATH $JAVA_HEAPMAX $MAIN_CLASS >>$loglog
-  nohup nice -n $NICENESS "$JAVA" $OPTS -cp $CLASSPATH $JAVA_HEAPMAX ${MAIN_CLASS} </dev/null >>$loglog 2>&1 &
-  echo $! >$pid
+  if [[ ${1} == '--foreground' ]]; then
+    echo "Starting with foreground logging"
+    echo "Command: " "$JAVA" $TEPHRA_OPTS -cp $CLASSPATH $TEPHRA_JAVA_HEAPMAX $MAIN_CLASS | tee -a $loglog
+    nice -n $NICENESS "$JAVA" $TEPHRA_OPTS -cp $CLASSPATH $TEPHRA_JAVA_HEAPMAX ${MAIN_CLASS} | tee -a $loglog
+  else
+    echo "Command: " "$JAVA" $TEPHRA_OPTS -cp $CLASSPATH $TEPHRA_JAVA_HEAPMAX $MAIN_CLASS >>$loglog
+    nohup nice -n $NICENESS "$JAVA" $TEPHRA_OPTS -cp $CLASSPATH $TEPHRA_JAVA_HEAPMAX ${MAIN_CLASS} </dev/null >>$loglog 2>&1 &
+    echo $! >$tephra_pid
+  fi
 }
 
 stop() {
@@ -223,7 +227,7 @@ condrestart(){
     esac
 
   if [[ $retval -eq 0 ]]; then
-    restart
+    restart ${@}
   fi
 }
 
@@ -259,19 +263,13 @@ run() {
 }
 
 case "$1" in
-  start)
-    $1  
+  start|restart|condrestart|run)
+    action=${1}
+    shift
+    ${action} ${@}
   ;;
   
   stop)
-    $1
-  ;;
-
-  restart)
-    $1
-  ;;
-
-  condrestart)
     $1
   ;;
 
@@ -296,13 +294,8 @@ case "$1" in
     echo $CLASSPATH
   ;;
 
-  run)
-    shift
-    run $@
-  ;;
-
   *)
-    echo "Usage: $0 {start|stop|restart|status|run}"
+    echo "Usage: $0 {start|stop|restart|condrestart|status|run|classpath}"
     exit 1
   ;;
 
