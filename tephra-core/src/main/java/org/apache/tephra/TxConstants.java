@@ -149,6 +149,15 @@ public class TxConstants {
     public static final String CFG_TX_LONG_TIMEOUT = "data.tx.long.timeout";
     /** Default value for long running transaction timeout, in seconds. */
     public static final int DEFAULT_TX_LONG_TIMEOUT = (int) TimeUnit.DAYS.toSeconds(1);
+    /**
+     * The limit for the allowed transaction timeout, in seconds. Attempts to start a transaction with a longer
+     * timeout will fail.
+     */
+    public static final String CFG_TX_MAX_TIMEOUT = "data.tx.max.timeout";
+    /**
+     * The default value for the transaction timeout limit, in seconds: unlimited.
+     */
+    public static final int DEFAULT_TX_MAX_TIMEOUT = Integer.MAX_VALUE;
     /** The frequency (in seconds) to perform periodic snapshots, or 0 for no periodic snapshots. */
     public static final String CFG_TX_SNAPSHOT_INTERVAL = "data.tx.snapshot.interval";
     /** Default value for frequency of periodic snapshots of transaction state. */

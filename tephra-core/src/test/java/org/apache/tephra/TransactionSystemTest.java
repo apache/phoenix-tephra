@@ -42,6 +42,18 @@ public abstract class TransactionSystemTest {
 
   protected abstract TransactionStateStorage getStateStorage() throws Exception;
 
+  // Unfortunately, in-memory mode and thrift mode throw different exceptions here
+  @Test(expected = Exception.class)
+  public void testNegativeTimeout() throws Exception {
+    getClient().startShort(-1);
+  }
+
+  // Unfortunately, in-memory mode and thrift mode throw different exceptions here
+  @Test(expected = Exception.class)
+  public void testExcessiveTimeout() throws Exception {
+    getClient().startShort((int) TimeUnit.DAYS.toSeconds(10));
+  }
+
   @Test
   public void testCommitRaceHandling() throws Exception {
     TransactionSystemClient client1 = getClient();
