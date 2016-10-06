@@ -142,6 +142,7 @@ public class TransactionManager extends AbstractService {
   private final int cleanupInterval;
   private final int defaultTimeout;
   private final int defaultLongTimeout;
+  private final int maxTimeout;
   private DaemonThreadExecutor cleanupThread = null;
 
   private volatile TransactionLog currentLog;
@@ -174,6 +175,8 @@ public class TransactionManager extends AbstractService {
     this.persistor = persistor;
     cleanupInterval = conf.getInt(TxConstants.Manager.CFG_TX_CLEANUP_INTERVAL,
                                   TxConstants.Manager.DEFAULT_TX_CLEANUP_INTERVAL);
+    maxTimeout = conf.getInt(TxConstants.Manager.CFG_TX_MAX_TIMEOUT,
+                             TxConstants.Manager.DEFAULT_TX_MAX_TIMEOUT);
     defaultTimeout = conf.getInt(TxConstants.Manager.CFG_TX_TIMEOUT,
                                  TxConstants.Manager.DEFAULT_TX_TIMEOUT);
     defaultLongTimeout = conf.getInt(TxConstants.Manager.CFG_TX_LONG_TIMEOUT,
@@ -722,7 +725,10 @@ public class TransactionManager extends AbstractService {
    * @param timeoutInSeconds the time out period in seconds.
    */
   public Transaction startShort(int timeoutInSeconds) {
-    Preconditions.checkArgument(timeoutInSeconds > 0, "timeout must be positive but is %s", timeoutInSeconds);
+    Preconditions.checkArgument(timeoutInSeconds > 0,
+                                "timeout must be positive but is %s seconds", timeoutInSeconds);
+    Preconditions.checkArgument(timeoutInSeconds <= maxTimeout,
+                                "timeout must not exceed %s seconds but is %s seconds", maxTimeout, timeoutInSeconds);
     txMetricsCollector.rate("start.short");
     Stopwatch timer = new Stopwatch().start();
     long expiration = getTxExpiration(timeoutInSeconds);

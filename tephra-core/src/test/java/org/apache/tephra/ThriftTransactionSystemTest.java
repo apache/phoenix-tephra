@@ -43,6 +43,8 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.TimeUnit;
+
 public class ThriftTransactionSystemTest extends TransactionSystemTest {
   private static final Logger LOG = LoggerFactory.getLogger(ThriftTransactionSystemTest.class);
   
@@ -65,6 +67,7 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
     conf.set(TxConstants.Service.CFG_DATA_TX_ZOOKEEPER_QUORUM, zkServer.getConnectionStr());
     conf.set(TxConstants.Service.CFG_DATA_TX_CLIENT_RETRY_STRATEGY, "n-times");
     conf.setInt(TxConstants.Service.CFG_DATA_TX_CLIENT_ATTEMPTS, 1);
+    conf.setInt(TxConstants.Manager.CFG_TX_MAX_TIMEOUT, (int) TimeUnit.DAYS.toSeconds(5)); // very long limit
 
     Injector injector = Guice.createInjector(
       new ConfigModule(conf),

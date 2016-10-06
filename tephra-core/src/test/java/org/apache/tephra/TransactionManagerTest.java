@@ -56,6 +56,7 @@ public class TransactionManagerTest extends TransactionSystemTest {
   @Before
   public void before() {
     conf.setInt(TxConstants.Manager.CFG_TX_CLEANUP_INTERVAL, 0); // no cleanup thread
+    conf.setInt(TxConstants.Manager.CFG_TX_MAX_TIMEOUT, (int) TimeUnit.DAYS.toSeconds(5)); // very long limit
     // todo should create two sets of tests, one with LocalFileTxStateStorage and one with InMemoryTxStateStorage
     txStateStorage = new InMemoryTransactionStateStorage();
     txManager = new TransactionManager
