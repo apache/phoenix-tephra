@@ -24,6 +24,7 @@ import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TransactionNotInProgressException;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.distributed.thrift.TBoolean;
+import org.apache.tephra.distributed.thrift.TGenericException;
 import org.apache.tephra.distributed.thrift.TInvalidTruncateTimeException;
 import org.apache.tephra.distributed.thrift.TTransaction;
 import org.apache.tephra.distributed.thrift.TTransactionCouldNotTakeSnapshotException;
@@ -76,6 +77,14 @@ public class TransactionServiceThriftHandler implements TTransactionServer.Iface
     return TransactionConverterUtils.wrap(txManager.startShort(timeout));
   }
 
+  @Override
+  public TTransaction startShortWithTimeout(int timeout) throws TException {
+    try {
+      return TransactionConverterUtils.wrap(txManager.startShort(timeout));
+    } catch (IllegalArgumentException e) {
+      throw new TGenericException(e.getMessage(), e.getClass().getName());
+    }
+  }
 
   @Override
   public TBoolean canCommitTx(TTransaction tx, Set<ByteBuffer> changes) throws TException {
