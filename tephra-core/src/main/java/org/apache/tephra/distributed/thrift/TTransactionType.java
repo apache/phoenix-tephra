@@ -25,6 +25,10 @@
 package org.apache.tephra.distributed.thrift;
 
 
+import java.util.Map;
+import java.util.HashMap;
+import org.apache.thrift.TEnum;
+
 public enum TTransactionType implements org.apache.thrift.TEnum {
   SHORT(1),
   LONG(2);

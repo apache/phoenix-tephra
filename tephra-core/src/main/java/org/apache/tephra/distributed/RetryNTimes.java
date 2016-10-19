@@ -28,18 +28,18 @@ import org.apache.tephra.TxConstants;
  */
 public class RetryNTimes extends RetryStrategy {
 
-  int attempts = 0;
-  int limit;
+  private int attempts = 0;
+  private int limit;
 
   /**
    * @param maxAttempts the number of attempts after which to stop
    */
-  protected RetryNTimes(int maxAttempts) {
+  private RetryNTimes(int maxAttempts) {
     limit = maxAttempts;
   }
 
   @Override
-  boolean failOnce() {
+  public boolean failOnce() {
     ++attempts;
     return attempts < limit;
   }

@@ -1,3 +1,4 @@
+/*
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -15,6 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+*/
 
 namespace java org.apache.tephra.distributed.thrift
 
@@ -53,6 +55,11 @@ exception TInvalidTruncateTimeException {
   1: string message
 }
 
+exception TGenericException {
+  1: string message,
+  2: string originalExceptionClass
+}
+
 # workaround for THRIFT-1474
 struct TBoolean {
   1: bool value
@@ -62,7 +69,9 @@ service TTransactionServer {
   // temporary tx2 stuff
   TTransaction startLong(),
   TTransaction startShort(),
+  // TODO remove this as it was replaced with startShortWithTimeout in 0.10
   TTransaction startShortTimeout(1: i32 timeout),
+  TTransaction startShortWithTimeout(1: i32 timeout) throws (1:TGenericException e),
   TBoolean canCommitTx(1: TTransaction tx, 2: set<binary> changes) throws (1:TTransactionNotInProgressException e),
   TBoolean commitTx(1: TTransaction tx) throws (1:TTransactionNotInProgressException e),
   void abortTx(1: TTransaction tx),

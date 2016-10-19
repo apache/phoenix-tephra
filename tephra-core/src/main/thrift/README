@@ -18,3 +18,7 @@
 
 To generate thrift classes:
 	thrift --gen java --out ../java/ transaction.thrift
+
+To add the Apache license header to the generated fiels:
+  for f in ../java/org/apache/tephra/distributed/thrift/T*.java; do mv $f nn; cat header nn > $f; rm -f nn; done
+

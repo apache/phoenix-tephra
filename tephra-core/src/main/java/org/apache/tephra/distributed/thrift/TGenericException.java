@@ -48,22 +48,25 @@ import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TTransactionNotInProgressException extends TException implements org.apache.thrift.TBase<TTransactionNotInProgressException, TTransactionNotInProgressException._Fields>, java.io.Serializable, Cloneable {
-  private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("TTransactionNotInProgressException");
+public class TGenericException extends TException implements org.apache.thrift.TBase<TGenericException, TGenericException._Fields>, java.io.Serializable, Cloneable {
+  private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("TGenericException");
 
   private static final org.apache.thrift.protocol.TField MESSAGE_FIELD_DESC = new org.apache.thrift.protocol.TField("message", org.apache.thrift.protocol.TType.STRING, (short)1);
+  private static final org.apache.thrift.protocol.TField ORIGINAL_EXCEPTION_CLASS_FIELD_DESC = new org.apache.thrift.protocol.TField("originalExceptionClass", org.apache.thrift.protocol.TType.STRING, (short)2);
 
   private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
   static {
-    schemes.put(StandardScheme.class, new TTransactionNotInProgressExceptionStandardSchemeFactory());
-    schemes.put(TupleScheme.class, new TTransactionNotInProgressExceptionTupleSchemeFactory());
+    schemes.put(StandardScheme.class, new TGenericExceptionStandardSchemeFactory());
+    schemes.put(TupleScheme.class, new TGenericExceptionTupleSchemeFactory());
   }
 
   public String message; // required
+  public String originalExceptionClass; // required
 
   /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
   public enum _Fields implements org.apache.thrift.TFieldIdEnum {
-    MESSAGE((short)1, "message");
+    MESSAGE((short)1, "message"),
+    ORIGINAL_EXCEPTION_CLASS((short)2, "originalExceptionClass");
 
     private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -80,6 +83,8 @@ public class TTransactionNotInProgressException extends TException implements or
       switch(fieldId) {
         case 1: // MESSAGE
           return MESSAGE;
+        case 2: // ORIGINAL_EXCEPTION_CLASS
+          return ORIGINAL_EXCEPTION_CLASS;
         default:
           return null;
       }
@@ -125,43 +130,51 @@ public class TTransactionNotInProgressException extends TException implements or
     Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
     tmpMap.put(_Fields.MESSAGE, new org.apache.thrift.meta_data.FieldMetaData("message", org.apache.thrift.TFieldRequirementType.DEFAULT, 
         new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
+    tmpMap.put(_Fields.ORIGINAL_EXCEPTION_CLASS, new org.apache.thrift.meta_data.FieldMetaData("originalExceptionClass", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+        new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING)));
     metaDataMap = Collections.unmodifiableMap(tmpMap);
-    org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(TTransactionNotInProgressException.class, metaDataMap);
+    org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(TGenericException.class, metaDataMap);
   }
 
-  public TTransactionNotInProgressException() {
+  public TGenericException() {
   }
 
-  public TTransactionNotInProgressException(
-    String message)
+  public TGenericException(
+    String message,
+    String originalExceptionClass)
   {
     this();
     this.message = message;
+    this.originalExceptionClass = originalExceptionClass;
   }
 
   /**
    * Performs a deep copy on <i>other</i>.
    */
-  public TTransactionNotInProgressException(TTransactionNotInProgressException other) {
+  public TGenericException(TGenericException other) {
     if (other.isSetMessage()) {
       this.message = other.message;
     }
+    if (other.isSetOriginalExceptionClass()) {
+      this.originalExceptionClass = other.originalExceptionClass;
+    }
   }
 
-  public TTransactionNotInProgressException deepCopy() {
-    return new TTransactionNotInProgressException(this);
+  public TGenericException deepCopy() {
+    return new TGenericException(this);
   }
 
   @Override
   public void clear() {
     this.message = null;
+    this.originalExceptionClass = null;
   }
 
   public String getMessage() {
     return this.message;
   }
 
-  public TTransactionNotInProgressException setMessage(String message) {
+  public TGenericException setMessage(String message) {
     this.message = message;
     return this;
   }
@@ -181,6 +194,30 @@ public class TTransactionNotInProgressException extends TException implements or
     }
   }
 
+  public String getOriginalExceptionClass() {
+    return this.originalExceptionClass;
+  }
+
+  public TGenericException setOriginalExceptionClass(String originalExceptionClass) {
+    this.originalExceptionClass = originalExceptionClass;
+    return this;
+  }
+
+  public void unsetOriginalExceptionClass() {
+    this.originalExceptionClass = null;
+  }
+
+  /** Returns true if field originalExceptionClass is set (has been assigned a value) and false otherwise */
+  public boolean isSetOriginalExceptionClass() {
+    return this.originalExceptionClass != null;
+  }
+
+  public void setOriginalExceptionClassIsSet(boolean value) {
+    if (!value) {
+      this.originalExceptionClass = null;
+    }
+  }
+
   public void setFieldValue(_Fields field, Object value) {
     switch (field) {
     case MESSAGE:
@@ -191,6 +228,14 @@ public class TTransactionNotInProgressException extends TException implements or
       }
       break;
 
+    case ORIGINAL_EXCEPTION_CLASS:
+      if (value == null) {
+        unsetOriginalExceptionClass();
+      } else {
+        setOriginalExceptionClass((String)value);
+      }
+      break;
+
     }
   }
 
@@ -198,6 +243,9 @@ public class TTransactionNotInProgressException extends TException implements or
     switch (field) {
     case MESSAGE:
       return getMessage();
+
+    case ORIGINAL_EXCEPTION_CLASS:
+      return getOriginalExceptionClass();
 
     }
     throw new IllegalStateException();
@@ -212,6 +260,8 @@ public class TTransactionNotInProgressException extends TException implements or
     switch (field) {
     case MESSAGE:
       return isSetMessage();
+    case ORIGINAL_EXCEPTION_CLASS:
+      return isSetOriginalExceptionClass();
     }
     throw new IllegalStateException();
   }
@@ -220,12 +270,12 @@ public class TTransactionNotInProgressException extends TException implements or
   public boolean equals(Object that) {
     if (that == null)
       return false;
-    if (that instanceof TTransactionNotInProgressException)
-      return this.equals((TTransactionNotInProgressException)that);
+    if (that instanceof TGenericException)
+      return this.equals((TGenericException)that);
     return false;
   }
 
-  public boolean equals(TTransactionNotInProgressException that) {
+  public boolean equals(TGenericException that) {
     if (that == null)
       return false;
 
@@ -238,6 +288,15 @@ public class TTransactionNotInProgressException extends TException implements or
         return false;
     }
 
+    boolean this_present_originalExceptionClass = true && this.isSetOriginalExceptionClass();
+    boolean that_present_originalExceptionClass = true && that.isSetOriginalExceptionClass();
+    if (this_present_originalExceptionClass || that_present_originalExceptionClass) {
+      if (!(this_present_originalExceptionClass && that_present_originalExceptionClass))
+        return false;
+      if (!this.originalExceptionClass.equals(that.originalExceptionClass))
+        return false;
+    }
+
     return true;
   }
 
@@ -246,13 +305,13 @@ public class TTransactionNotInProgressException extends TException implements or
     return 0;
   }
 
-  public int compareTo(TTransactionNotInProgressException other) {
+  public int compareTo(TGenericException other) {
     if (!getClass().equals(other.getClass())) {
       return getClass().getName().compareTo(other.getClass().getName());
     }
 
     int lastComparison = 0;
-    TTransactionNotInProgressException typedOther = (TTransactionNotInProgressException)other;
+    TGenericException typedOther = (TGenericException)other;
 
     lastComparison = Boolean.valueOf(isSetMessage()).compareTo(typedOther.isSetMessage());
     if (lastComparison != 0) {
@@ -260,6 +319,16 @@ public class TTransactionNotInProgressException extends TException implements or
     }
     if (isSetMessage()) {
       lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.message, typedOther.message);
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+    }
+    lastComparison = Boolean.valueOf(isSetOriginalExceptionClass()).compareTo(typedOther.isSetOriginalExceptionClass());
+    if (lastComparison != 0) {
+      return lastComparison;
+    }
+    if (isSetOriginalExceptionClass()) {
+      lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.originalExceptionClass, typedOther.originalExceptionClass);
       if (lastComparison != 0) {
         return lastComparison;
       }
@@ -281,7 +350,7 @@ public class TTransactionNotInProgressException extends TException implements or
 
   @Override
   public String toString() {
-    StringBuilder sb = new StringBuilder("TTransactionNotInProgressException(");
+    StringBuilder sb = new StringBuilder("TGenericException(");
     boolean first = true;
 
     sb.append("message:");
@@ -289,6 +358,14 @@ public class TTransactionNotInProgressException extends TException implements or
       sb.append("null");
     } else {
       sb.append(this.message);
+    }
+    first = false;
+    if (!first) sb.append(", ");
+    sb.append("originalExceptionClass:");
+    if (this.originalExceptionClass == null) {
+      sb.append("null");
+    } else {
+      sb.append(this.originalExceptionClass);
     }
     first = false;
     sb.append(")");
@@ -316,15 +393,15 @@ public class TTransactionNotInProgressException extends TException implements or
     }
   }
 
-  private static class TTransactionNotInProgressExceptionStandardSchemeFactory implements SchemeFactory {
-    public TTransactionNotInProgressExceptionStandardScheme getScheme() {
-      return new TTransactionNotInProgressExceptionStandardScheme();
+  private static class TGenericExceptionStandardSchemeFactory implements SchemeFactory {
+    public TGenericExceptionStandardScheme getScheme() {
+      return new TGenericExceptionStandardScheme();
     }
   }
 
-  private static class TTransactionNotInProgressExceptionStandardScheme extends StandardScheme<TTransactionNotInProgressException> {
+  private static class TGenericExceptionStandardScheme extends StandardScheme<TGenericException> {
 
-    public void read(org.apache.thrift.protocol.TProtocol iprot, TTransactionNotInProgressException struct) throws org.apache.thrift.TException {
+    public void read(org.apache.thrift.protocol.TProtocol iprot, TGenericException struct) throws org.apache.thrift.TException {
       org.apache.thrift.protocol.TField schemeField;
       iprot.readStructBegin();
       while (true)
@@ -342,6 +419,14 @@ public class TTransactionNotInProgressException extends TException implements or
               org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
             }
             break;
+          case 2: // ORIGINAL_EXCEPTION_CLASS
+            if (schemeField.type == org.apache.thrift.protocol.TType.STRING) {
+              struct.originalExceptionClass = iprot.readString();
+              struct.setOriginalExceptionClassIsSet(true);
+            } else { 
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+            }
+            break;
           default:
             org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
         }
@@ -353,7 +438,7 @@ public class TTransactionNotInProgressException extends TException implements or
       struct.validate();
     }
 
-    public void write(org.apache.thrift.protocol.TProtocol oprot, TTransactionNotInProgressException struct) throws org.apache.thrift.TException {
+    public void write(org.apache.thrift.protocol.TProtocol oprot, TGenericException struct) throws org.apache.thrift.TException {
       struct.validate();
 
       oprot.writeStructBegin(STRUCT_DESC);
@@ -362,40 +447,55 @@ public class TTransactionNotInProgressException extends TException implements or
         oprot.writeString(struct.message);
         oprot.writeFieldEnd();
       }
+      if (struct.originalExceptionClass != null) {
+        oprot.writeFieldBegin(ORIGINAL_EXCEPTION_CLASS_FIELD_DESC);
+        oprot.writeString(struct.originalExceptionClass);
+        oprot.writeFieldEnd();
+      }
       oprot.writeFieldStop();
       oprot.writeStructEnd();
     }
 
   }
 
-  private static class TTransactionNotInProgressExceptionTupleSchemeFactory implements SchemeFactory {
-    public TTransactionNotInProgressExceptionTupleScheme getScheme() {
-      return new TTransactionNotInProgressExceptionTupleScheme();
+  private static class TGenericExceptionTupleSchemeFactory implements SchemeFactory {
+    public TGenericExceptionTupleScheme getScheme() {
+      return new TGenericExceptionTupleScheme();
     }
   }
 
-  private static class TTransactionNotInProgressExceptionTupleScheme extends TupleScheme<TTransactionNotInProgressException> {
+  private static class TGenericExceptionTupleScheme extends TupleScheme<TGenericException> {
 
     @Override
-    public void write(org.apache.thrift.protocol.TProtocol prot, TTransactionNotInProgressException struct) throws org.apache.thrift.TException {
+    public void write(org.apache.thrift.protocol.TProtocol prot, TGenericException struct) throws org.apache.thrift.TException {
       TTupleProtocol oprot = (TTupleProtocol) prot;
       BitSet optionals = new BitSet();
       if (struct.isSetMessage()) {
         optionals.set(0);
       }
-      oprot.writeBitSet(optionals, 1);
+      if (struct.isSetOriginalExceptionClass()) {
+        optionals.set(1);
+      }
+      oprot.writeBitSet(optionals, 2);
       if (struct.isSetMessage()) {
         oprot.writeString(struct.message);
+      }
+      if (struct.isSetOriginalExceptionClass()) {
+        oprot.writeString(struct.originalExceptionClass);
       }
     }
 
     @Override
-    public void read(org.apache.thrift.protocol.TProtocol prot, TTransactionNotInProgressException struct) throws org.apache.thrift.TException {
+    public void read(org.apache.thrift.protocol.TProtocol prot, TGenericException struct) throws org.apache.thrift.TException {
       TTupleProtocol iprot = (TTupleProtocol) prot;
-      BitSet incoming = iprot.readBitSet(1);
+      BitSet incoming = iprot.readBitSet(2);
       if (incoming.get(0)) {
         struct.message = iprot.readString();
         struct.setMessageIsSet(true);
+      }
+      if (incoming.get(1)) {
+        struct.originalExceptionClass = iprot.readString();
+        struct.setOriginalExceptionClassIsSet(true);
       }
     }
   }

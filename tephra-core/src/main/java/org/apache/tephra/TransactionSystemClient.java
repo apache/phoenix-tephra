@@ -39,6 +39,7 @@ public interface TransactionSystemClient {
    * Starts new short transaction.
    * @param timeout the timeout for the transaction
    * @return instance of {@link Transaction}
+   * @throws IllegalArgumentException if the provided timeout is negative or exceeds the configured maximum
    */
   Transaction startShort(int timeout);
 

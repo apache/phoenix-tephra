@@ -144,9 +144,12 @@ public class TransactionServiceClient implements TransactionSystemClient {
     } else if ("n-times".equals(retryStrat)) {
       this.retryStrategyProvider = new RetryNTimes.Provider();
     } else {
-      String message = "Unknown Retry Strategy '" + retryStrat + "'.";
-      LOG.error(message);
-      throw new IllegalArgumentException(message);
+      try {
+        this.retryStrategyProvider = (RetryStrategyProvider) Class.forName(retryStrat).newInstance();
+      } catch (IllegalAccessException | InstantiationException | ClassNotFoundException e) {
+        throw new IllegalArgumentException(
+          String.format("Unable to instantiate RetryStrategyProvider '%s'", retryStrat), e);
+      }
     }
     this.retryStrategyProvider.configure(config);
     LOG.debug("Retry strategy is " + this.retryStrategyProvider);
@@ -224,7 +227,7 @@ public class TransactionServiceClient implements TransactionSystemClient {
               "Thrift error for " + operation + ": " + te.getMessage();
           LOG.error(message);
           LOG.debug(message, te);
-          throw new Exception(message, te);
+          throw te;
         } else {
           // call retry strategy before retrying
           retryStrategy.beforeRetry();
@@ -232,7 +235,6 @@ public class TransactionServiceClient implements TransactionSystemClient {
           LOG.info(msg);
           LOG.debug(msg, te);
         }
-
       }
     }
   }

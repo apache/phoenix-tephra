@@ -24,6 +24,8 @@ import com.google.inject.Injector;
 import com.google.inject.Scopes;
 import com.google.inject.util.Modules;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.tephra.distributed.RetryNTimes;
+import org.apache.tephra.distributed.RetryStrategy;
 import org.apache.tephra.distributed.TransactionService;
 import org.apache.tephra.persist.InMemoryTransactionStateStorage;
 import org.apache.tephra.persist.TransactionStateStorage;
@@ -36,6 +38,7 @@ import org.apache.tephra.util.Tests;
 import org.apache.twill.internal.zookeeper.InMemoryZKServer;
 import org.apache.twill.zookeeper.ZKClientService;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -44,6 +47,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ThriftTransactionSystemTest extends TransactionSystemTest {
   private static final Logger LOG = LoggerFactory.getLogger(ThriftTransactionSystemTest.class);
@@ -65,8 +69,9 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
     Configuration conf = new Configuration();
     conf.setBoolean(TxConstants.Manager.CFG_DO_PERSIST, false);
     conf.set(TxConstants.Service.CFG_DATA_TX_ZOOKEEPER_QUORUM, zkServer.getConnectionStr());
-    conf.set(TxConstants.Service.CFG_DATA_TX_CLIENT_RETRY_STRATEGY, "n-times");
-    conf.setInt(TxConstants.Service.CFG_DATA_TX_CLIENT_ATTEMPTS, 1);
+    // we want to use a retry strategy that lets us query the number of times it retried:
+    conf.set(TxConstants.Service.CFG_DATA_TX_CLIENT_RETRY_STRATEGY, CountingRetryStrategyProvider.class.getName());
+    conf.setInt(TxConstants.Service.CFG_DATA_TX_CLIENT_ATTEMPTS, 2);
     conf.setInt(TxConstants.Manager.CFG_TX_MAX_TIMEOUT, (int) TimeUnit.DAYS.toSeconds(5)); // very long limit
 
     Injector injector = Guice.createInjector(
@@ -123,5 +128,47 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
   @Override
   protected TransactionStateStorage getStateStorage() throws Exception {
     return storage;
+  }
+
+  @Override
+  public void testNegativeTimeout() throws Exception {
+    // the super class tests that this throws IllegalArgumentException
+    // here we want to test additionally that the thrift client does not retry the request. That makes sense for
+    // other errors such as a lost connection, but not if the provided timeout argument was invalid.
+    CountingRetryStrategyProvider.retries.set(0);
+    super.testNegativeTimeout();
+    Assert.assertEquals(0, CountingRetryStrategyProvider.retries.get());
+  }
+
+  @Override
+  public void testExcessiveTimeout() throws Exception {
+    // the super class tests that this throws IllegalArgumentException
+    // here we want to test additionally that the thrift client does not retry the request. That makes sense for
+    // other errors such as a lost connection, but not if the provided timeout argument was invalid.
+    CountingRetryStrategyProvider.retries.set(0);
+    super.testExcessiveTimeout();
+    Assert.assertEquals(0, CountingRetryStrategyProvider.retries.get());
+  }
+
+  // implements a retry strategy that lets us verify how many times it retried
+  public static class CountingRetryStrategyProvider extends RetryNTimes.Provider {
+
+    static AtomicInteger retries = new AtomicInteger();
+
+    @Override
+    public RetryStrategy newRetryStrategy() {
+      final RetryStrategy delegate = super.newRetryStrategy();
+      return new RetryStrategy() {
+        @Override
+        public boolean failOnce() {
+          return delegate.failOnce();
+        }
+        @Override
+        public void beforeRetry() {
+          retries.incrementAndGet();
+          delegate.beforeRetry();
+        }
+      };
+    }
   }
 }

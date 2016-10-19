@@ -25,6 +25,7 @@ import org.apache.tephra.InvalidTruncateTimeException;
 import org.apache.tephra.Transaction;
 import org.apache.tephra.TransactionCouldNotTakeSnapshotException;
 import org.apache.tephra.TransactionNotInProgressException;
+import org.apache.tephra.distributed.thrift.TGenericException;
 import org.apache.tephra.distributed.thrift.TInvalidTruncateTimeException;
 import org.apache.tephra.distributed.thrift.TTransactionCouldNotTakeSnapshotException;
 import org.apache.tephra.distributed.thrift.TTransactionNotInProgressException;
@@ -33,6 +34,8 @@ import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TProtocol;
 import org.apache.thrift.transport.TTransport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
@@ -54,6 +57,8 @@ public class TransactionServiceThriftClient {
       return ByteBuffer.wrap(input);
     }
   };
+
+  private static final Logger LOG = LoggerFactory.getLogger(TransactionServiceThriftClient.class);
 
   /**
    * The thrift transport layer. We need this when we close the connection.
@@ -112,7 +117,15 @@ public class TransactionServiceThriftClient {
 
   public Transaction startShort(int timeout) throws TException {
     try {
-      return TransactionConverterUtils.unwrap(client.startShortTimeout(timeout));
+      return TransactionConverterUtils.unwrap(client.startShortWithTimeout(timeout));
+    } catch (TGenericException e) {
+      // currently, we only expect IllegalArgumentException here, if the timeout is invalid
+      if (!IllegalArgumentException.class.getName().equals(e.getOriginalExceptionClass())) {
+        LOG.trace("Expecting only {} as the original exception class but found {}",
+                  IllegalArgumentException.class.getName(), e.getOriginalExceptionClass());
+        throw e;
+      }
+      throw new IllegalArgumentException(e.getMessage());
     } catch (TException e) {
       isValid.set(false);
       throw e;
