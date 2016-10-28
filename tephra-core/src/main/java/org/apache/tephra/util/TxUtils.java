@@ -149,4 +149,21 @@ public class TxUtils {
   public static boolean isPreExistingVersion(long version) {
     return version < MAX_NON_TX_TIMESTAMP;
   }
+
+  /**
+   * Returns the maximum transaction that can be removed from the invalid list for the state represented by the given
+   * transaction.
+   */
+  public static long getPruneUpperBound(Transaction tx) {
+    // If there are no invalid transactions, and no in-progress transactions then we can prune the invalid list
+    // up to the current read pointer
+    if (tx.getInvalids().length == 0 && tx.getInProgress().length == 0) {
+      return tx.getReadPointer() - 1;
+    }
+
+    long maxInvalidTx =
+      tx.getInvalids().length > 0 ? tx.getInvalids()[tx.getInvalids().length - 1] : Transaction.NO_TX_IN_PROGRESS;
+    long firstInProgress = tx.getFirstInProgress();
+    return Math.min(maxInvalidTx, firstInProgress - 1);
+  }
 }

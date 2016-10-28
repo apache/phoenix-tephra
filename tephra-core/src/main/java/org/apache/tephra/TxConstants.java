@@ -345,4 +345,14 @@ public class TxConstants {
     public static final byte CURRENT_VERSION = 3;
   }
 
+  /**
+   * Configuration for data janitor
+   */
+  public static final class DataJanitor {
+    public static final String PRUNE_ENABLE = "data.tx.prune.enable";
+    public static final String PRUNE_STATE_TABLE = "data.tx.prune.state.table";
+
+    public static final boolean DEFAULT_PRUNE_ENABLE = false;
+    public static final String DEFAULT_PRUNE_STATE_TABLE = "data_tx_janitor_state";
+  }
 }
