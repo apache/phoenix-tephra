@@ -36,7 +36,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- *
+ * Base class for tests that need a HBase cluster
  */
 @SuppressWarnings("WeakerAccess")
 public abstract class AbstractHBaseTableTest {
@@ -46,7 +46,7 @@ public abstract class AbstractHBaseTableTest {
 
   @BeforeClass
   public static void startMiniCluster() throws Exception {
-    testUtil = new HBaseTestingUtility();
+    testUtil = conf == null ? new HBaseTestingUtility() : new HBaseTestingUtility(conf);
     conf = testUtil.getConfiguration();
 
     // Tune down the connection thread pool size

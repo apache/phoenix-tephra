@@ -19,6 +19,7 @@
 package org.apache.tephra.util;
 
 import org.apache.tephra.Transaction;
+import org.junit.Assert;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
@@ -31,5 +32,26 @@ public class TxUtilsTest {
   public void testMaxVisibleTimestamp() {
     // make sure we don't overflow with MAX_VALUE write pointer
     assertEquals(Long.MAX_VALUE, TxUtils.getMaxVisibleTimestamp(Transaction.ALL_VISIBLE_LATEST));
+  }
+
+  @Test
+  public void testPruneUpperBound() {
+    Transaction tx = new Transaction(100, 100, new long[] {10, 30}, new long[] {80, 90}, 80);
+    Assert.assertEquals(30, TxUtils.getPruneUpperBound(tx));
+
+    tx = new Transaction(100, 100, new long[] {10, 95}, new long[] {80, 90}, 80);
+    Assert.assertEquals(79, TxUtils.getPruneUpperBound(tx));
+
+    tx = new Transaction(100, 110, new long[] {10}, new long[] {}, Transaction.NO_TX_IN_PROGRESS);
+    Assert.assertEquals(10, TxUtils.getPruneUpperBound(tx));
+
+    tx = new Transaction(100, 110, new long[] {}, new long[] {60}, 60);
+    Assert.assertEquals(59, TxUtils.getPruneUpperBound(tx));
+
+    tx = new Transaction(100, 110, new long[] {}, new long[] {50}, 50);
+    Assert.assertEquals(49, TxUtils.getPruneUpperBound(tx));
+
+    tx = new Transaction(100, 110, new long[] {}, new long[] {}, Transaction.NO_TX_IN_PROGRESS);
+    Assert.assertEquals(99, TxUtils.getPruneUpperBound(tx));
   }
 }

@@ -29,6 +29,7 @@ import org.apache.hadoop.hbase.CoprocessorEnvironment;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.Get;
@@ -45,6 +46,7 @@ import org.apache.hadoop.hbase.regionserver.KeyValueScanner;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.apache.hadoop.hbase.regionserver.ScanType;
 import org.apache.hadoop.hbase.regionserver.Store;
+import org.apache.hadoop.hbase.regionserver.StoreFile;
 import org.apache.hadoop.hbase.regionserver.StoreScanner;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
 import org.apache.hadoop.hbase.regionserver.wal.WALEdit;
@@ -54,6 +56,7 @@ import org.apache.tephra.TransactionCodec;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.coprocessor.TransactionStateCache;
 import org.apache.tephra.coprocessor.TransactionStateCacheSupplier;
+import org.apache.tephra.hbase.coprocessor.janitor.CompactionState;
 import org.apache.tephra.persist.TransactionVisibilityState;
 import org.apache.tephra.util.TxUtils;
 
@@ -99,6 +102,7 @@ public class TransactionProcessor extends BaseRegionObserver {
 
   private TransactionStateCache cache;
   private final TransactionCodec txCodec;
+  private CompactionState compactionState;
   protected Map<byte[], Long> ttlByFamily = Maps.newTreeMap(Bytes.BYTES_COMPARATOR);
   protected boolean allowEmptyValues = TxConstants.ALLOW_EMPTY_VALUES_DEFAULT;
   protected boolean readNonTxnData = TxConstants.DEFAULT_READ_NON_TX_DATA;
@@ -137,6 +141,16 @@ public class TransactionProcessor extends BaseRegionObserver {
       this.readNonTxnData = Boolean.valueOf(tableDesc.getValue(TxConstants.READ_NON_TX_DATA));
       if (readNonTxnData) {
         LOG.info("Reading pre-existing data enabled for table " + tableDesc.getNameAsString());
+      }
+
+      boolean pruneEnabled = env.getConfiguration().getBoolean(TxConstants.DataJanitor.PRUNE_ENABLE,
+                                                               TxConstants.DataJanitor.DEFAULT_PRUNE_ENABLE);
+      if (pruneEnabled) {
+        String pruneTable = env.getConfiguration().get(TxConstants.DataJanitor.PRUNE_STATE_TABLE,
+                                                       TxConstants.DataJanitor.DEFAULT_PRUNE_STATE_TABLE);
+        compactionState = new CompactionState(env, TableName.valueOf(pruneTable));
+        LOG.debug("Automatic invalid list pruning is enabled. Compaction state will be recorded in table " +
+                    pruneTable);
       }
     }
   }
@@ -268,8 +282,25 @@ public class TransactionProcessor extends BaseRegionObserver {
       List<? extends KeyValueScanner> scanners, ScanType scanType, long earliestPutTs, InternalScanner s,
       CompactionRequest request)
       throws IOException {
-    return createStoreScanner(c.getEnvironment(), "compaction", cache.getLatestState(), store, scanners,
+    // Get the latest tx snapshot state for the compaction
+    TransactionVisibilityState snapshot = cache.getLatestState();
+
+    // Record tx state before the compaction
+    if (compactionState != null) {
+      compactionState.record(request, snapshot);
+    }
+    // Also make sure to use the same snapshot for the compaction
+    return createStoreScanner(c.getEnvironment(), "compaction", snapshot, store, scanners,
                               scanType, earliestPutTs);
+  }
+
+  @Override
+  public void postCompact(ObserverContext<RegionCoprocessorEnvironment> e, Store store, StoreFile resultFile,
+                          CompactionRequest request) throws IOException {
+    // Persist the compaction state after a succesful compaction
+    if (compactionState != null) {
+      compactionState.persist();
+    }
   }
 
   protected InternalScanner createStoreScanner(RegionCoprocessorEnvironment env, String action,
