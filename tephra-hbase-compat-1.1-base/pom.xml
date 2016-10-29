@@ -28,6 +28,11 @@
   <artifactId>tephra-hbase-compat-1.1-base</artifactId>
   <name>Apache Tephra HBase 1.1 Compatibility Base</name>
 
+  <properties>
+    <hadoop.version>2.5.1</hadoop.version>
+    <hbase11.version>1.1.1</hbase11.version>
+  </properties>
+
   <packaging>pom</packaging>
   <modules>
     <module>tephra-hbase-compat-1.2-cdh</module>
