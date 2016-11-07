@@ -29,7 +29,7 @@ branches:
     - /^hotfix\/.*$/
     - /^release\/.*$/
 
-script: mvn test -Dsurefire.redirectTestOutputToFile=false
+script: mvn test
 
 sudo: false
 
