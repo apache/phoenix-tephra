@@ -40,9 +40,9 @@ import java.util.List;
  */
 @SuppressWarnings("WeakerAccess")
 public abstract class AbstractHBaseTableTest {
-  static HBaseTestingUtility testUtil;
-  static HBaseAdmin hBaseAdmin;
-  static Configuration conf;
+  protected static HBaseTestingUtility testUtil;
+  protected static HBaseAdmin hBaseAdmin;
+  protected static Configuration conf;
 
   @BeforeClass
   public static void startMiniCluster() throws Exception {
@@ -76,13 +76,13 @@ public abstract class AbstractHBaseTableTest {
     }
   }
 
-  static HTable createTable(byte[] tableName, byte[][] columnFamilies) throws Exception {
+  protected static HTable createTable(byte[] tableName, byte[][] columnFamilies) throws Exception {
     return createTable(tableName, columnFamilies, false,
                        Collections.singletonList(TransactionProcessor.class.getName()));
   }
 
-  static HTable createTable(byte[] tableName, byte[][] columnFamilies, boolean existingData,
-                             List<String> coprocessors) throws Exception {
+  protected static HTable createTable(byte[] tableName, byte[][] columnFamilies, boolean existingData,
+                                      List<String> coprocessors) throws Exception {
     HTableDescriptor desc = new HTableDescriptor(TableName.valueOf(tableName));
     for (byte[] family : columnFamilies) {
       HColumnDescriptor columnDesc = new HColumnDescriptor(family);
@@ -94,7 +94,7 @@ public abstract class AbstractHBaseTableTest {
       desc.setValue(TxConstants.READ_NON_TX_DATA, "true");
     }
     // Divide individually to prevent any overflow
-    int priority  = Coprocessor.PRIORITY_USER;
+    int priority = Coprocessor.PRIORITY_USER;
     // order in list is the same order that coprocessors will be invoked
     for (String coprocessor : coprocessors) {
       desc.addCoprocessor(coprocessor, null, ++priority, null);
@@ -103,5 +103,4 @@ public abstract class AbstractHBaseTableTest {
     testUtil.waitTableAvailable(tableName, 5000);
     return new HTable(testUtil.getConfiguration(), tableName);
   }
-
 }

@@ -166,4 +166,14 @@ public class TxUtils {
     long firstInProgress = tx.getFirstInProgress();
     return Math.min(maxInvalidTx, firstInProgress - 1);
   }
+
+  /**
+   * Returns the timestamp at which the given transaction id was generated.
+   *
+   * @param txId transaction id
+   * @return timestamp in milliseconds
+   */
+  public static long getTimestamp(long txId) {
+    return txId / TxConstants.MAX_TX_PER_MS;
+  }
 }

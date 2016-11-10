@@ -81,7 +81,7 @@ public class CompactionState {
   public void persist() {
     if (pruneUpperBound != -1) {
       try {
-        dataJanitorState.savePruneUpperBound(regionName, pruneUpperBound);
+        dataJanitorState.savePruneUpperBoundForRegion(regionName, pruneUpperBound);
         LOG.debug(String.format("Saved prune upper bound %s for region %s", pruneUpperBound, regionNameAsString));
       } catch (IOException e) {
         LOG.warn(String.format("Cannot record prune upper bound in table %s after compacting region %s",
