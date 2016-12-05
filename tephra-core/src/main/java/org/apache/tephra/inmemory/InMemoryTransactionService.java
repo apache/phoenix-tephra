@@ -91,17 +91,7 @@ public class InMemoryTransactionService extends AbstractService {
   }
 
   protected void doRegister() {
-    cancelDiscovery = discoveryService.register(new Discoverable() {
-      @Override
-      public String getName() {
-        return serviceName;
-      }
-
-      @Override
-      public InetSocketAddress getSocketAddress() {
-        return getAddress();
-      }
-    });
+    cancelDiscovery = discoveryService.register(new Discoverable(serviceName, getAddress()));
   }
 
   protected InetSocketAddress getAddress() {
