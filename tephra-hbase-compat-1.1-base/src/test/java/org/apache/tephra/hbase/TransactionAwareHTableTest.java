@@ -69,6 +69,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -1487,6 +1488,66 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
     transactionContext.start();
     result = transactionAwareHTable.get(get);
     assertTrue(result.isEmpty());
+    transactionContext.finish();
+  }
+
+  @Test
+  public void testTxLifetime() throws Exception {
+    // Add some initial values
+    transactionContext.start();
+    Put put = new Put(TestBytes.row).addColumn(TestBytes.family, TestBytes.qualifier, TestBytes.value);
+    transactionAwareHTable.put(put);
+    put = new Put(TestBytes.row).addColumn(TestBytes.family, TestBytes.qualifier2, TestBytes.value);
+    transactionAwareHTable.put(put);
+    transactionContext.finish();
+
+    // Simulate writing with a transaction past its max lifetime
+    transactionContext.start();
+    Transaction currentTx = transactionContext.getCurrentTransaction();
+    Assert.assertNotNull(currentTx);
+
+    // Create a transaction that is past the max lifetime
+    long txMaxLifetimeMillis = TimeUnit.SECONDS.toMillis(conf.getInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME,
+                                                                     TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME));
+    long oldTxId = currentTx.getTransactionId() - ((txMaxLifetimeMillis + 10000) * TxConstants.MAX_TX_PER_MS);
+    Transaction oldTx = new Transaction(currentTx.getReadPointer(), oldTxId,
+                                        currentTx.getInvalids(), currentTx.getInProgress(),
+                                        currentTx.getFirstShortInProgress());
+    transactionAwareHTable.updateTx(oldTx);
+    // Put with the old transaction should fail
+    put = new Put(TestBytes.row2).addColumn(TestBytes.family, TestBytes.qualifier, TestBytes.value);
+    try {
+      transactionAwareHTable.put(put);
+      Assert.fail("Excepted exception with old transaction!");
+    } catch (IOException e) {
+      // Expected exception
+    }
+
+    // Delete with the old transaction should also fail
+    Delete delete = new Delete(TestBytes.row).addColumn(TestBytes.family, TestBytes.qualifier);
+    try {
+      transactionAwareHTable.delete(delete);
+      Assert.fail("Excepted exception with old transaction!");
+    } catch (IOException e) {
+      // Expected exception
+    }
+
+    // Now update the table to use the current transaction
+    transactionAwareHTable.updateTx(currentTx);
+    put = new Put(TestBytes.row2).addColumn(TestBytes.family, TestBytes.qualifier2, TestBytes.value);
+    transactionAwareHTable.put(put);
+    delete = new Delete(TestBytes.row).addColumn(TestBytes.family, TestBytes.qualifier2);
+    transactionAwareHTable.delete(delete);
+
+    // Verify values with the same transaction since we cannot commit the old transaction
+    verifyRow(transactionAwareHTable,
+              new Get(TestBytes.row).addColumn(TestBytes.family, TestBytes.qualifier), TestBytes.value);
+    verifyRow(transactionAwareHTable,
+              new Get(TestBytes.row).addColumn(TestBytes.family, TestBytes.qualifier2), null);
+    verifyRow(transactionAwareHTable,
+              new Get(TestBytes.row2).addColumn(TestBytes.family, TestBytes.qualifier), null);
+    verifyRow(transactionAwareHTable,
+              new Get(TestBytes.row2).addColumn(TestBytes.family, TestBytes.qualifier2), TestBytes.value);
     transactionContext.finish();
   }
 

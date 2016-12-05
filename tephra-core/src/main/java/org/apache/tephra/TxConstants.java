@@ -158,6 +158,14 @@ public class TxConstants {
      * The default value for the transaction timeout limit, in seconds: unlimited.
      */
     public static final int DEFAULT_TX_MAX_TIMEOUT = Integer.MAX_VALUE;
+    /**
+     * The maximum time in seconds that a transaction can be used for data writes.
+     */
+    public static final String CFG_TX_MAX_LIFETIME = "data.tx.max.lifetime";
+    /**
+     * The default value for the maximum transaction lifetime.
+     */
+    public static final int DEFAULT_TX_MAX_LIFETIME = (int) TimeUnit.HOURS.toSeconds(25);
     /** The frequency (in seconds) to perform periodic snapshots, or 0 for no periodic snapshots. */
     public static final String CFG_TX_SNAPSHOT_INTERVAL = "data.tx.snapshot.interval";
     /** Default value for frequency of periodic snapshots of transaction state. */
