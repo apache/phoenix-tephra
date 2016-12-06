@@ -354,13 +354,35 @@ public class TxConstants {
   }
 
   /**
-   * Configuration for data janitor
+   * Configuration for invalid transaction pruning
    */
-  public static final class DataJanitor {
+  public static final class TransactionPruning {
+    /**
+     * Flag to enable automatic invalid transaction pruning.
+     */
     public static final String PRUNE_ENABLE = "data.tx.prune.enable";
+    /**
+     * The table used to store intermediate state when pruning is enabled.
+     */
     public static final String PRUNE_STATE_TABLE = "data.tx.prune.state.table";
+    /**
+     * Interval in seconds to schedule prune run.
+     */
+    public static final String PRUNE_INTERVAL = "data.tx.prune.interval";
+    /**
+     * Comma separated list of invalid transaction pruning plugins to load
+     */
+    public static final String PLUGINS = "data.tx.prune.plugins";
+    /**
+     * Class name for the plugins will be plugin-name + ".class" suffix
+     */
+    public static final String PLUGIN_CLASS_SUFFIX = ".class";
 
     public static final boolean DEFAULT_PRUNE_ENABLE = false;
     public static final String DEFAULT_PRUNE_STATE_TABLE = "data_tx_janitor_state";
+    public static final long DEFAULT_PRUNE_INTERVAL = TimeUnit.HOURS.toSeconds(6);
+    public static final String DEFAULT_PLUGIN = "data.tx.prune.plugin.default";
+    public static final String DEFAULT_PLUGIN_CLASS =
+      "org.apache.tephra.hbase.txprune.HBaseTransactionPruningPlugin";
   }
 }

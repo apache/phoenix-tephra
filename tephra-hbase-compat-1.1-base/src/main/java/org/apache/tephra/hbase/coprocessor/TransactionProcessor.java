@@ -57,7 +57,7 @@ import org.apache.tephra.TransactionCodec;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.coprocessor.TransactionStateCache;
 import org.apache.tephra.coprocessor.TransactionStateCacheSupplier;
-import org.apache.tephra.hbase.coprocessor.janitor.CompactionState;
+import org.apache.tephra.hbase.txprune.CompactionState;
 import org.apache.tephra.persist.TransactionVisibilityState;
 import org.apache.tephra.util.TxUtils;
 
@@ -151,12 +151,12 @@ public class TransactionProcessor extends BaseRegionObserver {
         TimeUnit.SECONDS.toMillis(env.getConfiguration().getInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME,
                                                                 TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME));
 
-      boolean pruneEnabled = env.getConfiguration().getBoolean(TxConstants.DataJanitor.PRUNE_ENABLE,
-                                                               TxConstants.DataJanitor.DEFAULT_PRUNE_ENABLE);
+      boolean pruneEnabled = env.getConfiguration().getBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE,
+                                                               TxConstants.TransactionPruning.DEFAULT_PRUNE_ENABLE);
       if (pruneEnabled) {
-        String pruneTable = env.getConfiguration().get(TxConstants.DataJanitor.PRUNE_STATE_TABLE,
-                                                       TxConstants.DataJanitor.DEFAULT_PRUNE_STATE_TABLE);
-        compactionState = new CompactionState(env, TableName.valueOf(pruneTable));
+        String pruneTable = env.getConfiguration().get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
+                                                       TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE);
+        compactionState = new CompactionState(env, TableName.valueOf(pruneTable), txMaxLifetimeMillis);
         LOG.debug("Automatic invalid list pruning is enabled. Compaction state will be recorded in table " +
                     pruneTable);
       }

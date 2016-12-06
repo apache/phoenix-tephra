@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.tephra.hbase.coprocessor.janitor;
+package org.apache.tephra.hbase.txprune;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
@@ -34,7 +34,7 @@ import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.hbase.coprocessor.TransactionProcessor;
-import org.apache.tephra.janitor.TransactionPruningPlugin;
+import org.apache.tephra.txprune.TransactionPruningPlugin;
 import org.apache.tephra.util.TxUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -120,8 +120,8 @@ public class HBaseTransactionPruningPlugin implements TransactionPruningPlugin {
     this.conf = conf;
     this.connection = ConnectionFactory.createConnection(conf);
 
-    final TableName stateTable = TableName.valueOf(conf.get(TxConstants.DataJanitor.PRUNE_STATE_TABLE,
-                                                            TxConstants.DataJanitor.DEFAULT_PRUNE_STATE_TABLE));
+    final TableName stateTable = TableName.valueOf(conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
+                                                            TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE));
     LOG.info("Initializing plugin with state table {}", stateTable.getNameWithNamespaceInclAsString());
     this.dataJanitorState = new DataJanitorState(new DataJanitorState.TableSupplier() {
       @Override

@@ -17,14 +17,15 @@
  * under the License.
  */
 
-package org.apache.tephra.janitor;
+package org.apache.tephra.txprune;
 
+import com.google.common.annotations.Beta;
 import org.apache.hadoop.conf.Configuration;
 
 import java.io.IOException;
 
 /**
- * Data janitor interface to manage the invalid transaction list.
+ * Interface to manage the invalid transaction list.
  *
  * <p/>
  * An invalid transaction can only be removed from the invalid list after the data written
@@ -36,17 +37,13 @@ import java.io.IOException;
  * Typically every data store will have a background job which cleans up the data written by invalid transactions.
  * Prune upper bound for a data store is defined as the largest invalid transaction whose data has been
  * cleaned up from that data store.
- * <pre>
- * prune-upper-bound = min(max(invalid list), min(in-progress list) - 1)
- * </pre>
- * where invalid list and in-progress list are from the transaction snapshot used to clean up the invalid data in the
- * data store.
  *
  * <p/>
  * There will be one such plugin per data store. The plugins will be executed as part of the Transaction Service.
  * Each plugin will be invoked periodically to fetch the prune upper bound for its data store.
  * Invalid transaction list can pruned up to the minimum of prune upper bounds returned by all the plugins.
  */
+@Beta
 public interface TransactionPruningPlugin {
   /**
    * Called once when the Transaction Service starts up.
