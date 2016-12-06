@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.tephra.hbase.coprocessor.janitor;
+package org.apache.tephra.hbase.txprune;
 
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;

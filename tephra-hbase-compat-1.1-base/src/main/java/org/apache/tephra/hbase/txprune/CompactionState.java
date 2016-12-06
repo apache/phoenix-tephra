@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.tephra.hbase.coprocessor.janitor;
+package org.apache.tephra.hbase.txprune;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -41,13 +41,15 @@ public class CompactionState {
   private final byte[] regionName;
   private final String regionNameAsString;
   private final TableName stateTable;
+  private final long txMaxLifetimeMills;
   private final DataJanitorState dataJanitorState;
   private volatile long pruneUpperBound = -1;
 
-  public CompactionState(final RegionCoprocessorEnvironment env, final TableName stateTable) {
+  public CompactionState(final RegionCoprocessorEnvironment env, final TableName stateTable, long txMaxLifetimeMills) {
     this.regionName = env.getRegionInfo().getRegionName();
     this.regionNameAsString = env.getRegionInfo().getRegionNameAsString();
     this.stateTable = stateTable;
+    this.txMaxLifetimeMills = txMaxLifetimeMills;
     this.dataJanitorState = new DataJanitorState(new DataJanitorState.TableSupplier() {
       @Override
       public Table get() throws IOException {

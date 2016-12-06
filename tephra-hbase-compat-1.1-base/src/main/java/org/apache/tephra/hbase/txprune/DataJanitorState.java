@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.tephra.hbase.coprocessor.janitor;
+package org.apache.tephra.hbase.txprune;
 
 import com.google.common.collect.Maps;
 import org.apache.hadoop.hbase.client.Delete;

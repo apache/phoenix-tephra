@@ -168,6 +168,18 @@ public class TxUtils {
   }
 
   /**
+   * Returns the greatest transaction that has passed the maximum duration a transaction can be used for data writes.
+   * In other words, at <code>timeMills</code> there can be no writes from transactions equal to or smaller
+   * than the returned bound.
+   *
+   * @param timeMills time in milliseconds for which the inactive transaction bound needs to be determined
+   * @param txMaxLifetimeMillis maximum duration a transaction can be used for data writes, in milliseconds
+   */
+  public static long getInactiveTxBound(long timeMills, long txMaxLifetimeMillis) {
+    return (timeMills - txMaxLifetimeMillis) * TxConstants.MAX_TX_PER_MS - 1;
+  }
+
+  /**
    * Returns the timestamp at which the given transaction id was generated.
    *
    * @param txId transaction id

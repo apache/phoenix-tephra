@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.tephra.hbase.coprocessor.janitor;
+package org.apache.tephra.hbase.txprune;
 
 
 import com.google.common.collect.ImmutableSortedMap;
@@ -51,8 +51,8 @@ public class DataJanitorStateTest extends AbstractHBaseTableTest {
 
   @Before
   public void beforeTest() throws Exception {
-    pruneStateTable = TableName.valueOf(conf.get(TxConstants.DataJanitor.PRUNE_STATE_TABLE,
-                                                 TxConstants.DataJanitor.DEFAULT_PRUNE_STATE_TABLE));
+    pruneStateTable = TableName.valueOf(conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
+                                                 TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE));
     HTable table = createTable(pruneStateTable.getName(), new byte[][]{DataJanitorState.FAMILY}, false,
                                // Prune state table is a non-transactional table, hence no transaction co-processor
                                Collections.<String>emptyList());

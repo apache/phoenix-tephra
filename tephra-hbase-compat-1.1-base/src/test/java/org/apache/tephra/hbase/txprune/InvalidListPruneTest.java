@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.tephra.hbase.coprocessor.janitor;
+package org.apache.tephra.hbase.txprune;
 
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
@@ -44,12 +44,12 @@ import org.apache.tephra.hbase.AbstractHBaseTableTest;
 import org.apache.tephra.hbase.TransactionAwareHTable;
 import org.apache.tephra.hbase.coprocessor.TransactionProcessor;
 import org.apache.tephra.inmemory.InMemoryTxSystemClient;
-import org.apache.tephra.janitor.TransactionPruningPlugin;
 import org.apache.tephra.metrics.TxMetricsCollector;
 import org.apache.tephra.persist.InMemoryTransactionStateStorage;
 import org.apache.tephra.persist.TransactionSnapshot;
 import org.apache.tephra.persist.TransactionStateStorage;
 import org.apache.tephra.persist.TransactionVisibilityState;
+import org.apache.tephra.txprune.TransactionPruningPlugin;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -77,7 +77,7 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
   public static void startMiniCluster() throws Exception {
     // Setup the configuration to start HBase cluster with the invalid list pruning enabled
     conf = HBaseConfiguration.create();
-    conf.setBoolean(TxConstants.DataJanitor.PRUNE_ENABLE, true);
+    conf.setBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE, true);
     AbstractHBaseTableTest.startMiniCluster();
 
     TransactionStateStorage txStateStorage = new InMemoryTransactionStateStorage();
@@ -100,8 +100,8 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
     testUtil.flush(txDataTable1);
     txManager.stopAndWait();
 
-    pruneStateTable = TableName.valueOf(conf.get(TxConstants.DataJanitor.PRUNE_STATE_TABLE,
-                                                 TxConstants.DataJanitor.DEFAULT_PRUNE_STATE_TABLE));
+    pruneStateTable = TableName.valueOf(conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
+                                                 TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE));
   }
 
   @AfterClass
