@@ -38,7 +38,6 @@ import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.tephra.TransactionContext;
 import org.apache.tephra.TransactionManager;
-import org.apache.tephra.TransactionType;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.coprocessor.TransactionStateCache;
 import org.apache.tephra.hbase.AbstractHBaseTableTest;
@@ -173,10 +172,8 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
     // Create a new transaction snapshot
     InMemoryTransactionStateCache.setTransactionSnapshot(
       new TransactionSnapshot(110, 111, 112, ImmutableSet.of(150L),
-                              ImmutableSortedMap.of(
-                                105L, new TransactionManager.InProgressTx(100, 30, TransactionType.SHORT)
-                              )
-    ));
+                              ImmutableSortedMap.of(105L, new TransactionManager.InProgressTx(
+                                100, 30, TransactionManager.InProgressType.SHORT))));
     Assert.assertEquals(50,
                         dataJanitorState.getPruneUpperBoundForRegion(getRegionName(txDataTable1, Bytes.toBytes(0))));
 

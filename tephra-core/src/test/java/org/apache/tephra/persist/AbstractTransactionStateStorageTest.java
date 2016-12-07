@@ -512,11 +512,11 @@ public abstract class AbstractTransactionStateStorageTest {
       if (i % 20 == 0) {
         inProgress.put(startPointer + i,
                        new TransactionManager.InProgressTx(startPointer - 1, currentTime + TimeUnit.DAYS.toSeconds(1),
-                                                           TransactionType.LONG));
+                                                           TransactionManager.InProgressType.LONG));
       } else {
         inProgress.put(startPointer + i,
-                       new TransactionManager.InProgressTx(startPointer - 1, currentTime + 300000L, 
-                                                           TransactionType.SHORT));
+                       new TransactionManager.InProgressTx(startPointer - 1, currentTime + 300000L,
+                                                           TransactionManager.InProgressType.SHORT));
       }
     }
 
