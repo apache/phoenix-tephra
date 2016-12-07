@@ -21,7 +21,6 @@ package org.apache.tephra.snapshot;
 import com.google.common.collect.Maps;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
 import org.apache.tephra.TransactionManager;
-import org.apache.tephra.TransactionType;
 import org.apache.tephra.persist.TransactionSnapshot;
 
 import java.io.IOException;
@@ -66,9 +65,9 @@ public class SnapshotCodecV2 extends DefaultSnapshotCodec {
         long expiration = decoder.readLong();
         long visibilityUpperBound = decoder.readLong();
         int txTypeIdx = decoder.readInt();
-        TransactionType txType;
+        TransactionManager.InProgressType txType;
         try {
-          txType = TransactionType.values()[txTypeIdx];
+          txType = TransactionManager.InProgressType.values()[txTypeIdx];
         } catch (ArrayIndexOutOfBoundsException e) {
           throw new IOException("Type enum ordinal value is out of range: " + txTypeIdx);
         }

@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.ChangeId;
 import org.apache.tephra.TransactionManager;
+import org.apache.tephra.TransactionManager.InProgressType;
 import org.apache.tephra.TransactionType;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.metrics.TxMetricsCollector;
@@ -138,10 +139,10 @@ public class LocalTransactionStateStorageTest extends AbstractTransactionStateSt
         // There should be four in-progress transactions, and no invalid transactions
         TransactionSnapshot snapshot1 = txm.getCurrentState();
         Assert.assertEquals(ImmutableSortedSet.of(wp1, wp2, wp3, wp4), snapshot1.getInProgress().keySet());
-        verifyInProgress(snapshot1.getInProgress().get(wp1), TransactionType.LONG, time1 + longTimeout);
-        verifyInProgress(snapshot1.getInProgress().get(wp2), TransactionType.SHORT, time2 + 1000);
-        verifyInProgress(snapshot1.getInProgress().get(wp3), TransactionType.LONG, time3 + longTimeout);
-        verifyInProgress(snapshot1.getInProgress().get(wp4), TransactionType.SHORT, time4 + 1000);
+        verifyInProgress(snapshot1.getInProgress().get(wp1), InProgressType.LONG, time1 + longTimeout);
+        verifyInProgress(snapshot1.getInProgress().get(wp2), InProgressType.SHORT, time2 + 1000);
+        verifyInProgress(snapshot1.getInProgress().get(wp3), InProgressType.LONG, time3 + longTimeout);
+        verifyInProgress(snapshot1.getInProgress().get(wp4), InProgressType.SHORT, time4 + 1000);
         Assert.assertEquals(0, snapshot1.getInvalid().size());
       } finally {
         txm.stopAndWait();
@@ -212,8 +213,8 @@ public class LocalTransactionStateStorageTest extends AbstractTransactionStateSt
     }
   }
 
-  private void verifyInProgress(TransactionManager.InProgressTx inProgressTx, TransactionType type,
-                                long expiration) throws Exception {
+  private void verifyInProgress(TransactionManager.InProgressTx inProgressTx,
+                                InProgressType type, long expiration) throws Exception {
     Assert.assertEquals(type, inProgressTx.getType());
     Assert.assertTrue(inProgressTx.getExpiration() == expiration);
   }

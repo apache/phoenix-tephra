@@ -30,7 +30,6 @@ import org.apache.tephra.ChangeId;
 import org.apache.tephra.Transaction;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TransactionNotInProgressException;
-import org.apache.tephra.TransactionType;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.persist.TransactionSnapshot;
 import org.apache.tephra.persist.TransactionStateStorage;
@@ -66,7 +65,7 @@ public class SnapshotCodecTest {
   public static TemporaryFolder tmpDir = new TemporaryFolder();
 
   @Test
-  public void testMinimalDeserilization() throws Exception {
+  public void testMinimalDeserialization() throws Exception {
     long now = System.currentTimeMillis();
     long nowWritePointer = now * TxConstants.MAX_TX_PER_MS;
     /*
@@ -82,8 +81,8 @@ public class SnapshotCodecTest {
       tLong, new TransactionManager.InProgressTx(readPtr,
                                                  TransactionManager.getTxExpirationFromWritePointer(
                                                    tLong, TxConstants.Manager.DEFAULT_TX_LONG_TIMEOUT),
-                                                 TransactionType.LONG),
-      tShort, new TransactionManager.InProgressTx(readPtr, now + 1000, TransactionType.SHORT)));
+                                                 TransactionManager.InProgressType.LONG),
+      tShort, new TransactionManager.InProgressTx(readPtr, now + 1000, TransactionManager.InProgressType.SHORT)));
 
     TransactionSnapshot snapshot = new TransactionSnapshot(now, readPtr, nowWritePointer,
                                                            Lists.newArrayList(tInvalid), // invalid
@@ -144,10 +143,11 @@ public class SnapshotCodecTest {
     long tShort = nowWritePointer - 1;      // t5 - in-progress SHORT, canCommit called, changeset (r3, r4)
 
     TreeMap<Long, TransactionManager.InProgressTx> inProgress = Maps.newTreeMap(ImmutableSortedMap.of(
-        tLong, new TransactionManager.InProgressTx(readPtr,
-            TransactionManager.getTxExpirationFromWritePointer(tLong, TxConstants.Manager.DEFAULT_TX_LONG_TIMEOUT),
-            TransactionType.LONG),
-        tShort, new TransactionManager.InProgressTx(readPtr, now + 1000, TransactionType.SHORT)));
+        tLong, new TransactionManager.InProgressTx(
+          readPtr,
+          TransactionManager.getTxExpirationFromWritePointer(tLong, TxConstants.Manager.DEFAULT_TX_LONG_TIMEOUT),
+          TransactionManager.InProgressType.LONG),
+        tShort, new TransactionManager.InProgressTx(readPtr, now + 1000, TransactionManager.InProgressType.SHORT)));
 
     TransactionSnapshot snapshot = new TransactionSnapshot(now, readPtr, nowWritePointer,
         Lists.newArrayList(tInvalid), // invalid
@@ -240,7 +240,7 @@ public class SnapshotCodecTest {
     assertEquals(1, snapshot2.getInProgress().size());
     Map.Entry<Long, TransactionManager.InProgressTx> inProgressTx =
         snapshot2.getInProgress().entrySet().iterator().next();
-    assertEquals(TransactionType.LONG, inProgressTx.getValue().getType());
+    assertEquals(TransactionManager.InProgressType.LONG, inProgressTx.getValue().getType());
 
     // save a new snapshot
     txManager2.stopAndWait();
@@ -315,12 +315,17 @@ public class SnapshotCodecTest {
     assertTransactionVisibilityStateEquals(snapshot, txVisibilityState);
 
     Map<Long, TransactionManager.InProgressTx> inProgress = snapshot.getInProgress();
-    Assert.assertEquals(1, inProgress.size());
+    Assert.assertEquals(2, inProgress.size());
 
     TransactionManager.InProgressTx inProgressTx = inProgress.get(transaction.getTransactionId());
     Assert.assertNotNull(inProgressTx);
     Assert.assertArrayEquals(checkpointTx.getCheckpointWritePointers(),
                              inProgressTx.getCheckpointWritePointers().toLongArray());
+
+    inProgressTx = inProgress.get(checkpointTx.getWritePointer());
+    Assert.assertNotNull(inProgressTx);
+    Assert.assertEquals(TransactionManager.InProgressType.CHECKPOINT, inProgressTx.getType());
+    Assert.assertTrue(inProgressTx.getCheckpointWritePointers().isEmpty());
 
     txStorage.stopAndWait();
 
@@ -335,12 +340,17 @@ public class SnapshotCodecTest {
     // state should be recovered
     snapshot = txManager.getCurrentState();
     inProgress = snapshot.getInProgress();
-    Assert.assertEquals(1, inProgress.size());
+    Assert.assertEquals(2, inProgress.size());
 
     inProgressTx = inProgress.get(transaction.getTransactionId());
     Assert.assertNotNull(inProgressTx);
     Assert.assertArrayEquals(checkpointTx.getCheckpointWritePointers(),
                              inProgressTx.getCheckpointWritePointers().toLongArray());
+
+    inProgressTx = inProgress.get(checkpointTx.getWritePointer());
+    Assert.assertNotNull(inProgressTx);
+    Assert.assertEquals(TransactionManager.InProgressType.CHECKPOINT, inProgressTx.getType());
+    Assert.assertTrue(inProgressTx.getCheckpointWritePointers().isEmpty());
 
     // Should be able to commit the transaction
     Assert.assertTrue(txManager.canCommit(checkpointTx, Collections.<byte[]>emptyList()));
