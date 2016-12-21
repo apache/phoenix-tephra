@@ -19,21 +19,14 @@ package org.apache.tephra.hbase;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
-import org.apache.hadoop.hbase.Coprocessor;
 import org.apache.hadoop.hbase.DoNotRetryIOException;
-import org.apache.hadoop.hbase.HBaseTestingUtility;
-import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
-import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.KeyValue;
-import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.OperationWithAttributes;
@@ -76,6 +69,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -89,14 +83,11 @@ import static org.junit.Assert.fail;
 /**
  * Tests for TransactionAwareHTables.
  */
-public class TransactionAwareHTableTest {
+public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
   private static final Logger LOG = LoggerFactory.getLogger(TransactionAwareHTableTest.class);
 
-  private static HBaseTestingUtility testUtil;
-  private static HBaseAdmin hBaseAdmin;
-  private static TransactionStateStorage txStateStorage;
-  private static TransactionManager txManager;
-  private static Configuration conf;
+  static TransactionStateStorage txStateStorage;
+  static TransactionManager txManager;
   private TransactionContext transactionContext;
   private TransactionAwareHTable transactionAwareHTable;
   private HTable hTable;
@@ -146,23 +137,6 @@ public class TransactionAwareHTableTest {
   
   @BeforeClass
   public static void setupBeforeClass() throws Exception {
-    testUtil = new HBaseTestingUtility();
-    conf = testUtil.getConfiguration();
-
-    // Tune down the connection thread pool size
-    conf.setInt("hbase.hconnection.threads.core", 5);
-    conf.setInt("hbase.hconnection.threads.max", 10);
-    // Tunn down handler threads in regionserver
-    conf.setInt("hbase.regionserver.handler.count", 10);
-
-    // Set to random port
-    conf.setInt("hbase.master.port", 0);
-    conf.setInt("hbase.master.info.port", 0);
-    conf.setInt("hbase.regionserver.port", 0);
-    conf.setInt("hbase.regionserver.info.port", 0);
-
-    testUtil.startMiniCluster();
-    hBaseAdmin = testUtil.getHBaseAdmin();
     txStateStorage = new InMemoryTransactionStateStorage();
     txManager = new TransactionManager(conf, txStateStorage, new TxMetricsCollector());
     txManager.startAndWait();
@@ -170,8 +144,9 @@ public class TransactionAwareHTableTest {
 
   @AfterClass
   public static void shutdownAfterClass() throws Exception {
-    testUtil.shutdownMiniCluster();
-    hBaseAdmin.close();
+    if (txManager != null) {
+      txManager.stopAndWait();
+    }
   }
 
   @Before
@@ -186,34 +161,6 @@ public class TransactionAwareHTableTest {
     hBaseAdmin.disableTable(TestBytes.table);
     hBaseAdmin.deleteTable(TestBytes.table);
   }
-
-  private HTable createTable(byte[] tableName, byte[][] columnFamilies) throws Exception {
-    return createTable(tableName, columnFamilies, false, Collections.<String>emptyList());
-  }
-
-  private HTable createTable(byte[] tableName, byte[][] columnFamilies, boolean existingData, 
-    List<String> coprocessors) throws Exception {
-    HTableDescriptor desc = new HTableDescriptor(TableName.valueOf(tableName));
-    for (byte[] family : columnFamilies) {
-      HColumnDescriptor columnDesc = new HColumnDescriptor(family);
-      columnDesc.setMaxVersions(Integer.MAX_VALUE);
-      columnDesc.setValue(TxConstants.PROPERTY_TTL, String.valueOf(100000)); // in millis
-      desc.addFamily(columnDesc);
-    }
-    if (existingData) {
-      desc.setValue(TxConstants.READ_NON_TX_DATA, "true");
-    }
-    // Divide individually to prevent any overflow
-    int priority  = Coprocessor.PRIORITY_USER; 
-    desc.addCoprocessor(TransactionProcessor.class.getName(), null, priority, null);
-    // order in list is the same order that coprocessors will be invoked  
-    for (String coprocessor : coprocessors) {
-      desc.addCoprocessor(coprocessor, null, ++priority, null);
-    }
-    hBaseAdmin.createTable(desc);
-    testUtil.waitTableAvailable(tableName, 5000);
-    return new HTable(testUtil.getConfiguration(), tableName);
-   }
 
   /**
    * Test transactional put and get requests.
@@ -409,7 +356,7 @@ public class TransactionAwareHTableTest {
   public void testAttributesPreserved() throws Exception {
     HTable hTable = createTable(Bytes.toBytes("TestAttributesPreserved"),
         new byte[][]{TestBytes.family, TestBytes.family2}, false,
-        Lists.newArrayList(TestRegionObserver.class.getName()));
+        Lists.newArrayList(TransactionProcessor.class.getName(), TestRegionObserver.class.getName()));
     try {
       TransactionAwareHTable txTable = new TransactionAwareHTable(hTable);
       TransactionContext txContext = new TransactionContext(new InMemoryTxSystemClient(txManager), txTable);
@@ -1123,7 +1070,7 @@ public class TransactionAwareHTableTest {
 
     TransactionAwareHTable txTable =
       new TransactionAwareHTable(createTable(Bytes.toBytes("testExistingData"), new byte[][]{TestBytes.family}, true, 
-      Collections.<String>emptyList()));
+      Collections.singletonList(TransactionProcessor.class.getName())));
     TransactionContext txContext = new TransactionContext(new InMemoryTxSystemClient(txManager), txTable);
 
     // Add some pre-existing, non-transactional data
@@ -1272,8 +1219,9 @@ public class TransactionAwareHTableTest {
 
   @Test
   public void testVisibilityAll() throws Exception {
-    HTable nonTxTable = createTable(Bytes.toBytes("testVisibilityAll"),
-      new byte[][]{TestBytes.family, TestBytes.family2}, true, Collections.<String>emptyList());
+    HTable nonTxTable =
+      createTable(Bytes.toBytes("testVisibilityAll"), new byte[][]{TestBytes.family, TestBytes.family2},
+                  true, Collections.singletonList(TransactionProcessor.class.getName()));
     TransactionAwareHTable txTable =
       new TransactionAwareHTable(nonTxTable,
                                  TxConstants.ConflictDetection.ROW); // ROW conflict detection to verify family deletes
@@ -1546,6 +1494,66 @@ public class TransactionAwareHTableTest {
     transactionContext.start();
     result = transactionAwareHTable.get(get);
     assertTrue(result.isEmpty());
+    transactionContext.finish();
+  }
+
+  @Test
+  public void testTxLifetime() throws Exception {
+    // Add some initial values
+    transactionContext.start();
+    Put put = new Put(TestBytes.row).addColumn(TestBytes.family, TestBytes.qualifier, TestBytes.value);
+    transactionAwareHTable.put(put);
+    put = new Put(TestBytes.row).addColumn(TestBytes.family, TestBytes.qualifier2, TestBytes.value);
+    transactionAwareHTable.put(put);
+    transactionContext.finish();
+
+    // Simulate writing with a transaction past its max lifetime
+    transactionContext.start();
+    Transaction currentTx = transactionContext.getCurrentTransaction();
+    Assert.assertNotNull(currentTx);
+
+    // Create a transaction that is past the max lifetime
+    long txMaxLifetimeMillis = TimeUnit.SECONDS.toMillis(conf.getInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME,
+                                                                     TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME));
+    long oldTxId = currentTx.getTransactionId() - ((txMaxLifetimeMillis + 10000) * TxConstants.MAX_TX_PER_MS);
+    Transaction oldTx = new Transaction(currentTx.getReadPointer(), oldTxId,
+                                        currentTx.getInvalids(), currentTx.getInProgress(),
+                                        currentTx.getFirstShortInProgress());
+    transactionAwareHTable.updateTx(oldTx);
+    // Put with the old transaction should fail
+    put = new Put(TestBytes.row2).addColumn(TestBytes.family, TestBytes.qualifier, TestBytes.value);
+    try {
+      transactionAwareHTable.put(put);
+      Assert.fail("Excepted exception with old transaction!");
+    } catch (IOException e) {
+      // Expected exception
+    }
+
+    // Delete with the old transaction should also fail
+    Delete delete = new Delete(TestBytes.row).addColumn(TestBytes.family, TestBytes.qualifier);
+    try {
+      transactionAwareHTable.delete(delete);
+      Assert.fail("Excepted exception with old transaction!");
+    } catch (IOException e) {
+      // Expected exception
+    }
+
+    // Now update the table to use the current transaction
+    transactionAwareHTable.updateTx(currentTx);
+    put = new Put(TestBytes.row2).addColumn(TestBytes.family, TestBytes.qualifier2, TestBytes.value);
+    transactionAwareHTable.put(put);
+    delete = new Delete(TestBytes.row).addColumn(TestBytes.family, TestBytes.qualifier2);
+    transactionAwareHTable.delete(delete);
+
+    // Verify values with the same transaction since we cannot commit the old transaction
+    verifyRow(transactionAwareHTable,
+              new Get(TestBytes.row).addColumn(TestBytes.family, TestBytes.qualifier), TestBytes.value);
+    verifyRow(transactionAwareHTable,
+              new Get(TestBytes.row).addColumn(TestBytes.family, TestBytes.qualifier2), null);
+    verifyRow(transactionAwareHTable,
+              new Get(TestBytes.row2).addColumn(TestBytes.family, TestBytes.qualifier), null);
+    verifyRow(transactionAwareHTable,
+              new Get(TestBytes.row2).addColumn(TestBytes.family, TestBytes.qualifier2), TestBytes.value);
     transactionContext.finish();
   }
 

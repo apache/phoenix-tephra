@@ -308,8 +308,7 @@ public class TransactionProcessor extends BaseRegionObserver {
       compactionState.record(request, snapshot);
     }
     // Also make sure to use the same snapshot for the compaction
-    return createStoreScanner(c.getEnvironment(), "compaction", snapshot, store, scanners,
-                              scanType, earliestPutTs);
+    return createStoreScanner(c.getEnvironment(), "compaction", snapshot, store, scanners, scanType, earliestPutTs);
   }
 
   @Override
