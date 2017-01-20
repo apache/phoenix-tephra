@@ -41,15 +41,13 @@ public class CompactionState {
   private final byte[] regionName;
   private final String regionNameAsString;
   private final TableName stateTable;
-  private final long txMaxLifetimeMills;
   private final DataJanitorState dataJanitorState;
   private volatile long pruneUpperBound = -1;
 
-  public CompactionState(final RegionCoprocessorEnvironment env, final TableName stateTable, long txMaxLifetimeMills) {
+  public CompactionState(final RegionCoprocessorEnvironment env, final TableName stateTable) {
     this.regionName = env.getRegion().getRegionName();
     this.regionNameAsString = env.getRegion().getRegionNameAsString();
     this.stateTable = stateTable;
-    this.txMaxLifetimeMills = txMaxLifetimeMills;
     this.dataJanitorState = new DataJanitorState(new DataJanitorState.TableSupplier() {
       @Override
       public HTableInterface get() throws IOException {

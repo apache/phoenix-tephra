@@ -23,6 +23,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
@@ -109,7 +110,8 @@ public class TransactionProcessor extends BaseRegionObserver {
   protected Map<byte[], Long> ttlByFamily = Maps.newTreeMap(Bytes.BYTES_COMPARATOR);
   protected boolean allowEmptyValues = TxConstants.ALLOW_EMPTY_VALUES_DEFAULT;
   protected boolean readNonTxnData = TxConstants.DEFAULT_READ_NON_TX_DATA;
-  protected long txMaxLifetimeMillis = TimeUnit.SECONDS.toMillis(TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME);
+  protected Long txMaxLifetimeMillis;
+  private Boolean pruneEnable;
 
   public TransactionProcessor() {
     this.txCodec = new TransactionCodec();
@@ -140,27 +142,26 @@ public class TransactionProcessor extends BaseRegionObserver {
         ttlByFamily.put(columnDesc.getName(), ttl);
       }
 
-      this.allowEmptyValues = env.getConfiguration().getBoolean(TxConstants.ALLOW_EMPTY_VALUES_KEY,
-                                                                TxConstants.ALLOW_EMPTY_VALUES_DEFAULT);
+      this.allowEmptyValues = getAllowEmptyValues(env, tableDesc);
       this.readNonTxnData = Boolean.valueOf(tableDesc.getValue(TxConstants.READ_NON_TX_DATA));
       if (readNonTxnData) {
         LOG.info("Reading pre-existing data enabled for table " + tableDesc.getNameAsString());
       }
-
-      this.txMaxLifetimeMillis =
-        TimeUnit.SECONDS.toMillis(env.getConfiguration().getInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME,
-                                                                TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME));
-
-      boolean pruneEnabled = env.getConfiguration().getBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE,
-                                                               TxConstants.TransactionPruning.DEFAULT_PRUNE_ENABLE);
-      if (pruneEnabled) {
-        String pruneTable = env.getConfiguration().get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
-                                                       TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE);
-        compactionState = new CompactionState(env, TableName.valueOf(pruneTable), txMaxLifetimeMillis);
-        LOG.debug("Automatic invalid list pruning is enabled. Compaction state will be recorded in table " +
-                    pruneTable);
-      }
     }
+  }
+
+  /**
+   * Fetch the {@link Configuration} that contains the properties required by the coprocessor. By default,
+   * the HBase configuration is returned. This method will never return {@code null} in Tephra but the derived
+   * classes might do so if {@link Configuration} is not available temporarily (for example, if it is being fetched
+   * from a HBase Table.
+   *
+   * @param env {@link RegionCoprocessorEnvironment} of the Region to which the coprocessor is associated
+   * @return {@link Configuration}, can be null if it is not available
+   */
+  @Nullable
+  protected Configuration getConfiguration(CoprocessorEnvironment env) {
+    return env.getConfiguration();
   }
 
   protected Supplier<TransactionStateCache> getTransactionStateCacheSupplier(RegionCoprocessorEnvironment env) {
@@ -190,7 +191,7 @@ public class TransactionProcessor extends BaseRegionObserver {
   public void prePut(ObserverContext<RegionCoprocessorEnvironment> e, Put put, WALEdit edit, Durability durability)
     throws IOException {
     Transaction tx = getFromOperation(put);
-    ensureValidTxLifetime(tx);
+    ensureValidTxLifetime(e.getEnvironment(), tx);
   }
 
   @Override
@@ -207,7 +208,7 @@ public class TransactionProcessor extends BaseRegionObserver {
     }
 
     Transaction tx = getFromOperation(delete);
-    ensureValidTxLifetime(tx);
+    ensureValidTxLifetime(e.getEnvironment(), tx);
 
     // Other deletes are client-initiated and need to be translated into our own tombstones
     // TODO: this should delegate to the DeleteStrategy implementation.
@@ -216,13 +217,11 @@ public class TransactionProcessor extends BaseRegionObserver {
       List<Cell> familyCells = delete.getFamilyCellMap().get(family);
       if (isFamilyDelete(familyCells)) {
         deleteMarkers.add(family, TxConstants.FAMILY_DELETE_QUALIFIER, familyCells.get(0).getTimestamp(),
-                   HConstants.EMPTY_BYTE_ARRAY);
+                          HConstants.EMPTY_BYTE_ARRAY);
       } else {
-        int cellSize = familyCells.size();
-        for (int i = 0; i < cellSize; i++) {
-          Cell cell = familyCells.get(i);
+        for (Cell cell : familyCells) {
           deleteMarkers.add(family, CellUtil.cloneQualifier(cell), cell.getTimestamp(),
-                  HConstants.EMPTY_BYTE_ARRAY);
+                            HConstants.EMPTY_BYTE_ARRAY);
         }
       }
     }
@@ -232,6 +231,18 @@ public class TransactionProcessor extends BaseRegionObserver {
     e.getEnvironment().getRegion().put(deleteMarkers);
     // skip normal delete handling
     e.bypass();
+  }
+
+  private boolean getAllowEmptyValues(RegionCoprocessorEnvironment env, HTableDescriptor htd) {
+    String allowEmptyValuesFromTableDesc = htd.getValue(TxConstants.ALLOW_EMPTY_VALUES_KEY);
+    Configuration conf = getConfiguration(env);
+    boolean allowEmptyValuesFromConfig = (conf != null) ?
+      conf.getBoolean(TxConstants.ALLOW_EMPTY_VALUES_KEY, TxConstants.ALLOW_EMPTY_VALUES_DEFAULT) :
+      TxConstants.ALLOW_EMPTY_VALUES_DEFAULT;
+
+    // If the property is not present in the tableDescriptor, get it from the Configuration
+    return  (allowEmptyValuesFromTableDesc != null) ?
+      Boolean.valueOf(allowEmptyValuesFromTableDesc) : allowEmptyValuesFromConfig;
   }
 
   private boolean isFamilyDelete(List<Cell> familyCells) {
@@ -304,10 +315,26 @@ public class TransactionProcessor extends BaseRegionObserver {
     // Get the latest tx snapshot state for the compaction
     TransactionVisibilityState snapshot = cache.getLatestState();
 
-    // Record tx state before the compaction
-    if (compactionState != null) {
+    if (pruneEnable == null) {
+      Configuration conf = getConfiguration(c.getEnvironment());
+      // Configuration won't be null in TransactionProcessor but the derived classes might return
+      // null if it is not available temporarily
+      if (conf != null) {
+        pruneEnable = conf.getBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE,
+                                      TxConstants.TransactionPruning.DEFAULT_PRUNE_ENABLE);
+        String pruneTable = conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
+                                     TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE);
+        compactionState = new CompactionState(c.getEnvironment(), TableName.valueOf(pruneTable));
+        LOG.debug("Automatic invalid list pruning is enabled. Compaction state will be recorded in table " +
+                    pruneTable);
+      }
+    }
+
+    if (Boolean.TRUE.equals(pruneEnable)) {
+      // Record tx state before the compaction
       compactionState.record(request, snapshot);
     }
+
     // Also make sure to use the same snapshot for the compaction
     return createStoreScanner(c.getEnvironment(), "compaction", snapshot, store, scanners, scanType, earliestPutTs);
   }
@@ -359,9 +386,31 @@ public class TransactionProcessor extends BaseRegionObserver {
     return null;
   }
 
-  private void ensureValidTxLifetime(@Nullable Transaction tx) throws DoNotRetryIOException {
+  /**
+   * Make sure that the transaction is within the max valid transaction lifetime.
+   *
+   * @param env {@link RegionCoprocessorEnvironment} of the Region to which the coprocessor is associated
+   * @param tx {@link Transaction} supplied by the
+   * @throws DoNotRetryIOException thrown if the transaction is older than the max lifetime of a transaction
+   *         IOException throw if the value of max lifetime of transaction is unavailable
+   */
+  protected void ensureValidTxLifetime(RegionCoprocessorEnvironment env,
+                                       @Nullable Transaction tx) throws IOException {
     if (tx == null) {
       return;
+    }
+
+    if (txMaxLifetimeMillis == null) {
+      Configuration conf = getConfiguration(env);
+      // Configuration won't be null in TransactionProcessor but the derived classes might return
+      // null if it is not available temporarily
+      if (conf != null) {
+        this.txMaxLifetimeMillis = TimeUnit.SECONDS.toMillis(conf.getInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME,
+                                                                         TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME));
+      } else {
+        throw new IOException(String.format("Could not validate Transaction since the value of max lifetime is " +
+                                              "unavailable. Please retry the operation."));
+      }
     }
 
     boolean validLifetime =
