@@ -23,6 +23,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
@@ -140,27 +141,33 @@ public class TransactionProcessor extends BaseRegionObserver {
         ttlByFamily.put(columnDesc.getName(), ttl);
       }
 
-      this.allowEmptyValues = env.getConfiguration().getBoolean(TxConstants.ALLOW_EMPTY_VALUES_KEY,
-                                                                TxConstants.ALLOW_EMPTY_VALUES_DEFAULT);
+      String allowEmptyValuesFromTableDesc = tableDesc.getValue(TxConstants.ALLOW_EMPTY_VALUES_KEY);
+      this.allowEmptyValues = (allowEmptyValuesFromTableDesc != null) ? Boolean.valueOf(allowEmptyValuesFromTableDesc) :
+        getConfiguration(env).getBoolean(TxConstants.ALLOW_EMPTY_VALUES_KEY, TxConstants.ALLOW_EMPTY_VALUES_DEFAULT);
+
       this.readNonTxnData = Boolean.valueOf(tableDesc.getValue(TxConstants.READ_NON_TX_DATA));
       if (readNonTxnData) {
         LOG.info("Reading pre-existing data enabled for table " + tableDesc.getNameAsString());
       }
 
       this.txMaxLifetimeMillis =
-        TimeUnit.SECONDS.toMillis(env.getConfiguration().getInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME,
-                                                                TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME));
+        TimeUnit.SECONDS.toMillis(getConfiguration(env).getInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME,
+                                                               TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME));
 
-      boolean pruneEnabled = env.getConfiguration().getBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE,
-                                                               TxConstants.TransactionPruning.DEFAULT_PRUNE_ENABLE);
+      boolean pruneEnabled = getConfiguration(env).getBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE,
+                                                              TxConstants.TransactionPruning.DEFAULT_PRUNE_ENABLE);
       if (pruneEnabled) {
-        String pruneTable = env.getConfiguration().get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
-                                                       TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE);
+        String pruneTable = getConfiguration(env).get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
+                                                      TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE);
         compactionState = new CompactionState(env, TableName.valueOf(pruneTable), txMaxLifetimeMillis);
         LOG.debug("Automatic invalid list pruning is enabled. Compaction state will be recorded in table " +
                     pruneTable);
       }
     }
+  }
+
+  protected Configuration getConfiguration(CoprocessorEnvironment env) {
+    return env.getConfiguration();
   }
 
   protected Supplier<TransactionStateCache> getTransactionStateCacheSupplier(RegionCoprocessorEnvironment env) {
