@@ -170,7 +170,9 @@ public class TransactionProcessor extends BaseRegionObserver {
 
   @Override
   public void stop(CoprocessorEnvironment e) throws IOException {
-    // nothing to do
+    if (compactionState != null) {
+      compactionState.stop();
+    }
   }
 
   @Override
@@ -191,7 +193,7 @@ public class TransactionProcessor extends BaseRegionObserver {
   public void prePut(ObserverContext<RegionCoprocessorEnvironment> e, Put put, WALEdit edit, Durability durability)
     throws IOException {
     Transaction tx = getFromOperation(put);
-    ensureValidTxLifetime(e.getEnvironment(), tx);
+    ensureValidTxLifetime(e.getEnvironment(), put, tx);
   }
 
   @Override
@@ -208,7 +210,7 @@ public class TransactionProcessor extends BaseRegionObserver {
     }
 
     Transaction tx = getFromOperation(delete);
-    ensureValidTxLifetime(e.getEnvironment(), tx);
+    ensureValidTxLifetime(e.getEnvironment(), delete, tx);
 
     // Other deletes are client-initiated and need to be translated into our own tombstones
     // TODO: this should delegate to the DeleteStrategy implementation.
@@ -322,11 +324,16 @@ public class TransactionProcessor extends BaseRegionObserver {
       if (conf != null) {
         pruneEnable = conf.getBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE,
                                       TxConstants.TransactionPruning.DEFAULT_PRUNE_ENABLE);
-        String pruneTable = conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
-                                     TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE);
-        compactionState = new CompactionState(c.getEnvironment(), TableName.valueOf(pruneTable));
-        LOG.debug("Automatic invalid list pruning is enabled. Compaction state will be recorded in table " +
-                    pruneTable);
+        if (Boolean.TRUE.equals(pruneEnable)) {
+          String pruneTable = conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
+                                       TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE);
+          long pruneFlushInterval = TimeUnit.SECONDS.toMillis(
+            conf.getLong(TxConstants.TransactionPruning.PRUNE_FLUSH_INTERVAL,
+                         TxConstants.TransactionPruning.DEFAULT_PRUNE_FLUSH_INTERVAL));
+          compactionState = new CompactionState(c.getEnvironment(), TableName.valueOf(pruneTable), pruneFlushInterval);
+          LOG.debug("Automatic invalid list pruning is enabled. Compaction state will be recorded in table "
+                      + pruneTable);
+        }
       }
     }
 
@@ -390,11 +397,13 @@ public class TransactionProcessor extends BaseRegionObserver {
    * Make sure that the transaction is within the max valid transaction lifetime.
    *
    * @param env {@link RegionCoprocessorEnvironment} of the Region to which the coprocessor is associated
+   * @param op {@link OperationWithAttributes} HBase operation to access its attributes if required
    * @param tx {@link Transaction} supplied by the
    * @throws DoNotRetryIOException thrown if the transaction is older than the max lifetime of a transaction
    *         IOException throw if the value of max lifetime of transaction is unavailable
    */
   protected void ensureValidTxLifetime(RegionCoprocessorEnvironment env,
+                                       @SuppressWarnings("unused") OperationWithAttributes op,
                                        @Nullable Transaction tx) throws IOException {
     if (tx == null) {
       return;

@@ -369,6 +369,12 @@ public class TxConstants {
      * Interval in seconds to schedule prune run.
      */
     public static final String PRUNE_INTERVAL = "data.tx.prune.interval";
+
+    /**
+     * Interval in seconds to schedule flush of prune table entries to store.
+     */
+    public static final String PRUNE_FLUSH_INTERVAL = "data.tx.prune.flush.interval";
+
     /**
      * Comma separated list of invalid transaction pruning plugins to load
      */
@@ -381,6 +387,7 @@ public class TxConstants {
     public static final boolean DEFAULT_PRUNE_ENABLE = false;
     public static final String DEFAULT_PRUNE_STATE_TABLE = "data_tx_janitor_state";
     public static final long DEFAULT_PRUNE_INTERVAL = TimeUnit.HOURS.toSeconds(6);
+    public static final long DEFAULT_PRUNE_FLUSH_INTERVAL = TimeUnit.MINUTES.toSeconds(1);
     public static final String DEFAULT_PLUGIN = "data.tx.prune.plugin.default";
     public static final String DEFAULT_PLUGIN_CLASS =
       "org.apache.tephra.hbase.txprune.HBaseTransactionPruningPlugin";

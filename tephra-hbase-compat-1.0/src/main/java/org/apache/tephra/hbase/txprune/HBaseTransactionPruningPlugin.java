@@ -24,8 +24,10 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.TableExistsException;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Admin;
 import org.apache.hadoop.hbase.client.Connection;
@@ -124,6 +126,7 @@ public class HBaseTransactionPruningPlugin implements TransactionPruningPlugin {
                                                             TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE));
     LOG.info("Initializing plugin with state table {}:{}", stateTable.getNamespaceAsString(),
              stateTable.getNameAsString());
+    createPruneTable(stateTable);
     this.dataJanitorState = new DataJanitorState(new DataJanitorState.TableSupplier() {
       @Override
       public Table get() throws IOException {
@@ -210,6 +213,38 @@ public class HBaseTransactionPruningPlugin implements TransactionPruningPlugin {
     }
   }
 
+  /**
+   * Create the prune state table given the {@link TableName} if the table doesn't exist already.
+   *
+   * @param stateTable prune state table name
+   */
+  protected void createPruneTable(TableName stateTable) throws IOException {
+    try (Admin admin = this.connection.getAdmin()) {
+      if (admin.tableExists(stateTable)) {
+        LOG.debug("Not creating pruneStateTable {}:{} since it already exists.",
+                  stateTable.getNamespaceAsString(), stateTable.getNameAsString());
+        return;
+      }
+
+      HTableDescriptor htd = new HTableDescriptor(stateTable);
+      htd.addFamily(new HColumnDescriptor(DataJanitorState.FAMILY).setMaxVersions(1));
+      admin.createTable(htd);
+      LOG.info("Created pruneTable {}:{}", stateTable.getNamespaceAsString(), stateTable.getNameAsString());
+    } catch (TableExistsException ex) {
+      // Expected if the prune state table is being created at the same time by another client
+      LOG.debug("Not creating pruneStateTable {}:{} since it already exists.",
+                stateTable.getNamespaceAsString(), stateTable.getNameAsString(), ex);
+    }
+  }
+
+  /**
+   * Returns whether the table is a transactional table. By default, it is a table is identified as a transactional
+   * table if it has a the coprocessor {@link TransactionProcessor} attached to it. Should be overriden if the users
+   * attach a different coprocessor.
+   *
+   * @param tableDescriptor {@link HTableDescriptor} of the table
+   * @return true if the table is transactional
+   */
   protected boolean isTransactionalTable(HTableDescriptor tableDescriptor) {
     return tableDescriptor.hasCoprocessor(TransactionProcessor.class.getName());
   }

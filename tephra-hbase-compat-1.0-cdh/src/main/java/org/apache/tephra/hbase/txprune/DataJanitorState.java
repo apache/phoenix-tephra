@@ -46,8 +46,8 @@ import javax.annotation.Nullable;
 @SuppressWarnings("WeakerAccess")
 public class DataJanitorState {
   public static final byte[] FAMILY = {'f'};
+  public static final byte[] PRUNE_UPPER_BOUND_COL = {'p'};
 
-  private static final byte[] PRUNE_UPPER_BOUND_COL = {'p'};
   private static final byte[] REGION_TIME_COL = {'r'};
   private static final byte[] INACTIVE_TRANSACTION_BOUND_TIME_COL = {'i'};
 
