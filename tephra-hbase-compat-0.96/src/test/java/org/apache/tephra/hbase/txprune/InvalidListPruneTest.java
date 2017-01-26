@@ -61,6 +61,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -82,6 +83,8 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
     // Setup the configuration to start HBase cluster with the invalid list pruning enabled
     conf = HBaseConfiguration.create();
     conf.setBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE, true);
+    // Flush prune data to table quickly, so that tests don't need have to wait long to see updates
+    conf.setLong(TxConstants.TransactionPruning.PRUNE_FLUSH_INTERVAL, 0L);
     AbstractHBaseTableTest.startMiniCluster();
 
     TransactionStateStorage txStateStorage = new InMemoryTransactionStateStorage();
@@ -141,6 +144,17 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
     }
   }
 
+  private void truncatePruneStateTable() throws Exception {
+    if (hBaseAdmin.tableExists(pruneStateTable)) {
+      if (hBaseAdmin.isTableEnabled(pruneStateTable)) {
+        hBaseAdmin.disableTable(pruneStateTable);
+      }
+      HTableDescriptor htd = hBaseAdmin.getTableDescriptor(pruneStateTable);
+      hBaseAdmin.deleteTable(pruneStateTable);
+      hBaseAdmin.createTable(htd);
+    }
+  }
+
   @Test
   public void testRecordCompactionState() throws Exception {
     DataJanitorState dataJanitorState =
@@ -150,6 +164,13 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
           return connection.getTable(pruneStateTable);
         }
       });
+
+    // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+    TimeUnit.SECONDS.sleep(2);
+    // Truncate prune state table to clear any data that might have been written by the previous test
+    // This is required because during the shutdown of the previous test, compaction might have kicked in and the
+    // coprocessor still had some data to flush and it might be flushed at the beginning of this test.
+    truncatePruneStateTable();
 
     // No prune upper bound initially
     Assert.assertEquals(-1,
@@ -161,17 +182,23 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
                               ImmutableSortedMap.<Long, TransactionManager.InProgressTx>of()));
     // Run minor compaction
     testUtil.compact(txDataTable1, false);
+    // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+    TimeUnit.SECONDS.sleep(2);
     // No prune upper bound after minor compaction too
     Assert.assertEquals(-1,
                         dataJanitorState.getPruneUpperBoundForRegion(getRegionName(txDataTable1, Bytes.toBytes(0))));
 
     // Run major compaction, and verify prune upper bound
     testUtil.compact(txDataTable1, true);
+    // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+    TimeUnit.SECONDS.sleep(2);
     Assert.assertEquals(50,
                         dataJanitorState.getPruneUpperBoundForRegion(getRegionName(txDataTable1, Bytes.toBytes(0))));
 
     // Run major compaction again with same snapshot, prune upper bound should not change
     testUtil.compact(txDataTable1, true);
+    // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+    TimeUnit.SECONDS.sleep(2);
     Assert.assertEquals(50,
                         dataJanitorState.getPruneUpperBoundForRegion(getRegionName(txDataTable1, Bytes.toBytes(0))));
 
@@ -185,6 +212,8 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
 
     // Run major compaction again, now prune upper bound should change
     testUtil.compact(txDataTable1, true);
+    // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+    TimeUnit.SECONDS.sleep(2);
     Assert.assertEquals(104,
                         dataJanitorState.getPruneUpperBoundForRegion(getRegionName(txDataTable1, Bytes.toBytes(0))));
   }
@@ -202,6 +231,8 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
     // Run major compaction, and verify it completes
     long now = System.currentTimeMillis();
     testUtil.compact(txDataTable1, true);
+    // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+    TimeUnit.SECONDS.sleep(2);
     long lastMajorCompactionTime = TestTransactionProcessor.lastMajorCompactionTime.get();
     Assert.assertTrue(String.format("Expected %d, but was %d", now, lastMajorCompactionTime),
                       lastMajorCompactionTime >= now);
@@ -215,6 +246,8 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
     // Run major compaction, and verify it completes
     long now = System.currentTimeMillis();
     testUtil.compact(txDataTable1, true);
+    // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+    TimeUnit.SECONDS.sleep(2);
     long lastMajorCompactionTime = TestTransactionProcessor.lastMajorCompactionTime.get();
     Assert.assertTrue(String.format("Expected %d, but was %d", now, lastMajorCompactionTime),
                       lastMajorCompactionTime >= now);
@@ -229,6 +262,13 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
           return connection.getTable(pruneStateTable);
         }
       });
+
+    // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+    TimeUnit.SECONDS.sleep(2);
+    // Truncate prune state table to clear any data that might have been written by the previous test
+    // This is required because during the shutdown of the previous test, compaction might have kicked in and the
+    // coprocessor still had some data to flush and it might be flushed at the beginning of this test.
+    truncatePruneStateTable();
 
     TransactionPruningPlugin transactionPruningPlugin = new TestTransactionPruningPlugin();
     transactionPruningPlugin.initialize(conf);
@@ -276,6 +316,8 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
                           .add(getRegionName(txDataTable1, Bytes.toBytes(0)))
                           .build());
       testUtil.compact(txDataTable1, true);
+      // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+      TimeUnit.SECONDS.sleep(2);
       long pruneUpperBound2 = transactionPruningPlugin.fetchPruneUpperBound(now2, inactiveTxTimeNow2);
       Assert.assertEquals(expectedPruneUpperBound2, pruneUpperBound2);
 

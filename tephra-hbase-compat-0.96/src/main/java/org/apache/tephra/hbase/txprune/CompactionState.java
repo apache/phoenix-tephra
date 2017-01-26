@@ -38,22 +38,27 @@ import javax.annotation.Nullable;
 public class CompactionState {
   private static final Log LOG = LogFactory.getLog(CompactionState.class);
 
+  private final TableName stateTable;
   private final byte[] regionName;
   private final String regionNameAsString;
-  private final TableName stateTable;
   private final DataJanitorState dataJanitorState;
+  private final long pruneFlushInterval;
   private volatile long pruneUpperBound = -1;
 
-  public CompactionState(final RegionCoprocessorEnvironment env, final TableName stateTable) {
+  private PruneUpperBoundWriter pruneUpperBoundWriter;
+
+  public CompactionState(final RegionCoprocessorEnvironment env, final TableName stateTable, long pruneFlushInterval) {
+    this.stateTable = stateTable;
     this.regionName = env.getRegion().getRegionName();
     this.regionNameAsString = env.getRegion().getRegionNameAsString();
-    this.stateTable = stateTable;
     this.dataJanitorState = new DataJanitorState(new DataJanitorState.TableSupplier() {
       @Override
       public HTableInterface get() throws IOException {
         return env.getTable(stateTable);
       }
     });
+    this.pruneFlushInterval = pruneFlushInterval;
+    this.pruneUpperBoundWriter = createPruneUpperBoundWriter();
   }
 
   /**
@@ -75,18 +80,29 @@ public class CompactionState {
   }
 
   /**
+   * Stops the current {@link PruneUpperBoundWriter}.
+   */
+  public void stop() {
+    if (pruneUpperBoundWriter != null) {
+      pruneUpperBoundWriter.stop();
+    }
+  }
+
+  /**
    * Persists the transaction state recorded by {@link #record(CompactionRequest, TransactionVisibilityState)}.
    * This method is called after the compaction has successfully completed.
    */
   public void persist() {
     if (pruneUpperBound != -1) {
-      try {
-        dataJanitorState.savePruneUpperBoundForRegion(regionName, pruneUpperBound);
-        LOG.debug(String.format("Saved prune upper bound %s for region %s", pruneUpperBound, regionNameAsString));
-      } catch (IOException e) {
-        LOG.warn(String.format("Cannot record prune upper bound in table %s after compacting region %s",
-                               stateTable, regionNameAsString), e);
+      if (!pruneUpperBoundWriter.isAlive()) {
+        pruneUpperBoundWriter = createPruneUpperBoundWriter();
       }
+      pruneUpperBoundWriter.persistPruneEntry(pruneUpperBound);
+      LOG.debug(String.format("Enqueued prune upper bound %s for region %s", pruneUpperBound, regionNameAsString));
     }
+  }
+
+  private PruneUpperBoundWriter createPruneUpperBoundWriter() {
+    return new PruneUpperBoundWriter(dataJanitorState, stateTable, regionNameAsString, regionName, pruneFlushInterval);
   }
 }
