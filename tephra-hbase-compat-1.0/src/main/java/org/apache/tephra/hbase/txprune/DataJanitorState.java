@@ -20,6 +20,8 @@
 package org.apache.tephra.hbase.txprune;
 
 import com.google.common.collect.Maps;
+import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.Put;
@@ -29,8 +31,11 @@ import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.tephra.hbase.coprocessor.TransactionProcessor;
+import org.apache.tephra.txprune.RegionPruneInfo;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
@@ -102,11 +107,30 @@ public class DataJanitorState {
    * @throws IOException when not able to read the data from HBase
    */
   public long getPruneUpperBoundForRegion(byte[] regionId) throws IOException {
+    RegionPruneInfo regionPruneInfo = getPruneInfoForRegion(regionId);
+    return (regionPruneInfo == null) ? -1 : regionPruneInfo.getPruneUpperBound();
+  }
+
+  /**
+   * Get the latest {@link RegionPruneInfo} for a given region.
+   *
+   * @param regionId region id
+   * @return {@link RegionPruneInfo} for the region
+   * @throws IOException when not able to read the data from HBase
+   */
+  @Nullable
+  public RegionPruneInfo getPruneInfoForRegion(byte[] regionId) throws IOException {
     try (Table stateTable = stateTableSupplier.get()) {
       Get get = new Get(makeRegionKey(regionId));
       get.addColumn(FAMILY, PRUNE_UPPER_BOUND_COL);
-      byte[] result = stateTable.get(get).getValue(FAMILY, PRUNE_UPPER_BOUND_COL);
-      return result == null ? -1 : Bytes.toLong(result);
+      Cell cell = stateTable.get(get).getColumnLatestCell(FAMILY, PRUNE_UPPER_BOUND_COL);
+      if (cell == null) {
+        return null;
+      }
+      byte[] pruneUpperBoundBytes = CellUtil.cloneValue(cell);
+      long timestamp = cell.getTimestamp();
+      return new RegionPruneInfo(regionId, Bytes.toStringBinary(regionId),
+                                 Bytes.toLong(pruneUpperBoundBytes), timestamp);
     }
   }
 
@@ -120,6 +144,22 @@ public class DataJanitorState {
    */
   public Map<byte[], Long> getPruneUpperBoundForRegions(SortedSet<byte[]> regions) throws IOException {
     Map<byte[], Long> resultMap = new TreeMap<>(Bytes.BYTES_COMPARATOR);
+    List<RegionPruneInfo> regionPruneInfos = getPruneInfoForRegions(regions);
+    for (RegionPruneInfo regionPruneInfo : regionPruneInfos) {
+      resultMap.put(regionPruneInfo.getRegionName(), regionPruneInfo.getPruneUpperBound());
+    }
+    return resultMap;
+  }
+
+  /**
+   * Gets a list of {@link RegionPruneInfo} for given regions. Returns all regions if the given regions set is null.
+   *
+   * @param regions a set of regions
+   * @return list of {@link RegionPruneInfo}s.
+   * @throws IOException when not able to read the data from HBase
+   */
+  public List<RegionPruneInfo> getPruneInfoForRegions(@Nullable SortedSet<byte[]> regions) throws IOException {
+    List<RegionPruneInfo> regionPruneInfos = new ArrayList<>();
     try (Table stateTable = stateTableSupplier.get()) {
       byte[] startRow = makeRegionKey(EMPTY_BYTE_ARRAY);
       Scan scan = new Scan(startRow, REGION_KEY_PREFIX_STOP);
@@ -129,17 +169,19 @@ public class DataJanitorState {
         Result next;
         while ((next = scanner.next()) != null) {
           byte[] region = getRegionFromKey(next.getRow());
-          if (regions.contains(region)) {
-            byte[] timeBytes = next.getValue(FAMILY, PRUNE_UPPER_BOUND_COL);
-            if (timeBytes != null) {
-              long pruneUpperBoundRegion = Bytes.toLong(timeBytes);
-              resultMap.put(region, pruneUpperBoundRegion);
+          if (regions == null || regions.contains(region)) {
+            Cell cell = next.getColumnLatestCell(FAMILY, PRUNE_UPPER_BOUND_COL);
+            if (cell != null) {
+              byte[] pruneUpperBoundBytes = CellUtil.cloneValue(cell);
+              long timestamp = cell.getTimestamp();
+              regionPruneInfos.add(new RegionPruneInfo(region, Bytes.toStringBinary(region),
+                                                       Bytes.toLong(pruneUpperBoundBytes), timestamp));
             }
           }
         }
       }
-      return resultMap;
     }
+    return regionPruneInfos;
   }
 
   /**
