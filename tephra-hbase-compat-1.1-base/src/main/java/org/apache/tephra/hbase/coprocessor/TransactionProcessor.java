@@ -331,8 +331,10 @@ public class TransactionProcessor extends BaseRegionObserver {
             conf.getLong(TxConstants.TransactionPruning.PRUNE_FLUSH_INTERVAL,
                          TxConstants.TransactionPruning.DEFAULT_PRUNE_FLUSH_INTERVAL));
           compactionState = new CompactionState(c.getEnvironment(), TableName.valueOf(pruneTable), pruneFlushInterval);
-          LOG.debug("Automatic invalid list pruning is enabled. Compaction state will be recorded in table "
-                      + pruneTable);
+          if (LOG.isDebugEnabled()) {
+            LOG.debug("Automatic invalid list pruning is enabled. Compaction state will be recorded in table "
+                        + pruneTable);
+          }
         }
       }
     }

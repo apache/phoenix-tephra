@@ -18,57 +18,62 @@
 
 package org.apache.tephra.hbase.txprune;
 
+import com.google.common.util.concurrent.AbstractIdleService;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.tephra.hbase.coprocessor.TransactionProcessor;
+import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
+import java.util.Map;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Thread that will write the the prune upper bound
+ * Thread that will write the the prune upper bound. An instance of this class should be obtained only
+ * through {@link PruneUpperBoundWriterSupplier} which will also handle the lifecycle of this instance.
  */
-public class PruneUpperBoundWriter {
-  private static final Log LOG = LogFactory.getLog(TransactionProcessor.class);
+public class PruneUpperBoundWriter extends AbstractIdleService {
+  private static final Log LOG = LogFactory.getLog(PruneUpperBoundWriter.class);
 
-  private final TableName pruneStateTable;
+  private final TableName tableName;
   private final DataJanitorState dataJanitorState;
-  private final byte[] regionName;
-  private final String regionNameAsString;
   private final long pruneFlushInterval;
-  private final AtomicLong pruneUpperBound;
-  private final AtomicBoolean shouldFlush;
+  private final ConcurrentSkipListMap<byte[], Long> pruneEntries;
 
-  private Thread flushThread;
+  private volatile Thread flushThread;
+
   private long lastChecked;
 
-  public PruneUpperBoundWriter(DataJanitorState dataJanitorState, TableName pruneStateTable, String regionNameAsString,
-                               byte[] regionName, long pruneFlushInterval) {
-    this.pruneStateTable = pruneStateTable;
+  public PruneUpperBoundWriter(TableName tableName, DataJanitorState dataJanitorState, long pruneFlushInterval) {
+    this.tableName = tableName;
     this.dataJanitorState = dataJanitorState;
-    this.regionName = regionName;
-    this.regionNameAsString = regionNameAsString;
     this.pruneFlushInterval = pruneFlushInterval;
-    this.pruneUpperBound = new AtomicLong();
-    this.shouldFlush = new AtomicBoolean(false);
-    startFlushThread();
+    this.pruneEntries = new ConcurrentSkipListMap<>(Bytes.BYTES_COMPARATOR);
+  }
+
+  public void persistPruneEntry(byte[] regionName, long pruneUpperBound) {
+    // The number of entries in this map is bound by the number of regions in this region server and thus it will not
+    // grow indefinitely
+    pruneEntries.put(regionName, pruneUpperBound);
   }
 
   public boolean isAlive() {
-    return flushThread.isAlive();
+    return flushThread != null && flushThread.isAlive();
   }
 
-  public void persistPruneEntry(long pruneUpperBound) {
-    this.pruneUpperBound.set(pruneUpperBound);
-    this.shouldFlush.set(true);
+  @Override
+  protected void startUp() throws Exception {
+    LOG.info("Starting PruneUpperBoundWriter Thread.");
+    startFlushThread();
   }
 
-  public void stop() {
+  @Override
+  protected void shutDown() throws Exception {
+    LOG.info("Stopping PruneUpperBoundWriter Thread.");
     if (flushThread != null) {
       flushThread.interrupt();
+      flushThread.join(TimeUnit.SECONDS.toMillis(1));
     }
   }
 
@@ -76,19 +81,21 @@ public class PruneUpperBoundWriter {
     flushThread = new Thread("tephra-prune-upper-bound-writer") {
       @Override
       public void run() {
-        while (!isInterrupted()) {
+        while ((!isInterrupted()) && isRunning()) {
           long now = System.currentTimeMillis();
           if (now > (lastChecked + pruneFlushInterval)) {
-            if (shouldFlush.compareAndSet(true, false)) {
-              // should flush data
-              try {
-                dataJanitorState.savePruneUpperBoundForRegion(regionName, pruneUpperBound.get());
-              } catch (IOException ex) {
-                LOG.warn("Cannot record prune upper bound for region " + regionNameAsString + " in the table " +
-                           pruneStateTable.getNameWithNamespaceInclAsString() + " after compacting region.", ex);
-                // Retry again
-                shouldFlush.set(true);
+            // should flush data
+            try {
+              while (pruneEntries.firstEntry() != null) {
+                Map.Entry<byte[], Long> firstEntry = pruneEntries.firstEntry();
+                dataJanitorState.savePruneUpperBoundForRegion(firstEntry.getKey(), firstEntry.getValue());
+                // We can now remove the entry only if the key and value match with what we wrote since it is
+                // possible that a new pruneUpperBound for the same key has been added
+                pruneEntries.remove(firstEntry.getKey(), firstEntry.getValue());
               }
+            } catch (IOException ex) {
+              LOG.warn("Cannot record prune upper bound for a region to table " +
+                         tableName.getNameWithNamespaceInclAsString(), ex);
             }
             lastChecked = now;
           }
