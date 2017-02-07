@@ -38,27 +38,25 @@ import javax.annotation.Nullable;
 public class CompactionState {
   private static final Log LOG = LogFactory.getLog(CompactionState.class);
 
-  private final TableName stateTable;
   private final byte[] regionName;
   private final String regionNameAsString;
-  private final DataJanitorState dataJanitorState;
-  private final long pruneFlushInterval;
+  private final PruneUpperBoundWriterSupplier pruneUpperBoundWriterSupplier;
+  private final PruneUpperBoundWriter pruneUpperBoundWriter;
+
   private volatile long pruneUpperBound = -1;
 
-  private PruneUpperBoundWriter pruneUpperBoundWriter;
-
   public CompactionState(final RegionCoprocessorEnvironment env, final TableName stateTable, long pruneFlushInterval) {
-    this.stateTable = stateTable;
     this.regionName = env.getRegion().getRegionName();
     this.regionNameAsString = env.getRegion().getRegionNameAsString();
-    this.dataJanitorState = new DataJanitorState(new DataJanitorState.TableSupplier() {
+    DataJanitorState dataJanitorState = new DataJanitorState(new DataJanitorState.TableSupplier() {
       @Override
       public HTableInterface get() throws IOException {
         return env.getTable(stateTable);
       }
     });
-    this.pruneFlushInterval = pruneFlushInterval;
-    this.pruneUpperBoundWriter = createPruneUpperBoundWriter();
+    this.pruneUpperBoundWriterSupplier = new PruneUpperBoundWriterSupplier(stateTable, dataJanitorState,
+                                                                           pruneFlushInterval);
+    this.pruneUpperBoundWriter = pruneUpperBoundWriterSupplier.get();
   }
 
   /**
@@ -71,20 +69,13 @@ public class CompactionState {
     if (request.isMajor() && snapshot != null) {
       Transaction tx = TxUtils.createDummyTransaction(snapshot);
       pruneUpperBound = TxUtils.getPruneUpperBound(tx);
-      LOG.debug(
-        String.format("Computed prune upper bound %s for compaction request %s using transaction state from time %s",
-                      pruneUpperBound, request, snapshot.getTimestamp()));
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(
+          String.format("Computed prune upper bound %s for compaction request %s using transaction state from time %s",
+                        pruneUpperBound, request, snapshot.getTimestamp()));
+      }
     } else {
       pruneUpperBound = -1;
-    }
-  }
-
-  /**
-   * Stops the current {@link PruneUpperBoundWriter}.
-   */
-  public void stop() {
-    if (pruneUpperBoundWriter != null) {
-      pruneUpperBoundWriter.stop();
     }
   }
 
@@ -94,15 +85,17 @@ public class CompactionState {
    */
   public void persist() {
     if (pruneUpperBound != -1) {
-      if (!pruneUpperBoundWriter.isAlive()) {
-        pruneUpperBoundWriter = createPruneUpperBoundWriter();
+      pruneUpperBoundWriter.persistPruneEntry(regionName, pruneUpperBound);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug(String.format("Enqueued prune upper bound %s for region %s", pruneUpperBound, regionNameAsString));
       }
-      pruneUpperBoundWriter.persistPruneEntry(pruneUpperBound);
-      LOG.debug(String.format("Enqueued prune upper bound %s for region %s", pruneUpperBound, regionNameAsString));
     }
   }
 
-  private PruneUpperBoundWriter createPruneUpperBoundWriter() {
-    return new PruneUpperBoundWriter(dataJanitorState, stateTable, regionNameAsString, regionName, pruneFlushInterval);
+  /**
+   * Releases the usage {@link PruneUpperBoundWriter}.
+   */
+  public void stop() {
+    pruneUpperBoundWriterSupplier.release();
   }
 }

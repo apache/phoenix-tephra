@@ -385,7 +385,7 @@ public class TxConstants {
     public static final String PLUGIN_CLASS_SUFFIX = ".class";
 
     public static final boolean DEFAULT_PRUNE_ENABLE = false;
-    public static final String DEFAULT_PRUNE_STATE_TABLE = "data_tx_janitor_state";
+    public static final String DEFAULT_PRUNE_STATE_TABLE = "tephra.state";
     public static final long DEFAULT_PRUNE_INTERVAL = TimeUnit.HOURS.toSeconds(6);
     public static final long DEFAULT_PRUNE_FLUSH_INTERVAL = TimeUnit.MINUTES.toSeconds(1);
     public static final String DEFAULT_PLUGIN = "data.tx.prune.plugin.default";
