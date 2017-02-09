@@ -43,6 +43,7 @@ import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterBase;
+import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.regionserver.KeyValueScanner;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
@@ -310,6 +311,28 @@ public class TransactionProcessor extends BaseRegionObserver {
   }
 
   @Override
+  public void postFlush(ObserverContext<RegionCoprocessorEnvironment> e) throws IOException {
+    // Record whether the region is empty after a flush
+    HRegion region = e.getEnvironment().getRegion();
+    // After a flush, if the memstore size is zero and there are no store files for any stores in the region
+    // then the region must be empty
+    long numStoreFiles = numStoreFilesForRegion(e);
+    long memstoreSize = region.getMemstoreSize().get();
+    LOG.debug(String.format("Region %s: memstore size = %s, num store files = %s",
+                            region.getRegionInfo().getRegionNameAsString(), memstoreSize, numStoreFiles));
+    if (memstoreSize == 0 && numStoreFiles == 0) {
+      if (pruneEnable == null) {
+        initPruneState(e);
+      }
+
+      if (Boolean.TRUE.equals(pruneEnable)) {
+        compactionState.persistRegionEmpty(System.currentTimeMillis());
+      }
+    }
+
+  }
+
+  @Override
   public InternalScanner preCompactScannerOpen(ObserverContext<RegionCoprocessorEnvironment> c, Store store,
       List<? extends KeyValueScanner> scanners, ScanType scanType, long earliestPutTs, InternalScanner s,
       CompactionRequest request)
@@ -318,25 +341,7 @@ public class TransactionProcessor extends BaseRegionObserver {
     TransactionVisibilityState snapshot = cache.getLatestState();
 
     if (pruneEnable == null) {
-      Configuration conf = getConfiguration(c.getEnvironment());
-      // Configuration won't be null in TransactionProcessor but the derived classes might return
-      // null if it is not available temporarily
-      if (conf != null) {
-        pruneEnable = conf.getBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE,
-                                      TxConstants.TransactionPruning.DEFAULT_PRUNE_ENABLE);
-        if (Boolean.TRUE.equals(pruneEnable)) {
-          String pruneTable = conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
-                                       TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE);
-          long pruneFlushInterval = TimeUnit.SECONDS.toMillis(
-            conf.getLong(TxConstants.TransactionPruning.PRUNE_FLUSH_INTERVAL,
-                         TxConstants.TransactionPruning.DEFAULT_PRUNE_FLUSH_INTERVAL));
-          compactionState = new CompactionState(c.getEnvironment(), TableName.valueOf(pruneTable), pruneFlushInterval);
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Automatic invalid list pruning is enabled. Compaction state will be recorded in table "
-                        + pruneTable);
-          }
-        }
-      }
+      initPruneState(c);
     }
 
     if (Boolean.TRUE.equals(pruneEnable)) {
@@ -447,6 +452,36 @@ public class TransactionProcessor extends BaseRegionObserver {
    */
   protected Filter getTransactionFilter(Transaction tx, ScanType type, Filter filter) {
     return TransactionFilters.getVisibilityFilter(tx, ttlByFamily, allowEmptyValues, type, filter);
+  }
+
+  private void initPruneState(ObserverContext<RegionCoprocessorEnvironment> c) {
+    Configuration conf = getConfiguration(c.getEnvironment());
+    // Configuration won't be null in TransactionProcessor but the derived classes might return
+    // null if it is not available temporarily
+    if (conf != null) {
+      pruneEnable = conf.getBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE,
+                                    TxConstants.TransactionPruning.DEFAULT_PRUNE_ENABLE);
+      if (Boolean.TRUE.equals(pruneEnable)) {
+        String pruneTable = conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
+                                     TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE);
+        long pruneFlushInterval = TimeUnit.SECONDS.toMillis(
+          conf.getLong(TxConstants.TransactionPruning.PRUNE_FLUSH_INTERVAL,
+                       TxConstants.TransactionPruning.DEFAULT_PRUNE_FLUSH_INTERVAL));
+        compactionState = new CompactionState(c.getEnvironment(), TableName.valueOf(pruneTable), pruneFlushInterval);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Automatic invalid list pruning is enabled. Compaction state will be recorded in table "
+                      + pruneTable);
+        }
+      }
+    }
+  }
+
+  private long numStoreFilesForRegion(ObserverContext<RegionCoprocessorEnvironment> c) {
+    long numStoreFiles = 0;
+    for (Store store : c.getEnvironment().getRegion().getStores().values()) {
+      numStoreFiles += store.getStorefiles().size();
+    }
+    return numStoreFiles;
   }
 
   /**

@@ -46,6 +46,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.SortedSet;
+import java.util.TreeMap;
 import java.util.TreeSet;
 
 /**
@@ -203,6 +204,8 @@ public class HBaseTransactionPruningPlugin implements TransactionPruningPlugin {
     dataJanitorState.deleteAllRegionsOnOrBeforeTime(pruneTime);
     LOG.debug("Deleting inactive transaction bounds recorded on or before time {}", pruneTime);
     dataJanitorState.deleteInactiveTransactionBoundsOnOrBeforeTime(pruneTime);
+    LOG.debug("Deleting empty regions recorded on or before time {}", pruneTime);
+    dataJanitorState.deleteEmptyRegionsOnOrBeforeTime(pruneTime);
   }
 
   @Override
@@ -295,26 +298,40 @@ public class HBaseTransactionPruningPlugin implements TransactionPruningPlugin {
       SortedSet<byte[]> transactionalRegions = timeRegions.getRegions();
       long time = timeRegions.getTime();
 
-      Map<byte[], Long> pruneUpperBoundRegions = dataJanitorState.getPruneUpperBoundForRegions(transactionalRegions);
+      long inactiveTransactionBound = dataJanitorState.getInactiveTransactionBoundForTime(time);
+      LOG.debug("Got inactive transaction bound {}", inactiveTransactionBound);
+      // If inactiveTransactionBound is not recorded then that means the data is not complete for these regions
+      if (inactiveTransactionBound == -1) {
+        if (LOG.isDebugEnabled()) {
+          LOG.debug("Ignoring regions for time {} as no inactiveTransactionBound was found for that time, " +
+                      "and hence the data must be incomplete", time);
+        }
+        continue;
+      }
+
+      // Get the prune upper bounds for all the transactional regions
+      Map<byte[], Long> pruneUpperBoundRegions =
+        dataJanitorState.getPruneUpperBoundForRegions(transactionalRegions);
       logPruneUpperBoundRegions(pruneUpperBoundRegions);
+
+      // Use inactiveTransactionBound as the prune upper bound for the empty regions since the regions that are
+      // recorded as empty after inactiveTransactionBoundTime will not have invalid data
+      // for transactions started on or before inactiveTransactionBoundTime
+      pruneUpperBoundRegions = handleEmptyRegions(inactiveTransactionBound, transactionalRegions,
+                                                  pruneUpperBoundRegions);
+
       // If prune upper bounds are found for all the transactional regions, then compute the prune upper bound
       // across all regions
-      if (!transactionalRegions.isEmpty() && pruneUpperBoundRegions.size() == transactionalRegions.size()) {
-        long inactiveTransactionBound = dataJanitorState.getInactiveTransactionBoundForTime(time);
-        LOG.debug("Found max prune upper bound {} for time {}", inactiveTransactionBound, time);
-        // If inactiveTransactionBound is not recorded then that means the data is not complete for these regions
-        if (inactiveTransactionBound != -1) {
-          Long minPruneUpperBoundRegions = Collections.min(pruneUpperBoundRegions.values());
-          return Math.min(inactiveTransactionBound, minPruneUpperBoundRegions);
-        } else {
-          if (LOG.isDebugEnabled()) {
-            LOG.debug("Ignoring regions for time {} as no inactiveTransactionBound was found for that time, " +
-                        "and hence the data must be incomplete", time);
-          }
-        }
+      if (!transactionalRegions.isEmpty() &&
+        pruneUpperBoundRegions.size() == transactionalRegions.size()) {
+        Long minPruneUpperBoundRegions = Collections.min(pruneUpperBoundRegions.values());
+        long pruneUpperBound = Math.min(inactiveTransactionBound, minPruneUpperBoundRegions);
+        LOG.debug("Found prune upper bound {} for time {}", pruneUpperBound, time);
+        return pruneUpperBound;
       } else {
         if (LOG.isDebugEnabled()) {
-          Sets.SetView<byte[]> difference = Sets.difference(transactionalRegions, pruneUpperBoundRegions.keySet());
+          Sets.SetView<byte[]> difference =
+            Sets.difference(transactionalRegions, pruneUpperBoundRegions.keySet());
           LOG.debug("Ignoring regions for time {} because the following regions did not record a pruneUpperBound: {}",
                     time, Iterables.transform(difference, TimeRegions.BYTE_ARR_TO_STRING_FN));
         }
@@ -323,6 +340,28 @@ public class HBaseTransactionPruningPlugin implements TransactionPruningPlugin {
       timeRegions = dataJanitorState.getRegionsOnOrBeforeTime(time - 1);
     } while (timeRegions != null);
     return -1;
+  }
+
+  private Map<byte[], Long> handleEmptyRegions(long inactiveTransactionBound,
+                                               SortedSet<byte[]> transactionalRegions,
+                                               Map<byte[], Long> pruneUpperBoundRegions) throws IOException {
+    long inactiveTransactionBoundTime = TxUtils.getTimestamp(inactiveTransactionBound);
+    SortedSet<byte[]> emptyRegions =
+      dataJanitorState.getEmptyRegionsAfterTime(inactiveTransactionBoundTime, transactionalRegions);
+    LOG.debug("Got empty transactional regions for inactive transaction bound time {}: {}",
+              inactiveTransactionBoundTime, Iterables.transform(emptyRegions, TimeRegions.BYTE_ARR_TO_STRING_FN));
+
+    // The regions that are recorded as empty after inactiveTransactionBoundTime will not have invalid data
+    // for transactions started before or on inactiveTransactionBoundTime. Hence we can consider the prune upper bound
+    // for these empty regions as inactiveTransactionBound
+    Map<byte[], Long> pubWithEmptyRegions = new TreeMap<>(Bytes.BYTES_COMPARATOR);
+    pubWithEmptyRegions.putAll(pruneUpperBoundRegions);
+    for (byte[] emptyRegion : emptyRegions) {
+      if (!pruneUpperBoundRegions.containsKey(emptyRegion)) {
+        pubWithEmptyRegions.put(emptyRegion, inactiveTransactionBound);
+      }
+    }
+    return Collections.unmodifiableMap(pubWithEmptyRegions);
   }
 
   private void logPruneUpperBoundRegions(Map<byte[], Long> pruneUpperBoundRegions) {

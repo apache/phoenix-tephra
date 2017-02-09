@@ -72,6 +72,7 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
 
   private static TableName txDataTable1;
   private static TableName pruneStateTable;
+  private static DataJanitorState dataJanitorState;
 
   // Override AbstractHBaseTableTest.startMiniCluster to setup configuration
   @BeforeClass
@@ -105,6 +106,14 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
 
     pruneStateTable = TableName.valueOf(conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
                                                  TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE));
+    dataJanitorState =
+      new DataJanitorState(new DataJanitorState.TableSupplier() {
+        @Override
+        public Table get() throws IOException {
+          return testUtil.getConnection().getTable(pruneStateTable);
+        }
+      });
+
   }
 
   @AfterClass
@@ -128,7 +137,12 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
 
   @After
   public void afterTest() throws Exception {
+    // Disable the data table so that prune writer thread gets stopped,
+    // this makes sure that any cached value will not interfere with next test
+    hBaseAdmin.disableTable(txDataTable1);
     deletePruneStateTable();
+    // Enabling the table enables the prune writer thread again
+    hBaseAdmin.enableTable(txDataTable1);
   }
 
   private void deletePruneStateTable() throws Exception {
@@ -138,32 +152,8 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
     }
   }
 
-  private void truncatePruneStateTable() throws Exception {
-    if (hBaseAdmin.tableExists(pruneStateTable)) {
-      if (hBaseAdmin.isTableEnabled(pruneStateTable)) {
-        hBaseAdmin.disableTable(pruneStateTable);
-      }
-      hBaseAdmin.truncateTable(pruneStateTable, true);
-    }
-  }
-
   @Test
   public void testRecordCompactionState() throws Exception {
-    DataJanitorState dataJanitorState =
-      new DataJanitorState(new DataJanitorState.TableSupplier() {
-        @Override
-        public Table get() throws IOException {
-          return testUtil.getConnection().getTable(pruneStateTable);
-        }
-      });
-
-    // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
-    TimeUnit.SECONDS.sleep(2);
-    // Truncate prune state table to clear any data that might have been written by the previous test
-    // This is required because during the shutdown of the previous test, compaction might have kicked in and the
-    // coprocessor still had some data to flush and it might be flushed at the beginning of this test.
-    truncatePruneStateTable();
-
     // No prune upper bound initially
     Assert.assertEquals(-1,
                         dataJanitorState.getPruneUpperBoundForRegion(getRegionName(txDataTable1, Bytes.toBytes(0))));
@@ -212,10 +202,6 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
 
   @Test
   public void testRecordCompactionStateNoTable() throws Exception {
-    // To make sure we don't disrupt major compaction prune state table is not present, delete the prune state table
-    // and make sure a major compaction succeeds
-    deletePruneStateTable();
-
     // Create a new transaction snapshot
     InMemoryTransactionStateCache.setTransactionSnapshot(
       new TransactionSnapshot(100, 100, 100, ImmutableSet.of(50L),
@@ -247,23 +233,8 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
 
   @Test
   public void testPruneUpperBound() throws Exception {
-    DataJanitorState dataJanitorState =
-      new DataJanitorState(new DataJanitorState.TableSupplier() {
-        @Override
-        public Table get() throws IOException {
-          return testUtil.getConnection().getTable(pruneStateTable);
-        }
-      });
-
     TransactionPruningPlugin transactionPruningPlugin = new TestTransactionPruningPlugin();
     transactionPruningPlugin.initialize(conf);
-
-    // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
-    TimeUnit.SECONDS.sleep(2);
-    // Truncate prune state table to clear any data that might have been written by the previous test
-    // This is required because during the shutdown of the previous test, compaction might have kicked in and the
-    // coprocessor still had some data to flush and it might be flushed at the beginning of this test.
-    truncatePruneStateTable();
 
     try {
       // Run without a transaction snapshot first
@@ -333,6 +304,87 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
       transactionPruningPlugin.destroy();
     }
   }
+
+  @Test
+  public void testPruneEmptyTable() throws Exception {
+    // Make sure that empty tables do not block the progress of pruning
+
+    // Create an empty table
+    TableName txEmptyTable = TableName.valueOf("emptyPruneTestTable");
+    HTable emptyHTable = createTable(txEmptyTable.getName(), new byte[][]{family}, false,
+                                     Collections.singletonList(TestTransactionProcessor.class.getName()));
+
+    TransactionPruningPlugin transactionPruningPlugin = new TestTransactionPruningPlugin();
+    transactionPruningPlugin.initialize(conf);
+
+    try {
+      long now1 = System.currentTimeMillis();
+      long inactiveTxTimeNow1 = (now1 - 150) * TxConstants.MAX_TX_PER_MS;
+      long noPruneUpperBound = -1;
+      long expectedPruneUpperBound1 = (now1 - 200) * TxConstants.MAX_TX_PER_MS;
+      InMemoryTransactionStateCache.setTransactionSnapshot(
+        new TransactionSnapshot(expectedPruneUpperBound1, expectedPruneUpperBound1, expectedPruneUpperBound1,
+                                ImmutableSet.of(expectedPruneUpperBound1),
+                                ImmutableSortedMap.<Long, TransactionManager.InProgressTx>of()));
+      testUtil.compact(txEmptyTable, true);
+      testUtil.compact(txDataTable1, true);
+      // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+      TimeUnit.SECONDS.sleep(2);
+
+      // fetch prune upper bound, there should be no prune upper bound since txEmptyTable cannot be compacted
+      long pruneUpperBound1 = transactionPruningPlugin.fetchPruneUpperBound(now1, inactiveTxTimeNow1);
+      Assert.assertEquals(noPruneUpperBound, pruneUpperBound1);
+      transactionPruningPlugin.pruneComplete(now1, noPruneUpperBound);
+
+      // Now flush the empty table, this will record the table region as empty, and then pruning will continue
+      hBaseAdmin.flush(txEmptyTable);
+      // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+      TimeUnit.SECONDS.sleep(2);
+
+      // fetch prune upper bound, again, this time it should work
+      pruneUpperBound1 = transactionPruningPlugin.fetchPruneUpperBound(now1, inactiveTxTimeNow1);
+      Assert.assertEquals(expectedPruneUpperBound1, pruneUpperBound1);
+      transactionPruningPlugin.pruneComplete(now1, expectedPruneUpperBound1);
+
+      // Now add some data to the empty table
+      // (adding data non-transactionally is okay too, we just need some data for the compaction to run)
+      emptyHTable.put(new Put(Bytes.toBytes(1)).addColumn(family, qualifier, Bytes.toBytes(1)));
+      emptyHTable.close();
+
+      // Now run another compaction on txDataTable1 with an updated tx snapshot
+      long now2 = System.currentTimeMillis();
+      long inactiveTxTimeNow2 = (now2 - 150) * TxConstants.MAX_TX_PER_MS;
+      long expectedPruneUpperBound2 = (now2 - 200) * TxConstants.MAX_TX_PER_MS;
+      InMemoryTransactionStateCache.setTransactionSnapshot(
+        new TransactionSnapshot(expectedPruneUpperBound2, expectedPruneUpperBound2, expectedPruneUpperBound2,
+                                ImmutableSet.of(expectedPruneUpperBound2),
+                                ImmutableSortedMap.<Long, TransactionManager.InProgressTx>of()));
+      testUtil.flush(txEmptyTable);
+      testUtil.compact(txDataTable1, true);
+      // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+      TimeUnit.SECONDS.sleep(2);
+
+      // Running a prune now should still return min(inactiveTxTimeNow1, expectedPruneUpperBound1) since
+      // txEmptyTable is no longer empty. This information is returned since the txEmptyTable was recorded as being
+      // empty in the previous run with inactiveTxTimeNow1
+      long pruneUpperBound2 = transactionPruningPlugin.fetchPruneUpperBound(now2, inactiveTxTimeNow2);
+      Assert.assertEquals(inactiveTxTimeNow1, pruneUpperBound2);
+      transactionPruningPlugin.pruneComplete(now2, expectedPruneUpperBound1);
+
+      // However, after compacting txEmptyTable we should get the latest upper bound
+      testUtil.flush(txEmptyTable);
+      testUtil.compact(txEmptyTable, true);
+      // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+      TimeUnit.SECONDS.sleep(2);
+      pruneUpperBound2 = transactionPruningPlugin.fetchPruneUpperBound(now2, inactiveTxTimeNow2);
+      Assert.assertEquals(expectedPruneUpperBound2, pruneUpperBound2);
+      transactionPruningPlugin.pruneComplete(now2, expectedPruneUpperBound2);
+    } finally {
+      transactionPruningPlugin.destroy();
+      hBaseAdmin.disableTable(txEmptyTable);
+      hBaseAdmin.deleteTable(txEmptyTable);
+    }
+    }
 
   private byte[] getRegionName(TableName dataTable, byte[] row) throws IOException {
     HRegionLocation regionLocation =

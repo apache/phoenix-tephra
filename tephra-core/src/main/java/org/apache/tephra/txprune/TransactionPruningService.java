@@ -21,6 +21,7 @@ package org.apache.tephra.txprune;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TxConstants;
@@ -68,7 +69,11 @@ public class TransactionPruningService extends AbstractIdleService {
     }
 
     LOG.info("Starting {}...", this.getClass().getSimpleName());
-    scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+    scheduledExecutorService =
+      Executors.newSingleThreadScheduledExecutor(new ThreadFactoryBuilder()
+                                                   .setNameFormat("tephra-pruning-thread")
+                                                   .setDaemon(true)
+                                                   .build());
 
     Map<String, TransactionPruningPlugin> plugins = initializePlugins();
     long txMaxLifetimeMillis = TimeUnit.SECONDS.toMillis(conf.getInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME,

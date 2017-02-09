@@ -93,6 +93,17 @@ public class CompactionState {
   }
 
   /**
+   * Persist that the given region is empty at the given time
+   * @param time time in milliseconds
+   */
+  public void persistRegionEmpty(long time) {
+    pruneUpperBoundWriter.persistRegionEmpty(regionName, time);
+    if (LOG.isDebugEnabled()) {
+      LOG.debug(String.format("Enqueued empty region %s at time %s", regionNameAsString, time));
+    }
+  }
+
+  /**
    * Releases the usage {@link PruneUpperBoundWriter}.
    */
   public void stop() {

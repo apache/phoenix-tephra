@@ -161,6 +161,7 @@ public class DataJanitorStateTest extends AbstractHBaseTableTest {
     }
 
     // Verify saved regions
+    Assert.assertEquals(new TimeRegions(0, regionsTime.get(0L)), dataJanitorState.getRegionsOnOrBeforeTime(0));
     Assert.assertEquals(new TimeRegions(30, regionsTime.get(30L)), dataJanitorState.getRegionsOnOrBeforeTime(30));
     Assert.assertEquals(new TimeRegions(20, regionsTime.get(20L)), dataJanitorState.getRegionsOnOrBeforeTime(25));
     Assert.assertEquals(new TimeRegions(30, regionsTime.get(30L)), dataJanitorState.getRegionsOnOrBeforeTime(31));
@@ -168,20 +169,39 @@ public class DataJanitorStateTest extends AbstractHBaseTableTest {
                         dataJanitorState.getRegionsOnOrBeforeTime(maxTime + 1000));
     Assert.assertNull(dataJanitorState.getRegionsOnOrBeforeTime(-10));
 
+    // Now change the count stored for regions saved at time 0 and 30
+    try (HTableInterface stateTable = connection.getTable(pruneStateTable)) {
+      dataJanitorState.saveRegionCountForTime(stateTable, Bytes.toBytes(Long.MAX_VALUE), 3);
+      dataJanitorState.saveRegionCountForTime(stateTable, Bytes.toBytes(Long.MAX_VALUE - 30L), 3);
+    }
+    // Now querying for time 0 should return null, and querying for time 30 should return regions from time 20
+    Assert.assertNull(dataJanitorState.getRegionsOnOrBeforeTime(0));
+    Assert.assertEquals(new TimeRegions(20, regionsTime.get(20L)), dataJanitorState.getRegionsOnOrBeforeTime(30));
+    Assert.assertEquals(new TimeRegions(20, regionsTime.get(20L)), dataJanitorState.getRegionsOnOrBeforeTime(35));
+    Assert.assertEquals(new TimeRegions(20, regionsTime.get(20L)), dataJanitorState.getRegionsOnOrBeforeTime(25));
+
     // Delete regions saved on or before time 30
     dataJanitorState.deleteAllRegionsOnOrBeforeTime(30);
     // Values on or before time 30 should be deleted
     Assert.assertNull(dataJanitorState.getRegionsOnOrBeforeTime(30));
     Assert.assertNull(dataJanitorState.getRegionsOnOrBeforeTime(25));
+    // Counts should be deleted for time on or before 30
+    try (HTableInterface stateTable = connection.getTable(pruneStateTable)) {
+      Assert.assertEquals(-1, dataJanitorState.getRegionCountForTime(stateTable, 30));
+      Assert.assertEquals(-1, dataJanitorState.getRegionCountForTime(stateTable, 0));
+    }
     // Values after time 30 should still exist
     Assert.assertEquals(new TimeRegions(40, regionsTime.get(40L)), dataJanitorState.getRegionsOnOrBeforeTime(40));
+    try (HTableInterface stateTable = connection.getTable(pruneStateTable)) {
+      Assert.assertEquals(5, dataJanitorState.getRegionCountForTime(stateTable, 40));
+    }
   }
 
   @Test
   public void testSaveInactiveTransactionBoundTime() throws Exception {
     int maxTime = 100;
 
-    // Nothing sould be present in the beginning
+    // Nothing should be present in the beginning
     Assert.assertEquals(-1, dataJanitorState.getInactiveTransactionBoundForTime(10));
 
     // Save inactive transaction bounds for various time values
@@ -206,5 +226,60 @@ public class DataJanitorStateTest extends AbstractHBaseTableTest {
     // Values after time 20 should still exist
     Assert.assertEquals(32, dataJanitorState.getInactiveTransactionBoundForTime(30));
     Assert.assertEquals(92, dataJanitorState.getInactiveTransactionBoundForTime(90));
+  }
+
+  @Test
+  public void testSaveEmptyRegions() throws Exception {
+    // Nothing should be present in the beginning
+    Assert.assertEquals(ImmutableSortedSet.<byte[]>of(), dataJanitorState.getEmptyRegionsAfterTime(-1, null));
+
+    byte[] region1 = Bytes.toBytes("region1");
+    byte[] region2 = Bytes.toBytes("region2");
+    byte[] region3 = Bytes.toBytes("region3");
+    byte[] region4 = Bytes.toBytes("region4");
+    SortedSet<byte[]> allRegions = toISet(region1, region2, region3, region4);
+
+    // Now record some empty regions
+    dataJanitorState.saveEmptyRegionForTime(100, region1);
+    dataJanitorState.saveEmptyRegionForTime(110, region1);
+    dataJanitorState.saveEmptyRegionForTime(102, region2);
+    dataJanitorState.saveEmptyRegionForTime(112, region3);
+
+    Assert.assertEquals(toISet(region1, region2, region3),
+                        dataJanitorState.getEmptyRegionsAfterTime(-1, null));
+
+    Assert.assertEquals(toISet(region1, region2, region3),
+                        dataJanitorState.getEmptyRegionsAfterTime(100, allRegions));
+
+    Assert.assertEquals(toISet(region2, region3),
+                        dataJanitorState.getEmptyRegionsAfterTime(100, toISet(region2, region3)));
+
+    Assert.assertEquals(toISet(),
+                        dataJanitorState.getEmptyRegionsAfterTime(100, ImmutableSortedSet.<byte[]>of()));
+
+    Assert.assertEquals(toISet(region3),
+                        dataJanitorState.getEmptyRegionsAfterTime(110, allRegions));
+
+    Assert.assertEquals(toISet(),
+                        dataJanitorState.getEmptyRegionsAfterTime(112, allRegions));
+
+    // Delete empty regions on or before time 110
+    dataJanitorState.deleteEmptyRegionsOnOrBeforeTime(110);
+    // Now only region3 should remain
+    Assert.assertEquals(toISet(region3), dataJanitorState.getEmptyRegionsAfterTime(-1, null));
+    Assert.assertEquals(toISet(region3), dataJanitorState.getEmptyRegionsAfterTime(100, allRegions));
+
+    // Delete empty regions on or before time 150
+    dataJanitorState.deleteEmptyRegionsOnOrBeforeTime(150);
+    // Now nothing should remain
+    Assert.assertEquals(toISet(), dataJanitorState.getEmptyRegionsAfterTime(-1, null));
+  }
+
+  private ImmutableSortedSet<byte[]> toISet(byte[]... args) {
+    ImmutableSortedSet.Builder<byte[]> builder = ImmutableSortedSet.orderedBy(Bytes.BYTES_COMPARATOR);
+    for (byte[] arg : args) {
+      builder.add(arg);
+    }
+    return builder.build();
   }
 }
