@@ -93,7 +93,8 @@ public class TransactionPruningRunnable implements Runnable {
         }
       }
       if (toTruncate.isEmpty()) {
-        LOG.info("Not pruning invalid list since no invalid id is less than or equal to the minimum prune upper bound");
+        LOG.info("Not pruning invalid list since the min prune upper bound {} is greater than the min invalid id {}",
+                 minPruneUpperBound, invalids[0]);
         return;
       }
 

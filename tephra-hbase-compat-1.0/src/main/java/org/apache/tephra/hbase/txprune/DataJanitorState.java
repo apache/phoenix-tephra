@@ -19,7 +19,10 @@
 
 package org.apache.tephra.hbase.txprune;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.client.Delete;
@@ -35,6 +38,7 @@ import org.apache.tephra.txprune.RegionPruneInfo;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,11 +54,14 @@ import javax.annotation.Nullable;
  */
 @SuppressWarnings("WeakerAccess")
 public class DataJanitorState {
+  private static final Log LOG = LogFactory.getLog(DataJanitorState.class);
+
   public static final byte[] FAMILY = {'f'};
   public static final byte[] PRUNE_UPPER_BOUND_COL = {'p'};
 
   private static final byte[] REGION_TIME_COL = {'r'};
   private static final byte[] INACTIVE_TRANSACTION_BOUND_TIME_COL = {'i'};
+  private static final byte[] EMPTY_REGION_TIME_COL = {'e'};
 
   private static final byte[] REGION_KEY_PREFIX = {0x1};
   private static final byte[] REGION_KEY_PREFIX_STOP = {0x2};
@@ -65,7 +72,15 @@ public class DataJanitorState {
   private static final byte[] INACTIVE_TRANSACTION_BOUND_TIME_KEY_PREFIX = {0x3};
   private static final byte[] INACTIVE_TRANSACTION_BOUND_TIME_KEY_PREFIX_STOP = {0x4};
 
+  private static final byte[] EMPTY_REGION_TIME_KEY_PREFIX = {0x4};
+  private static final byte[] EMPTY_REGION_TIME_KEY_PREFIX_STOP = {0x5};
+
+  private static final byte[] REGION_TIME_COUNT_KEY_PREFIX = {0x5};
+  private static final byte[] REGION_TIME_COUNT_KEY_PREFIX_STOP = {0x6};
+
   private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
+  // This value can be used when we don't care about the value we write in a column
+  private static final byte[] COL_VAL = Bytes.toBytes('1');
 
   private final TableSupplier stateTableSupplier;
 
@@ -148,7 +163,7 @@ public class DataJanitorState {
     for (RegionPruneInfo regionPruneInfo : regionPruneInfos) {
       resultMap.put(regionPruneInfo.getRegionName(), regionPruneInfo.getPruneUpperBound());
     }
-    return resultMap;
+    return Collections.unmodifiableMap(resultMap);
   }
 
   /**
@@ -181,7 +196,7 @@ public class DataJanitorState {
         }
       }
     }
-    return regionPruneInfos;
+    return Collections.unmodifiableList(regionPruneInfos);
   }
 
   /**
@@ -223,7 +238,7 @@ public class DataJanitorState {
   // ---------------------------------------------------
   // ------- Methods for regions at a given time -------
   // ---------------------------------------------------
-  // Key: 0x2<time><region-id>
+  // Key: 0x2<inverted time><region-id>
   // Col 't': <empty byte array>
   // ---------------------------------------------------
 
@@ -240,10 +255,20 @@ public class DataJanitorState {
     try (Table stateTable = stateTableSupplier.get()) {
       for (byte[] region : regions) {
         Put put = new Put(makeTimeRegionKey(timeBytes, region));
-        put.addColumn(FAMILY, REGION_TIME_COL, EMPTY_BYTE_ARRAY);
+        put.addColumn(FAMILY, REGION_TIME_COL, COL_VAL);
         stateTable.put(put);
       }
+
+      // Save the count of regions as a checksum
+      saveRegionCountForTime(stateTable, timeBytes, regions.size());
     }
+  }
+
+  @VisibleForTesting
+  void saveRegionCountForTime(Table stateTable, byte[] timeBytes, int count) throws IOException {
+    Put put = new Put(makeTimeRegionCountKey(timeBytes));
+    put.addColumn(FAMILY, REGION_TIME_COL, Bytes.toBytes(count));
+    stateTable.put(put);
   }
 
   /**
@@ -257,32 +282,58 @@ public class DataJanitorState {
    */
   @Nullable
   public TimeRegions getRegionsOnOrBeforeTime(long time) throws IOException {
-    byte[] timeBytes = Bytes.toBytes(getInvertedTime(time));
     try (Table stateTable = stateTableSupplier.get()) {
-      Scan scan = new Scan(makeTimeRegionKey(timeBytes, EMPTY_BYTE_ARRAY), REGION_TIME_KEY_PREFIX_STOP);
-      scan.addColumn(FAMILY, REGION_TIME_COL);
-
-      SortedSet<byte[]> regions = new TreeSet<>(Bytes.BYTES_COMPARATOR);
-      long currentRegionTime = -1;
-      try (ResultScanner scanner = stateTable.getScanner(scan)) {
-        Result next;
-        while ((next = scanner.next()) != null) {
-          Map.Entry<Long, byte[]> timeRegion = getTimeRegion(next.getRow());
-          // Stop if reached next time value
-          if (currentRegionTime == -1) {
-            currentRegionTime = timeRegion.getKey();
-          } else if (timeRegion.getKey() < currentRegionTime) {
-            break;
-          } else if (timeRegion.getKey() > currentRegionTime) {
-            throw new IllegalStateException(
-              String.format("Got out of order time %d when expecting time less than or equal to %d",
-                            timeRegion.getKey(), currentRegionTime));
-          }
-          regions.add(timeRegion.getValue());
+      TimeRegions timeRegions;
+      while ((timeRegions = getNextSetOfTimeRegions(stateTable, time)) != null) {
+        int count = getRegionCountForTime(stateTable, timeRegions.getTime());
+        if (count != -1 && count == timeRegions.getRegions().size()) {
+          return timeRegions;
+        } else {
+          LOG.warn(String.format("Got incorrect count for regions saved at time %s, expected = %s but actual = %s",
+                                 timeRegions.getTime(), count, timeRegions.getRegions().size()));
+          time = time - 1;
         }
       }
-      return regions.isEmpty() ? null : new TimeRegions(currentRegionTime, regions);
+      return null;
     }
+  }
+
+  @Nullable
+  private TimeRegions getNextSetOfTimeRegions(Table stateTable, long time) throws IOException {
+    byte[] timeBytes = Bytes.toBytes(getInvertedTime(time));
+    Scan scan = new Scan(makeTimeRegionKey(timeBytes, EMPTY_BYTE_ARRAY), REGION_TIME_KEY_PREFIX_STOP);
+    scan.addColumn(FAMILY, REGION_TIME_COL);
+
+
+    long currentRegionTime = -1;
+    SortedSet<byte[]> regions = new TreeSet<>(Bytes.BYTES_COMPARATOR);
+    Result next;
+    try (ResultScanner scanner = stateTable.getScanner(scan)) {
+      while ((next = scanner.next()) != null) {
+        Map.Entry<Long, byte[]> timeRegion = getTimeRegion(next.getRow());
+        // Stop if reached next time value
+        if (currentRegionTime == -1) {
+          currentRegionTime = timeRegion.getKey();
+        } else if (timeRegion.getKey() < currentRegionTime) {
+          break;
+        } else if (timeRegion.getKey() > currentRegionTime) {
+          throw new IllegalStateException(
+            String.format("Got out of order time %d when expecting time less than or equal to %d",
+                          timeRegion.getKey(), currentRegionTime));
+        }
+        regions.add(timeRegion.getValue());
+      }
+    }
+    return regions.isEmpty() ? null : new TimeRegions(currentRegionTime, Collections.unmodifiableSortedSet(regions));
+  }
+
+  @VisibleForTesting
+  int getRegionCountForTime(Table stateTable, long time) throws IOException {
+    Get get = new Get(makeTimeRegionCountKey(Bytes.toBytes(getInvertedTime(time))));
+    get.addColumn(FAMILY, REGION_TIME_COL);
+    Result result = stateTable.get(get);
+    byte[] value = result.getValue(FAMILY, REGION_TIME_COL);
+    return value == null ? -1 : Bytes.toInt(value);
   }
 
   /**
@@ -294,15 +345,15 @@ public class DataJanitorState {
   public void deleteAllRegionsOnOrBeforeTime(long time) throws IOException {
     byte[] timeBytes = Bytes.toBytes(getInvertedTime(time));
     try (Table stateTable = stateTableSupplier.get()) {
+      // Delete the regions
       Scan scan = new Scan(makeTimeRegionKey(timeBytes, EMPTY_BYTE_ARRAY), REGION_TIME_KEY_PREFIX_STOP);
       scan.addColumn(FAMILY, REGION_TIME_COL);
+      deleteFromScan(stateTable, scan);
 
-      try (ResultScanner scanner = stateTable.getScanner(scan)) {
-        Result next;
-        while ((next = scanner.next()) != null) {
-          stateTable.delete(new Delete(next.getRow()));
-        }
-      }
+      // Delete the count
+      scan = new Scan(makeTimeRegionCountKey(timeBytes), REGION_TIME_COUNT_KEY_PREFIX_STOP);
+      scan.addColumn(FAMILY, REGION_TIME_COL);
+      deleteFromScan(stateTable, scan);
     }
   }
 
@@ -356,12 +407,80 @@ public class DataJanitorState {
       Scan scan = new Scan(makeInactiveTransactionBoundTimeKey(Bytes.toBytes(getInvertedTime(time))),
                            INACTIVE_TRANSACTION_BOUND_TIME_KEY_PREFIX_STOP);
       scan.addColumn(FAMILY, INACTIVE_TRANSACTION_BOUND_TIME_COL);
+      deleteFromScan(stateTable, scan);
+    }
+  }
+
+  // --------------------------------------------------------
+  // ------- Methods for empty regions at a given time -------
+  // --------------------------------------------------------
+  // Key: 0x4<time><region-id>
+  // Col 'e': <empty byte array>
+  // --------------------------------------------------------
+
+  /**
+   * Save the given region as empty as of the given time.
+   *
+   * @param time time in milliseconds
+   * @param regionId region id
+   */
+  public void saveEmptyRegionForTime(long time, byte[] regionId) throws IOException {
+    byte[] timeBytes = Bytes.toBytes(time);
+    try (Table stateTable = stateTableSupplier.get()) {
+      Put put = new Put(makeEmptyRegionTimeKey(timeBytes, regionId));
+      put.addColumn(FAMILY, EMPTY_REGION_TIME_COL, COL_VAL);
+      stateTable.put(put);
+    }
+  }
+
+  /**
+   * Return regions that were recorded as empty after the given time.
+   *
+   * @param time time in milliseconds
+   * @param includeRegions If not null, the returned set will be an intersection of the includeRegions set
+   *                       and the empty regions after the given time
+   */
+  public SortedSet<byte[]> getEmptyRegionsAfterTime(long time, @Nullable SortedSet<byte[]> includeRegions)
+    throws IOException {
+    SortedSet<byte[]> emptyRegions = new TreeSet<>(Bytes.BYTES_COMPARATOR);
+    try (Table stateTable = stateTableSupplier.get()) {
+      Scan scan = new Scan(makeEmptyRegionTimeKey(Bytes.toBytes(time + 1), EMPTY_BYTE_ARRAY),
+                           EMPTY_REGION_TIME_KEY_PREFIX_STOP);
+      scan.addColumn(FAMILY, EMPTY_REGION_TIME_COL);
 
       try (ResultScanner scanner = stateTable.getScanner(scan)) {
         Result next;
         while ((next = scanner.next()) != null) {
-          stateTable.delete(new Delete(next.getRow()));
+          byte[] emptyRegion = getEmptyRegionFromKey(next.getRow());
+          if (includeRegions == null || includeRegions.contains(emptyRegion)) {
+            emptyRegions.add(emptyRegion);
+          }
         }
+      }
+    }
+    return Collections.unmodifiableSortedSet(emptyRegions);
+  }
+
+  /**
+   * Delete empty region records saved on or before the given time.
+   *
+   * @param time time in milliseconds
+   */
+  public void deleteEmptyRegionsOnOrBeforeTime(long time) throws IOException {
+    try (Table stateTable = stateTableSupplier.get()) {
+      Scan scan = new Scan();
+      scan.setStopRow(makeEmptyRegionTimeKey(Bytes.toBytes(time + 1), EMPTY_BYTE_ARRAY));
+      scan.addColumn(FAMILY, EMPTY_REGION_TIME_COL);
+      deleteFromScan(stateTable, scan);
+    }
+  }
+
+  @VisibleForTesting
+  void deleteFromScan(Table stateTable, Scan scan) throws IOException {
+    try (ResultScanner scanner = stateTable.getScanner(scan)) {
+      Result next;
+      while ((next = scanner.next()) != null) {
+        stateTable.delete(new Delete(next.getRow()));
       }
     }
   }
@@ -379,6 +498,10 @@ public class DataJanitorState {
     return Bytes.add(REGION_TIME_KEY_PREFIX, time, regionId);
   }
 
+  private byte[] makeTimeRegionCountKey(byte[] time) {
+    return Bytes.add(REGION_TIME_COUNT_KEY_PREFIX, time);
+  }
+
   private byte[] makeInactiveTransactionBoundTimeKey(byte[] time) {
     return Bytes.add(INACTIVE_TRANSACTION_BOUND_TIME_KEY_PREFIX, time);
   }
@@ -389,6 +512,15 @@ public class DataJanitorState {
     offset += Bytes.SIZEOF_LONG;
     byte[] regionName = Bytes.copy(key, offset, key.length - offset);
     return Maps.immutableEntry(time, regionName);
+  }
+
+  private byte[] makeEmptyRegionTimeKey(byte[] time, byte[] regionId) {
+    return Bytes.add(EMPTY_REGION_TIME_KEY_PREFIX, time, regionId);
+  }
+
+  private byte[] getEmptyRegionFromKey(byte[] key) {
+    int prefixLen = EMPTY_REGION_TIME_KEY_PREFIX.length + Bytes.SIZEOF_LONG;
+    return Bytes.copy(key, prefixLen, key.length - prefixLen);
   }
 
   private long getInvertedTime(long time) {

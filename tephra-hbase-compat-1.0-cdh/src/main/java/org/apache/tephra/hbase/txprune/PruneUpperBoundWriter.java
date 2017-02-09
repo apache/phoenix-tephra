@@ -39,25 +39,41 @@ public class PruneUpperBoundWriter extends AbstractIdleService {
   private final TableName tableName;
   private final DataJanitorState dataJanitorState;
   private final long pruneFlushInterval;
+  // Map of region name -> prune upper bound
   private final ConcurrentSkipListMap<byte[], Long> pruneEntries;
+  // Map of region name -> time the region was found to be empty
+  private final ConcurrentSkipListMap<byte[], Long> emptyRegions;
 
   private volatile Thread flushThread;
 
   private long lastChecked;
 
+  @SuppressWarnings("WeakerAccess")
   public PruneUpperBoundWriter(TableName tableName, DataJanitorState dataJanitorState, long pruneFlushInterval) {
     this.tableName = tableName;
     this.dataJanitorState = dataJanitorState;
     this.pruneFlushInterval = pruneFlushInterval;
     this.pruneEntries = new ConcurrentSkipListMap<>(Bytes.BYTES_COMPARATOR);
+    this.emptyRegions = new ConcurrentSkipListMap<>(Bytes.BYTES_COMPARATOR);
   }
 
+  @SuppressWarnings("WeakerAccess")
   public void persistPruneEntry(byte[] regionName, long pruneUpperBound) {
+    warnIfNotRunning(regionName);
     // The number of entries in this map is bound by the number of regions in this region server and thus it will not
     // grow indefinitely
     pruneEntries.put(regionName, pruneUpperBound);
   }
 
+  @SuppressWarnings("WeakerAccess")
+  public void persistRegionEmpty(byte[] regionName, long time) {
+    warnIfNotRunning(regionName);
+    // The number of entries in this map is bound by the number of regions in this region server and thus it will not
+    // grow indefinitely
+    emptyRegions.put(regionName, time);
+  }
+
+  @SuppressWarnings("WeakerAccess")
   public boolean isAlive() {
     return flushThread != null && flushThread.isAlive();
   }
@@ -86,12 +102,21 @@ public class PruneUpperBoundWriter extends AbstractIdleService {
           if (now > (lastChecked + pruneFlushInterval)) {
             // should flush data
             try {
-              while (pruneEntries.firstEntry() != null) {
+              // Record prune upper bound
+              while (!pruneEntries.isEmpty()) {
                 Map.Entry<byte[], Long> firstEntry = pruneEntries.firstEntry();
                 dataJanitorState.savePruneUpperBoundForRegion(firstEntry.getKey(), firstEntry.getValue());
                 // We can now remove the entry only if the key and value match with what we wrote since it is
                 // possible that a new pruneUpperBound for the same key has been added
                 pruneEntries.remove(firstEntry.getKey(), firstEntry.getValue());
+              }
+              // Record empty regions
+              while (!emptyRegions.isEmpty()) {
+                Map.Entry<byte[], Long> firstEntry = emptyRegions.firstEntry();
+                dataJanitorState.saveEmptyRegionForTime(firstEntry.getValue(), firstEntry.getKey());
+                // We can now remove the entry only if the key and value match with what we wrote since it is
+                // possible that a new value for the same key has been added
+                emptyRegions.remove(firstEntry.getKey(), firstEntry.getValue());
               }
             } catch (IOException ex) {
               LOG.warn("Cannot record prune upper bound for a region to table " +
@@ -114,5 +139,12 @@ public class PruneUpperBoundWriter extends AbstractIdleService {
 
     flushThread.setDaemon(true);
     flushThread.start();
+  }
+
+  private void warnIfNotRunning(byte[] regionName) {
+    if (!isRunning() || !isAlive()) {
+      LOG.warn(String.format("Trying to persist prune upper bound for region %s when writer is not %s!",
+                             Bytes.toStringBinary(regionName), isRunning() ? "alive" : "running"));
+    }
   }
 }
