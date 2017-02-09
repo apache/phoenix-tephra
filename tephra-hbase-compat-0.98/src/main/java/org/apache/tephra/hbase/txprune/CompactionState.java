@@ -46,8 +46,8 @@ public class CompactionState {
   private volatile long pruneUpperBound = -1;
 
   public CompactionState(final RegionCoprocessorEnvironment env, final TableName stateTable, long pruneFlushInterval) {
-    this.regionName = env.getRegionInfo().getRegionName();
-    this.regionNameAsString = env.getRegionInfo().getRegionNameAsString();
+    this.regionName = env.getRegion().getRegionName();
+    this.regionNameAsString = env.getRegion().getRegionNameAsString();
     DataJanitorState dataJanitorState = new DataJanitorState(new DataJanitorState.TableSupplier() {
       @Override
       public HTableInterface get() throws IOException {
