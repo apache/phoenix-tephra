@@ -54,7 +54,7 @@ import java.util.concurrent.TimeoutException;
 public class PooledClientProviderTest {
 
   private static final int MAX_CLIENT_COUNT = 3;
-  private static final long CLIENT_OBTAIN_TIMEOUT = 10;
+  private static final long CLIENT_OBTAIN_TIMEOUT = 100;
 
   @ClassRule
   public static TemporaryFolder tmpFolder = new TemporaryFolder();
