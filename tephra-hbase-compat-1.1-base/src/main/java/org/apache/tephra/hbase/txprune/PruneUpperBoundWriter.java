@@ -22,9 +22,11 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.security.User;
 import org.apache.hadoop.hbase.util.Bytes;
 
 import java.io.IOException;
+import java.security.PrivilegedExceptionAction;
 import java.util.Map;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +47,7 @@ public class PruneUpperBoundWriter extends AbstractIdleService {
   private final ConcurrentSkipListMap<byte[], Long> emptyRegions;
 
   private volatile Thread flushThread;
+  private volatile boolean stopped;
 
   private long lastChecked;
 
@@ -87,6 +90,7 @@ public class PruneUpperBoundWriter extends AbstractIdleService {
   @Override
   protected void shutDown() throws Exception {
     LOG.info("Stopping PruneUpperBoundWriter Thread.");
+    stopped = true;
     if (flushThread != null) {
       flushThread.interrupt();
       flushThread.join(TimeUnit.SECONDS.toMillis(1));
@@ -97,27 +101,33 @@ public class PruneUpperBoundWriter extends AbstractIdleService {
     flushThread = new Thread("tephra-prune-upper-bound-writer") {
       @Override
       public void run() {
-        while ((!isInterrupted()) && isRunning()) {
+        while ((!isInterrupted()) && (!stopped)) {
           long now = System.currentTimeMillis();
           if (now > (lastChecked + pruneFlushInterval)) {
             // should flush data
             try {
-              // Record prune upper bound
-              while (!pruneEntries.isEmpty()) {
-                Map.Entry<byte[], Long> firstEntry = pruneEntries.firstEntry();
-                dataJanitorState.savePruneUpperBoundForRegion(firstEntry.getKey(), firstEntry.getValue());
-                // We can now remove the entry only if the key and value match with what we wrote since it is
-                // possible that a new pruneUpperBound for the same key has been added
-                pruneEntries.remove(firstEntry.getKey(), firstEntry.getValue());
-              }
-              // Record empty regions
-              while (!emptyRegions.isEmpty()) {
-                Map.Entry<byte[], Long> firstEntry = emptyRegions.firstEntry();
-                dataJanitorState.saveEmptyRegionForTime(firstEntry.getValue(), firstEntry.getKey());
-                // We can now remove the entry only if the key and value match with what we wrote since it is
-                // possible that a new value for the same key has been added
-                emptyRegions.remove(firstEntry.getKey(), firstEntry.getValue());
-              }
+              User.runAsLoginUser(new PrivilegedExceptionAction<Void>() {
+                @Override
+                public Void run() throws Exception {
+                  // Record prune upper bound
+                  while (!pruneEntries.isEmpty()) {
+                    Map.Entry<byte[], Long> firstEntry = pruneEntries.firstEntry();
+                    dataJanitorState.savePruneUpperBoundForRegion(firstEntry.getKey(), firstEntry.getValue());
+                    // We can now remove the entry only if the key and value match with what we wrote since it is
+                    // possible that a new pruneUpperBound for the same key has been added
+                    pruneEntries.remove(firstEntry.getKey(), firstEntry.getValue());
+                  }
+                  // Record empty regions
+                  while (!emptyRegions.isEmpty()) {
+                    Map.Entry<byte[], Long> firstEntry = emptyRegions.firstEntry();
+                    dataJanitorState.saveEmptyRegionForTime(firstEntry.getValue(), firstEntry.getKey());
+                    // We can now remove the entry only if the key and value match with what we wrote since it is
+                    // possible that a new value for the same key has been added
+                    emptyRegions.remove(firstEntry.getKey(), firstEntry.getValue());
+                  }
+                  return null;
+                }
+              });
             } catch (IOException ex) {
               LOG.warn("Cannot record prune upper bound for a region to table " +
                          tableName.getNameWithNamespaceInclAsString(), ex);

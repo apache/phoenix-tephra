@@ -107,12 +107,13 @@ public class TransactionProcessor extends BaseRegionObserver {
 
   private final TransactionCodec txCodec;
   private TransactionStateCache cache;
-  private CompactionState compactionState;
+  private volatile CompactionState compactionState;
+
+  protected volatile Boolean pruneEnable;
+  protected volatile Long txMaxLifetimeMillis;
   protected Map<byte[], Long> ttlByFamily = Maps.newTreeMap(Bytes.BYTES_COMPARATOR);
   protected boolean allowEmptyValues = TxConstants.ALLOW_EMPTY_VALUES_DEFAULT;
   protected boolean readNonTxnData = TxConstants.DEFAULT_READ_NON_TX_DATA;
-  protected Long txMaxLifetimeMillis;
-  private Boolean pruneEnable;
 
   public TransactionProcessor() {
     this.txCodec = new TransactionCodec();
@@ -144,10 +145,12 @@ public class TransactionProcessor extends BaseRegionObserver {
       }
 
       this.allowEmptyValues = getAllowEmptyValues(env, tableDesc);
+      this.txMaxLifetimeMillis = getTxMaxLifetimeMillis(env);
       this.readNonTxnData = Boolean.valueOf(tableDesc.getValue(TxConstants.READ_NON_TX_DATA));
       if (readNonTxnData) {
         LOG.info("Reading pre-existing data enabled for table " + tableDesc.getNameAsString());
       }
+      initializePruneState(env);
     }
   }
 
@@ -171,9 +174,7 @@ public class TransactionProcessor extends BaseRegionObserver {
 
   @Override
   public void stop(CoprocessorEnvironment e) throws IOException {
-    if (compactionState != null) {
-      compactionState.stop();
-    }
+    resetPruneState();
   }
 
   @Override
@@ -246,6 +247,15 @@ public class TransactionProcessor extends BaseRegionObserver {
     // If the property is not present in the tableDescriptor, get it from the Configuration
     return  (allowEmptyValuesFromTableDesc != null) ?
       Boolean.valueOf(allowEmptyValuesFromTableDesc) : allowEmptyValuesFromConfig;
+  }
+
+  private long getTxMaxLifetimeMillis(RegionCoprocessorEnvironment env) {
+    Configuration conf = getConfiguration(env);
+    if (conf != null) {
+      return TimeUnit.SECONDS.toMillis(conf.getInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME,
+                                                   TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME));
+    }
+    return TimeUnit.SECONDS.toMillis(TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME);
   }
 
   private boolean isFamilyDelete(List<Cell> familyCells) {
@@ -321,15 +331,10 @@ public class TransactionProcessor extends BaseRegionObserver {
     LOG.debug(String.format("Region %s: memstore size = %s, num store files = %s",
                             region.getRegionInfo().getRegionNameAsString(), memstoreSize, numStoreFiles));
     if (memstoreSize == 0 && numStoreFiles == 0) {
-      if (pruneEnable == null) {
-        initPruneState(e);
-      }
-
-      if (Boolean.TRUE.equals(pruneEnable)) {
+      if (compactionState != null) {
         compactionState.persistRegionEmpty(System.currentTimeMillis());
       }
     }
-
   }
 
   @Override
@@ -340,12 +345,8 @@ public class TransactionProcessor extends BaseRegionObserver {
     // Get the latest tx snapshot state for the compaction
     TransactionVisibilityState snapshot = cache.getLatestState();
 
-    if (pruneEnable == null) {
-      initPruneState(c);
-    }
-
-    if (Boolean.TRUE.equals(pruneEnable)) {
-      // Record tx state before the compaction
+    // Record tx state before the compaction
+    if (compactionState != null) {
       compactionState.record(request, snapshot);
     }
 
@@ -416,21 +417,8 @@ public class TransactionProcessor extends BaseRegionObserver {
       return;
     }
 
-    if (txMaxLifetimeMillis == null) {
-      Configuration conf = getConfiguration(env);
-      // Configuration won't be null in TransactionProcessor but the derived classes might return
-      // null if it is not available temporarily
-      if (conf != null) {
-        this.txMaxLifetimeMillis = TimeUnit.SECONDS.toMillis(conf.getInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME,
-                                                                         TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME));
-      } else {
-        throw new IOException(String.format("Could not validate Transaction since the value of max lifetime is " +
-                                              "unavailable. Please retry the operation."));
-      }
-    }
-
     boolean validLifetime =
-      TxUtils.getTimestamp(tx.getTransactionId()) + txMaxLifetimeMillis > System.currentTimeMillis();
+      (TxUtils.getTimestamp(tx.getTransactionId()) + txMaxLifetimeMillis) > System.currentTimeMillis();
     if (!validLifetime) {
       throw new DoNotRetryIOException(String.format("Transaction %s has exceeded max lifetime %s ms",
                                                     tx.getTransactionId(), txMaxLifetimeMillis));
@@ -454,25 +442,44 @@ public class TransactionProcessor extends BaseRegionObserver {
     return TransactionFilters.getVisibilityFilter(tx, ttlByFamily, allowEmptyValues, type, filter);
   }
 
-  private void initPruneState(ObserverContext<RegionCoprocessorEnvironment> c) {
-    Configuration conf = getConfiguration(c.getEnvironment());
-    // Configuration won't be null in TransactionProcessor but the derived classes might return
-    // null if it is not available temporarily
+  /**
+   * Refresh the properties related to transaction pruning. This method needs to be invoked if there is change in the
+   * prune related properties after clearing the state by calling {@link #resetPruneState}.
+   *
+   * @param env {@link RegionCoprocessorEnvironment} of this region
+   */
+  protected void initializePruneState(RegionCoprocessorEnvironment env) {
+    Configuration conf = getConfiguration(env);
     if (conf != null) {
       pruneEnable = conf.getBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE,
                                     TxConstants.TransactionPruning.DEFAULT_PRUNE_ENABLE);
+
       if (Boolean.TRUE.equals(pruneEnable)) {
-        String pruneTable = conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
-                                     TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE);
-        long pruneFlushInterval = TimeUnit.SECONDS.toMillis(
-          conf.getLong(TxConstants.TransactionPruning.PRUNE_FLUSH_INTERVAL,
-                       TxConstants.TransactionPruning.DEFAULT_PRUNE_FLUSH_INTERVAL));
-        compactionState = new CompactionState(c.getEnvironment(), TableName.valueOf(pruneTable), pruneFlushInterval);
+        TableName pruneTable = TableName.valueOf(conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
+                                                          TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE));
+        long pruneFlushInterval = TimeUnit.SECONDS.toMillis(conf.getLong(
+          TxConstants.TransactionPruning.PRUNE_FLUSH_INTERVAL,
+          TxConstants.TransactionPruning.DEFAULT_PRUNE_FLUSH_INTERVAL));
+
+        compactionState = new CompactionState(env, pruneTable, pruneFlushInterval);
         if (LOG.isDebugEnabled()) {
-          LOG.debug("Automatic invalid list pruning is enabled. Compaction state will be recorded in table "
-                      + pruneTable);
+          TableName name = env.getRegion().getRegionInfo().getTable();
+          LOG.debug(String.format("Automatic invalid list pruning is enabled for table %s:%s. Compaction state will " +
+                                    "be recorded in table %s:%s", name.getNamespaceAsString(), name.getNameAsString(),
+                                  pruneTable.getNamespaceAsString(), pruneTable.getNameAsString()));
         }
       }
+    }
+  }
+
+  /**
+   * Stop and clear state related to pruning.
+   */
+  protected void resetPruneState() {
+    pruneEnable = false;
+    if (compactionState != null) {
+      compactionState.stop();
+      compactionState = null;
     }
   }
 
