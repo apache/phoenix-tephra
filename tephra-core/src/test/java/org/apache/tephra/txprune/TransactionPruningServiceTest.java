@@ -69,6 +69,7 @@ public class TransactionPruningServiceTest {
     conf.setBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE, true);
     conf.setInt(TxConstants.TransactionPruning.PRUNE_INTERVAL, 1);
     conf.setInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME, 10);
+    conf.setLong(TxConstants.TransactionPruning.PRUNE_GRACE_PERIOD, 0);
 
     // Setup mock data
     long m = 1000;
@@ -132,6 +133,7 @@ public class TransactionPruningServiceTest {
     conf.setBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE, true);
     conf.setInt(TxConstants.TransactionPruning.PRUNE_INTERVAL, 1);
     conf.setInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME, 10);
+    conf.setLong(TxConstants.TransactionPruning.PRUNE_GRACE_PERIOD, 0);
 
     // Setup mock data
     long m = 1000;
@@ -222,8 +224,8 @@ public class TransactionPruningServiceTest {
     @Override
     TransactionPruningRunnable getTxPruneRunnable(TransactionManager txManager,
                                                   Map<String, TransactionPruningPlugin> plugins,
-                                                  long txMaxLifetimeMillis) {
-      return new TestTransactionPruningRunnable(txManager, plugins, txMaxLifetimeMillis);
+                                                  long txMaxLifetimeMillis, long txPruneBufferMillis) {
+      return new TestTransactionPruningRunnable(txManager, plugins, txMaxLifetimeMillis, txPruneBufferMillis);
     }
   }
 
@@ -233,8 +235,8 @@ public class TransactionPruningServiceTest {
   private static class TestTransactionPruningRunnable extends TransactionPruningRunnable {
     private static Iterator<Long> currentTime;
     TestTransactionPruningRunnable(TransactionManager txManager, Map<String, TransactionPruningPlugin> plugins,
-                                   long txMaxLifetimeMillis) {
-      super(txManager, plugins, txMaxLifetimeMillis);
+                                   long txMaxLifetimeMillis, long txPruneBufferMillis) {
+      super(txManager, plugins, txMaxLifetimeMillis, txPruneBufferMillis);
     }
 
     @Override
