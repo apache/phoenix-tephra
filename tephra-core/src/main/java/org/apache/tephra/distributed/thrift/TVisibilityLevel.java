@@ -25,6 +25,10 @@
 package org.apache.tephra.distributed.thrift;
 
 
+import java.util.Map;
+import java.util.HashMap;
+import org.apache.thrift.TEnum;
+
 public enum TVisibilityLevel implements org.apache.thrift.TEnum {
   SNAPSHOT(1),
   SNAPSHOT_EXCLUDE_CURRENT(2),

@@ -19,6 +19,8 @@
 package org.apache.tephra.distributed;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Uninterruptibles;
 import com.google.inject.Inject;
@@ -28,6 +30,7 @@ import org.apache.tephra.TransactionManager;
 import org.apache.tephra.distributed.thrift.TTransactionServer;
 import org.apache.tephra.inmemory.InMemoryTransactionService;
 import org.apache.tephra.rpc.ThriftRPCServer;
+import org.apache.tephra.txprune.TransactionPruningService;
 import org.apache.twill.api.ElectionHandler;
 import org.apache.twill.discovery.DiscoveryService;
 import org.apache.twill.internal.ServiceListenerAdapter;
@@ -50,9 +53,11 @@ import javax.annotation.Nullable;
 public final class TransactionService extends InMemoryTransactionService {
   private static final Logger LOG = LoggerFactory.getLogger(TransactionService.class);
   private LeaderElection leaderElection;
+  private final Configuration conf;
   private final ZKClient zkClient;
 
   private ThriftRPCServer<TransactionServiceThriftHandler, TTransactionServer> server;
+  private TransactionPruningService pruningService;
 
   @Inject
   public TransactionService(Configuration conf,
@@ -60,6 +65,7 @@ public final class TransactionService extends InMemoryTransactionService {
                             DiscoveryService discoveryService,
                             Provider<TransactionManager> txManagerProvider) {
     super(conf, discoveryService, txManagerProvider);
+    this.conf = conf;
     this.zkClient = zkClient;
   }
 
@@ -91,6 +97,8 @@ public final class TransactionService extends InMemoryTransactionService {
           }
         }, MoreExecutors.sameThreadExecutor());
 
+        pruningService = new TransactionPruningService(conf, txManager);
+
         server = ThriftRPCServer.builder(TTransactionServer.class)
           .setHost(address)
           .setPort(port)
@@ -100,6 +108,7 @@ public final class TransactionService extends InMemoryTransactionService {
           .build(new TransactionServiceThriftHandler(txManager));
         try {
           server.startAndWait();
+          pruningService.startAndWait();
           doRegister();
           LOG.info("Transaction Thrift Service started successfully on " + getAddress());
         } catch (Throwable t) {
@@ -111,12 +120,21 @@ public final class TransactionService extends InMemoryTransactionService {
 
       @Override
       public void follower() {
+        ListenableFuture<State> stopFuture = null;
         // First stop the transaction server as un-registering from discovery can block sometimes.
         // That can lead to multiple transaction servers being active at the same time.
         if (server != null && server.isRunning()) {
           server.stopAndWait();
         }
+        if (pruningService != null && pruningService.isRunning()) {
+          // Wait for pruning service to stop after un-registering from discovery
+          stopFuture = pruningService.stop();
+        }
         undoRegister();
+
+        if (stopFuture != null) {
+          Futures.getUnchecked(stopFuture);
+        }
       }
     });
     leaderElection.start();

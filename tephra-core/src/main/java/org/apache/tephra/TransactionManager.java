@@ -29,7 +29,11 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AbstractService;
 import com.google.inject.Inject;
 import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongArraySet;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.tephra.manager.InvalidTxList;
 import org.apache.tephra.metrics.DefaultMetricsCollector;
 import org.apache.tephra.metrics.MetricsCollector;
 import org.apache.tephra.persist.NoOpTransactionStateStorage;
@@ -46,7 +50,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
@@ -115,15 +118,11 @@ public class TransactionManager extends AbstractService {
   //poll every 10 second to emit metrics
   private static final long METRICS_POLL_INTERVAL = 10000L;
 
-  private static final long[] NO_INVALID_TX = { };
-
   // Transactions that are in progress, with their info.
   private final NavigableMap<Long, InProgressTx> inProgress = new ConcurrentSkipListMap<Long, InProgressTx>();
 
   // the list of transactions that are invalid (not properly committed/aborted, or timed out)
-  // TODO: explain usage of two arrays
-  private final LongArrayList invalid = new LongArrayList();
-  private long[] invalidArray = NO_INVALID_TX;
+  private final InvalidTxList invalidTxList = new InvalidTxList();
 
   // todo: use moving array instead (use Long2ObjectMap<byte[]> in fastutil)
   // todo: should this be consolidated with inProgress?
@@ -142,6 +141,7 @@ public class TransactionManager extends AbstractService {
   private final int cleanupInterval;
   private final int defaultTimeout;
   private final int defaultLongTimeout;
+  private final int maxTimeout;
   private DaemonThreadExecutor cleanupThread = null;
 
   private volatile TransactionLog currentLog;
@@ -174,6 +174,8 @@ public class TransactionManager extends AbstractService {
     this.persistor = persistor;
     cleanupInterval = conf.getInt(TxConstants.Manager.CFG_TX_CLEANUP_INTERVAL,
                                   TxConstants.Manager.DEFAULT_TX_CLEANUP_INTERVAL);
+    maxTimeout = conf.getInt(TxConstants.Manager.CFG_TX_MAX_TIMEOUT,
+                             TxConstants.Manager.DEFAULT_TX_MAX_TIMEOUT);
     defaultTimeout = conf.getInt(TxConstants.Manager.CFG_TX_TIMEOUT,
                                  TxConstants.Manager.DEFAULT_TX_TIMEOUT);
     defaultLongTimeout = conf.getInt(TxConstants.Manager.CFG_TX_LONG_TIMEOUT,
@@ -195,8 +197,7 @@ public class TransactionManager extends AbstractService {
   }
 
   private void clear() {
-    invalid.clear();
-    invalidArray = NO_INVALID_TX;
+    invalidTxList.clear();
     inProgress.clear();
     committedChangeSets.clear();
     committingChangeSets.clear();
@@ -315,7 +316,7 @@ public class TransactionManager extends AbstractService {
         txMetricsCollector.gauge("committing.size", committingChangeSets.size());
         txMetricsCollector.gauge("committed.size", committedChangeSets.size());
         txMetricsCollector.gauge("inprogress.size", inProgress.size());
-        txMetricsCollector.gauge("invalid.size", invalidArray.length);
+        txMetricsCollector.gauge("invalid.size", getInvalidSize());
       }
 
       @Override
@@ -324,7 +325,7 @@ public class TransactionManager extends AbstractService {
         txMetricsCollector.gauge("committing.size", committingChangeSets.size());
         txMetricsCollector.gauge("committed.size", committedChangeSets.size());
         txMetricsCollector.gauge("inprogress.size", inProgress.size());
-        txMetricsCollector.gauge("invalid.size", invalidArray.length);
+        txMetricsCollector.gauge("invalid.size", getInvalidSize());
       }
 
       @Override
@@ -337,40 +338,39 @@ public class TransactionManager extends AbstractService {
 
   private void cleanupTimedOutTransactions() {
     List<TransactionEdit> invalidEdits = null;
-    this.logReadLock.lock();
+    logReadLock.lock();
     try {
       synchronized (this) {
         if (!isRunning()) {
           return;
         }
-
         long currentTime = System.currentTimeMillis();
-        List<Long> timedOut = Lists.newArrayList();
+        Map<Long, InProgressType> timedOut = Maps.newHashMap();
         for (Map.Entry<Long, InProgressTx> tx : inProgress.entrySet()) {
           long expiration = tx.getValue().getExpiration();
           if (expiration >= 0L && currentTime > expiration) {
             // timed out, remember tx id (can't remove while iterating over entries)
-            timedOut.add(tx.getKey());
+            timedOut.put(tx.getKey(), tx.getValue().getType());
             LOG.info("Tx invalid list: added tx {} because of timeout", tx.getKey());
           } else if (expiration < 0) {
             LOG.warn("Transaction {} has negative expiration time {}. Likely cause is the transaction was not " +
                        "migrated correctly, this transaction will be expired immediately",
                      tx.getKey(), expiration);
-            timedOut.add(tx.getKey());
+            timedOut.put(tx.getKey(), InProgressType.LONG);
           }
         }
         if (!timedOut.isEmpty()) {
           invalidEdits = Lists.newArrayListWithCapacity(timedOut.size());
-          invalid.addAll(timedOut);
-          for (long tx : timedOut) {
-            committingChangeSets.remove(tx);
-            inProgress.remove(tx);
-            invalidEdits.add(TransactionEdit.createInvalid(tx));
+          invalidTxList.addAll(timedOut.keySet());
+          for (Map.Entry<Long, InProgressType> tx : timedOut.entrySet()) {
+            inProgress.remove(tx.getKey());
+            // checkpoints never go into the committing change sets or the edits
+            if (!InProgressType.CHECKPOINT.equals(tx.getValue())) {
+              committingChangeSets.remove(tx.getKey());
+              invalidEdits.add(TransactionEdit.createInvalid(tx.getKey()));
+            }
           }
 
-          // todo: find a more efficient way to keep this sorted. Could it just be an array?
-          Collections.sort(invalid);
-          invalidArray = invalid.toLongArray();
           LOG.info("Invalidated {} transactions due to timeout.", timedOut.size());
         }
       }
@@ -463,7 +463,8 @@ public class TransactionManager extends AbstractService {
 
   public synchronized TransactionSnapshot getCurrentState() {
     return TransactionSnapshot.copyFrom(System.currentTimeMillis(), readPointer, lastWritePointer,
-                                        invalid, inProgress, committingChangeSets, committedChangeSets);
+                                        invalidTxList.toRawList(), inProgress, committingChangeSets,
+                                        committedChangeSets);
   }
 
   public synchronized void recoverState() {
@@ -492,7 +493,7 @@ public class TransactionManager extends AbstractService {
     Preconditions.checkState(lastSnapshotTime == 0, "lastSnapshotTime has been set!");
     Preconditions.checkState(readPointer == 0, "readPointer has been set!");
     Preconditions.checkState(lastWritePointer == 0, "lastWritePointer has been set!");
-    Preconditions.checkState(invalid.isEmpty(), "invalid list should be empty!");
+    Preconditions.checkState(invalidTxList.isEmpty(), "invalid list should be empty!");
     Preconditions.checkState(inProgress.isEmpty(), "inProgress map should be empty!");
     Preconditions.checkState(committingChangeSets.isEmpty(), "committingChangeSets should be empty!");
     Preconditions.checkState(committedChangeSets.isEmpty(), "committedChangeSets should be empty!");
@@ -501,7 +502,7 @@ public class TransactionManager extends AbstractService {
     lastSnapshotTime = snapshot.getTimestamp();
     readPointer = snapshot.getReadPointer();
     lastWritePointer = snapshot.getWritePointer();
-    invalid.addAll(snapshot.getInvalid());
+    invalidTxList.addAll(snapshot.getInvalid());
     inProgress.putAll(txnBackwardsCompatCheck(defaultLongTimeout, longTimeoutTolerance, snapshot.getInProgress()));
     committingChangeSets.putAll(snapshot.getCommittingChangeSets());
     committedChangeSets.putAll(snapshot.getCommittedChangeSets());
@@ -526,13 +527,13 @@ public class TransactionManager extends AbstractService {
         // handle null expiration
         long newExpiration = getTxExpirationFromWritePointer(writePointer, defaultLongTimeout);
         InProgressTx compatTx =
-          new InProgressTx(entry.getValue().getVisibilityUpperBound(), newExpiration, TransactionType.LONG,
+          new InProgressTx(entry.getValue().getVisibilityUpperBound(), newExpiration, InProgressType.LONG,
               entry.getValue().getCheckpointWritePointers());
         entry.setValue(compatTx);
       } else if (entry.getValue().getType() == null) {
         InProgressTx compatTx =
           new InProgressTx(entry.getValue().getVisibilityUpperBound(), entry.getValue().getExpiration(),
-                           TransactionType.SHORT, entry.getValue().getCheckpointWritePointers());
+                           InProgressType.SHORT, entry.getValue().getCheckpointWritePointers());
         entry.setValue(compatTx);
       }
     }
@@ -617,7 +618,15 @@ public class TransactionManager extends AbstractService {
               if (type == null) {
                 InProgressTx inProgressTx = inProgress.get(edit.getWritePointer());
                 if (inProgressTx != null) {
-                  type = inProgressTx.getType();
+                  InProgressType inProgressType = inProgressTx.getType();
+                  if (InProgressType.CHECKPOINT.equals(inProgressType)) {
+                    // this should never happen, because checkpoints never go into the log edits;
+                    LOG.debug("Ignoring ABORTED edit for a checkpoint transaction {}", edit.getWritePointer());
+                    break;
+                  }
+                  if (inProgressType != null) {
+                    type = inProgressType.getTransactionType();
+                  }
                 } else {
                   // If transaction is not in-progress, then it has either been already aborted or invalidated.
                   // We cannot determine the transaction's state based on current information, to be safe invalidate it.
@@ -722,7 +731,10 @@ public class TransactionManager extends AbstractService {
    * @param timeoutInSeconds the time out period in seconds.
    */
   public Transaction startShort(int timeoutInSeconds) {
-    Preconditions.checkArgument(timeoutInSeconds > 0, "timeout must be positive but is %s", timeoutInSeconds);
+    Preconditions.checkArgument(timeoutInSeconds > 0,
+                                "timeout must be positive but is %s seconds", timeoutInSeconds);
+    Preconditions.checkArgument(timeoutInSeconds <= maxTimeout,
+                                "timeout must not exceed %s seconds but is %s seconds", maxTimeout, timeoutInSeconds);
     txMetricsCollector.rate("start.short");
     Stopwatch timer = new Stopwatch().start();
     long expiration = getTxExpiration(timeoutInSeconds);
@@ -782,6 +794,11 @@ public class TransactionManager extends AbstractService {
 
   private void addInProgressAndAdvance(long writePointer, long visibilityUpperBound,
                                        long expiration, TransactionType type) {
+    addInProgressAndAdvance(writePointer, visibilityUpperBound, expiration, InProgressType.of(type));
+  }
+
+  private void addInProgressAndAdvance(long writePointer, long visibilityUpperBound,
+                                       long expiration, InProgressType type) {
     inProgress.put(writePointer, new InProgressTx(visibilityUpperBound, expiration, type));
     advanceWritePointer(writePointer);
   }
@@ -797,14 +814,17 @@ public class TransactionManager extends AbstractService {
     txMetricsCollector.rate("canCommit");
     Stopwatch timer = new Stopwatch().start();
     if (inProgress.get(tx.getTransactionId()) == null) {
-      // invalid transaction, either this has timed out and moved to invalid, or something else is wrong.
-      if (invalid.contains(tx.getTransactionId())) {
-        throw new TransactionNotInProgressException(
-          String.format("canCommit() is called for transaction %d that is not in progress (it is known to be invalid)",
-                        tx.getTransactionId()));
-      } else {
-        throw new TransactionNotInProgressException(
-          String.format("canCommit() is called for transaction %d that is not in progress", tx.getTransactionId()));
+      synchronized (this) {
+        // invalid transaction, either this has timed out and moved to invalid, or something else is wrong.
+        if (invalidTxList.contains(tx.getTransactionId())) {
+          throw new TransactionNotInProgressException(
+            String.format(
+              "canCommit() is called for transaction %d that is not in progress (it is known to be invalid)",
+              tx.getTransactionId()));
+        } else {
+          throw new TransactionNotInProgressException(
+            String.format("canCommit() is called for transaction %d that is not in progress", tx.getTransactionId()));
+        }
       }
     }
 
@@ -851,7 +871,7 @@ public class TransactionManager extends AbstractService {
         commitPointer = lastWritePointer + 1;
         if (inProgress.get(tx.getTransactionId()) == null) {
           // invalid transaction, either this has timed out and moved to invalid, or something else is wrong.
-          if (invalid.contains(tx.getTransactionId())) {
+          if (invalidTxList.contains(tx.getTransactionId())) {
             throw new TransactionNotInProgressException(
               String.format("canCommit() is called for transaction %d that is not in progress " +
                               "(it is known to be invalid)", tx.getTransactionId()));
@@ -907,9 +927,15 @@ public class TransactionManager extends AbstractService {
     InProgressTx previous = inProgress.remove(transactionId);
     if (previous == null) {
       // tx was not in progress! perhaps it timed out and is invalid? try to remove it there.
-      if (invalid.rem(transactionId)) {
-        invalidArray = invalid.toLongArray();
+      if (invalidTxList.remove(transactionId)) {
         LOG.info("Tx invalid list: removed committed tx {}", transactionId);
+      }
+    } else {
+      LongArrayList checkpointPointers = previous.getCheckpointWritePointers();
+      if (!checkpointPointers.isEmpty()) {
+        // adjust the write pointer to be the last checkpoint of the tx and remove all checkpoints from inProgress
+        writePointer = checkpointPointers.getLong(checkpointPointers.size() - 1);
+        inProgress.keySet().removeAll(previous.getCheckpointWritePointers());
       }
     }
     // moving read pointer
@@ -952,25 +978,29 @@ public class TransactionManager extends AbstractService {
     // makes tx visible (assumes that all operations were rolled back)
     // remove from in-progress set, so that it does not get excluded in the future
     InProgressTx removed = inProgress.remove(writePointer);
+    boolean removeInProgressCheckpoints = true;
     if (removed == null) {
       // tx was not in progress! perhaps it timed out and is invalid? try to remove it there.
-      if (invalid.rem(writePointer)) {
+      if (invalidTxList.remove(writePointer)) {
+        // the tx and all its children were invalidated: no need to remove them from inProgress
+        removeInProgressCheckpoints = false;
         // remove any invalidated checkpoint pointers
         // this will only be present if the parent write pointer was also invalidated
         if (checkpointWritePointers != null) {
-          for (int i = 0; i < checkpointWritePointers.length; i++) {
-            invalid.rem(checkpointWritePointers[i]);
+          for (long checkpointWritePointer : checkpointWritePointers) {
+            invalidTxList.remove(checkpointWritePointer);
           }
         }
-        invalidArray = invalid.toLongArray();
         LOG.info("Tx invalid list: removed aborted tx {}", writePointer);
-        // removed a tx from excludes: must move read pointer
-        moveReadPointerIfNeeded(writePointer);
       }
-    } else {
-      // removed a tx from excludes: must move read pointer
-      moveReadPointerIfNeeded(writePointer);
     }
+    if (removeInProgressCheckpoints && checkpointWritePointers != null) {
+      for (long checkpointWritePointer : checkpointWritePointers) {
+        inProgress.remove(checkpointWritePointer);
+      }
+    }
+    // removed a tx from excludes: must move read pointer
+    moveReadPointerIfNeeded(writePointer);
   }
 
   public boolean invalidate(long tx) {
@@ -999,22 +1029,18 @@ public class TransactionManager extends AbstractService {
     // This check is to prevent from invalidating committed transactions
     if (previous != null || previousChangeSet != null) {
       // add tx to invalids
-      invalid.add(writePointer);
+      invalidTxList.add(writePointer);
       if (previous == null) {
         LOG.debug("Invalidating tx {} in committing change sets but not in-progress", writePointer);
       } else {
         // invalidate any checkpoint write pointers
         LongArrayList childWritePointers = previous.getCheckpointWritePointers();
-        if (childWritePointers != null) {
-          for (int i = 0; i < childWritePointers.size(); i++) {
-            invalid.add(childWritePointers.get(i));
-          }
+        if (!childWritePointers.isEmpty()) {
+          invalidTxList.addAll(childWritePointers);
+          inProgress.keySet().removeAll(childWritePointers);
         }
       }
       LOG.info("Tx invalid list: added tx {} because of invalidate", writePointer);
-      // todo: find a more efficient way to keep this sorted. Could it just be an array?
-      Collections.sort(invalid);
-      invalidArray = invalid.toLongArray();
       if (previous != null && !previous.isLongRunning()) {
         // tx was short-running: must move read pointer
         moveReadPointerIfNeeded(writePointer);
@@ -1048,13 +1074,9 @@ public class TransactionManager extends AbstractService {
     }
   }
 
-  private boolean doTruncateInvalidTx(Set<Long> invalidTxIds) {
-    LOG.info("Removing tx ids {} from invalid list", invalidTxIds);
-    boolean success = invalid.removeAll(invalidTxIds);
-    if (success) {
-      invalidArray = invalid.toLongArray();
-    }
-    return success;
+  private boolean doTruncateInvalidTx(Set<Long> toRemove) {
+    LOG.info("Removing tx ids {} from invalid list", toRemove);
+    return invalidTxList.removeAll(toRemove);
   }
 
   /**
@@ -1091,15 +1113,16 @@ public class TransactionManager extends AbstractService {
     }
     
     // Find all invalid transactions earlier than truncateWp
-    Set<Long> toTruncate = Sets.newHashSet();
-    for (long wp : invalid) {
-      // invalid list is sorted, hence can stop as soon as we reach a wp >= truncateWp
-      if (wp >= truncateWp) {
-        break;
+    LongSet toTruncate = new LongArraySet();
+    LongIterator it = invalidTxList.toRawList().iterator();
+    while (it.hasNext()) {
+      long wp = it.nextLong();
+      if (wp < truncateWp) {
+        toTruncate.add(wp);
       }
-      toTruncate.add(wp);
     }
-    return doTruncateInvalidTx(toTruncate);
+    LOG.info("Removing tx ids {} from invalid list", toTruncate);
+    return invalidTxList.removeAll(toTruncate);
   }
 
   public Transaction checkpoint(Transaction originalTx) throws TransactionNotInProgressException {
@@ -1117,7 +1140,7 @@ public class TransactionManager extends AbstractService {
         // check that the parent tx is in progress
         InProgressTx parentTx = inProgress.get(txId);
         if (parentTx == null) {
-          if (invalid.contains(txId)) {
+          if (invalidTxList.contains(txId)) {
             throw new TransactionNotInProgressException(
                 String.format("Transaction %d is not in progress because it was invalidated", txId));
           } else {
@@ -1146,19 +1169,20 @@ public class TransactionManager extends AbstractService {
   private void doCheckpoint(long newWritePointer, long parentWritePointer) {
     InProgressTx existingTx = inProgress.get(parentWritePointer);
     existingTx.addCheckpointWritePointer(newWritePointer);
-    advanceWritePointer(newWritePointer);
+    addInProgressAndAdvance(newWritePointer, existingTx.getVisibilityUpperBound(), existingTx.getExpiration(),
+                            InProgressType.CHECKPOINT);
   }
   
   // hack for exposing important metric
   public int getExcludedListSize() {
-    return invalid.size() + inProgress.size();
+    return getInvalidSize() + inProgress.size();
   }
 
   /**
    * @return the size of invalid list
    */
-  public int getInvalidSize() {
-    return this.invalid.size();
+  public synchronized int getInvalidSize() {
+    return this.invalidTxList.size();
   }
 
   int getCommittedSize() {
@@ -1217,19 +1241,12 @@ public class TransactionManager extends AbstractService {
     for (Map.Entry<Long, InProgressTx> entry : inProgress.entrySet()) {
       long txId = entry.getKey();
       inProgressIds.add(txId);
-      // add any checkpointed write pointers to the in-progress list
-      LongArrayList childIds = entry.getValue().getCheckpointWritePointers();
-      if (childIds != null) {
-        for (int i = 0; i < childIds.size(); i++) {
-          inProgressIds.add(childIds.get(i));
-        }
-      }
       if (firstShortTx == Transaction.NO_TX_IN_PROGRESS && !entry.getValue().isLongRunning()) {
         firstShortTx = txId;
       }
     }
-
-    return new Transaction(readPointer, writePointer, invalidArray, inProgressIds.toLongArray(), firstShortTx, type);
+    return new Transaction(readPointer, writePointer, invalidTxList.toSortedArray(),
+                           inProgressIds.toLongArray(), firstShortTx, type);
   }
 
   private void appendToLog(TransactionEdit edit) {
@@ -1260,7 +1277,7 @@ public class TransactionManager extends AbstractService {
    */
   public void logStatistics() {
     LOG.info("Transaction Statistics: write pointer = " + lastWritePointer +
-               ", invalid = " + invalid.size() +
+               ", invalid = " + getInvalidSize() +
                ", in progress = " + inProgress.size() +
                ", committing = " + committingChangeSets.size() +
                ", committed = " + committedChangeSets.size());
@@ -1313,20 +1330,60 @@ public class TransactionManager extends AbstractService {
   }
 
   /**
+   * Type of in-progress transaction.
+   */
+  public enum InProgressType {
+
+    /**
+     * Short transactions detect conflicts during commit.
+     */
+    SHORT(TransactionType.SHORT),
+
+    /**
+     * Long running transactions do not detect conflicts during commit.
+     */
+    LONG(TransactionType.LONG),
+
+    /**
+     * Check-pointed transactions are recorded as in-progress.
+     */
+    CHECKPOINT(null);
+
+    private final TransactionType transactionType;
+
+    InProgressType(TransactionType transactionType) {
+      this.transactionType = transactionType;
+    }
+
+    public static InProgressType of(TransactionType type) {
+      switch (type) {
+        case SHORT: return SHORT;
+        case LONG:  return LONG;
+        default: throw new IllegalArgumentException("Unknown TransactionType " + type);
+      }
+    }
+
+    @Nullable
+    public TransactionType getTransactionType() {
+      return transactionType;
+    }
+  }
+
+  /**
    * Represents some of the info on in-progress tx
    */
   public static final class InProgressTx {
     /** the oldest in progress tx at the time of this tx start */
     private final long visibilityUpperBound;
     private final long expiration;
-    private final TransactionType type;
-    private LongArrayList checkpointWritePointers = new LongArrayList();
+    private final InProgressType type;
+    private final LongArrayList checkpointWritePointers;
 
-    public InProgressTx(long visibilityUpperBound, long expiration, TransactionType type) {
+    public InProgressTx(long visibilityUpperBound, long expiration, InProgressType type) {
       this(visibilityUpperBound, expiration, type, new LongArrayList());
     }
 
-    public InProgressTx(long visibilityUpperBound, long expiration, TransactionType type,
+    public InProgressTx(long visibilityUpperBound, long expiration, InProgressType type,
                         LongArrayList checkpointWritePointers) {
       this.visibilityUpperBound = visibilityUpperBound;
       this.expiration = expiration;
@@ -1349,7 +1406,7 @@ public class TransactionManager extends AbstractService {
     }
 
     @Nullable
-    public TransactionType getType() {
+    public InProgressType getType() {
       return type;
     }
 
@@ -1358,7 +1415,7 @@ public class TransactionManager extends AbstractService {
         // for backwards compatibility when long running txns were represented with -1 expiration
         return expiration == -1;
       }
-      return type == TransactionType.LONG;
+      return type == InProgressType.LONG;
     }
 
     public void addCheckpointWritePointer(long checkpointWritePointer) {

@@ -67,7 +67,6 @@ import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.tephra.ChangeId;
 import org.apache.tephra.Transaction;
 import org.apache.tephra.TransactionManager;
-import org.apache.tephra.TransactionType;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.coprocessor.TransactionStateCache;
 import org.apache.tephra.coprocessor.TransactionStateCacheSupplier;
@@ -151,8 +150,8 @@ public class TransactionProcessorTest {
     TransactionSnapshot txSnapshot = TransactionSnapshot.copyFrom(
       System.currentTimeMillis(), V[6] - 1, V[7], invalidSet,
       // this will set visibility upper bound to V[6]
-      Maps.newTreeMap(ImmutableSortedMap.of(V[6], new TransactionManager.InProgressTx(V[6] - 1, Long.MAX_VALUE,
-                                                                                      TransactionType.SHORT))),
+      Maps.newTreeMap(ImmutableSortedMap.of(V[6], new TransactionManager.InProgressTx(
+        V[6] - 1, Long.MAX_VALUE, TransactionManager.InProgressType.SHORT))),
       new HashMap<Long, Set<ChangeId>>(), new TreeMap<Long, Set<ChangeId>>());
     txVisibilityState = new TransactionSnapshot(txSnapshot.getTimestamp(), txSnapshot.getReadPointer(),
                                                 txSnapshot.getWritePointer(), txSnapshot.getInvalid(),

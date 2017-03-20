@@ -649,6 +649,7 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
         txDelete.setAttribute(entry.getKey(), entry.getValue());
     }
     txDelete.setDurability(delete.getDurability());
+    addToOperation(txDelete, tx);
     return txDelete;
   }
 

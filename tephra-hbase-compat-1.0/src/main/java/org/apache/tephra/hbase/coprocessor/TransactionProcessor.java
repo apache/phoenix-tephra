@@ -23,12 +23,15 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.CoprocessorEnvironment;
+import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.Get;
@@ -40,11 +43,13 @@ import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterBase;
+import org.apache.hadoop.hbase.regionserver.HRegion;
 import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.regionserver.KeyValueScanner;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.apache.hadoop.hbase.regionserver.ScanType;
 import org.apache.hadoop.hbase.regionserver.Store;
+import org.apache.hadoop.hbase.regionserver.StoreFile;
 import org.apache.hadoop.hbase.regionserver.StoreScanner;
 import org.apache.hadoop.hbase.regionserver.compactions.CompactionRequest;
 import org.apache.hadoop.hbase.regionserver.wal.WALEdit;
@@ -54,6 +59,7 @@ import org.apache.tephra.TransactionCodec;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.coprocessor.TransactionStateCache;
 import org.apache.tephra.coprocessor.TransactionStateCacheSupplier;
+import org.apache.tephra.hbase.txprune.CompactionState;
 import org.apache.tephra.persist.TransactionVisibilityState;
 import org.apache.tephra.util.TxUtils;
 
@@ -64,6 +70,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableSet;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 /**
  * {@code org.apache.hadoop.hbase.coprocessor.RegionObserver} coprocessor that handles server-side processing
@@ -97,8 +105,12 @@ import java.util.Set;
 public class TransactionProcessor extends BaseRegionObserver {
   private static final Log LOG = LogFactory.getLog(TransactionProcessor.class);
 
-  private TransactionStateCache cache;
   private final TransactionCodec txCodec;
+  private TransactionStateCache cache;
+  private volatile CompactionState compactionState;
+
+  protected volatile Boolean pruneEnable;
+  protected volatile Long txMaxLifetimeMillis;
   protected Map<byte[], Long> ttlByFamily = Maps.newTreeMap(Bytes.BYTES_COMPARATOR);
   protected boolean allowEmptyValues = TxConstants.ALLOW_EMPTY_VALUES_DEFAULT;
   protected boolean readNonTxnData = TxConstants.DEFAULT_READ_NON_TX_DATA;
@@ -132,13 +144,28 @@ public class TransactionProcessor extends BaseRegionObserver {
         ttlByFamily.put(columnDesc.getName(), ttl);
       }
 
-      this.allowEmptyValues = env.getConfiguration().getBoolean(TxConstants.ALLOW_EMPTY_VALUES_KEY,
-                                                                TxConstants.ALLOW_EMPTY_VALUES_DEFAULT);
+      this.allowEmptyValues = getAllowEmptyValues(env, tableDesc);
+      this.txMaxLifetimeMillis = getTxMaxLifetimeMillis(env);
       this.readNonTxnData = Boolean.valueOf(tableDesc.getValue(TxConstants.READ_NON_TX_DATA));
       if (readNonTxnData) {
         LOG.info("Reading pre-existing data enabled for table " + tableDesc.getNameAsString());
       }
+      initializePruneState(env);
     }
+  }
+
+  /**
+   * Fetch the {@link Configuration} that contains the properties required by the coprocessor. By default,
+   * the HBase configuration is returned. This method will never return {@code null} in Tephra but the derived
+   * classes might do so if {@link Configuration} is not available temporarily (for example, if it is being fetched
+   * from a HBase Table.
+   *
+   * @param env {@link RegionCoprocessorEnvironment} of the Region to which the coprocessor is associated
+   * @return {@link Configuration}, can be null if it is not available
+   */
+  @Nullable
+  protected Configuration getConfiguration(CoprocessorEnvironment env) {
+    return env.getConfiguration();
   }
 
   protected Supplier<TransactionStateCache> getTransactionStateCacheSupplier(RegionCoprocessorEnvironment env) {
@@ -147,7 +174,7 @@ public class TransactionProcessor extends BaseRegionObserver {
 
   @Override
   public void stop(CoprocessorEnvironment e) throws IOException {
-    // nothing to do
+    resetPruneState();
   }
 
   @Override
@@ -165,6 +192,13 @@ public class TransactionProcessor extends BaseRegionObserver {
   }
 
   @Override
+  public void prePut(ObserverContext<RegionCoprocessorEnvironment> e, Put put, WALEdit edit, Durability durability)
+    throws IOException {
+    Transaction tx = getFromOperation(put);
+    ensureValidTxLifetime(e.getEnvironment(), put, tx);
+  }
+
+  @Override
   public void preDelete(ObserverContext<RegionCoprocessorEnvironment> e, Delete delete, WALEdit edit,
                         Durability durability) throws IOException {
     // Translate deletes into our own delete tombstones
@@ -177,6 +211,9 @@ public class TransactionProcessor extends BaseRegionObserver {
       return;
     }
 
+    Transaction tx = getFromOperation(delete);
+    ensureValidTxLifetime(e.getEnvironment(), delete, tx);
+
     // Other deletes are client-initiated and need to be translated into our own tombstones
     // TODO: this should delegate to the DeleteStrategy implementation.
     Put deleteMarkers = new Put(delete.getRow(), delete.getTimeStamp());
@@ -184,13 +221,11 @@ public class TransactionProcessor extends BaseRegionObserver {
       List<Cell> familyCells = delete.getFamilyCellMap().get(family);
       if (isFamilyDelete(familyCells)) {
         deleteMarkers.add(family, TxConstants.FAMILY_DELETE_QUALIFIER, familyCells.get(0).getTimestamp(),
-            HConstants.EMPTY_BYTE_ARRAY);
+                          HConstants.EMPTY_BYTE_ARRAY);
       } else {
-        int cellSize = familyCells.size();
-        for (int i = 0; i < cellSize; i++) {
-          Cell cell = familyCells.get(i);
+        for (Cell cell : familyCells) {
           deleteMarkers.add(family, CellUtil.cloneQualifier(cell), cell.getTimestamp(),
-                  HConstants.EMPTY_BYTE_ARRAY);
+                            HConstants.EMPTY_BYTE_ARRAY);
         }
       }
     }
@@ -200,6 +235,27 @@ public class TransactionProcessor extends BaseRegionObserver {
     e.getEnvironment().getRegion().put(deleteMarkers);
     // skip normal delete handling
     e.bypass();
+  }
+
+  private boolean getAllowEmptyValues(RegionCoprocessorEnvironment env, HTableDescriptor htd) {
+    String allowEmptyValuesFromTableDesc = htd.getValue(TxConstants.ALLOW_EMPTY_VALUES_KEY);
+    Configuration conf = getConfiguration(env);
+    boolean allowEmptyValuesFromConfig = (conf != null) ?
+      conf.getBoolean(TxConstants.ALLOW_EMPTY_VALUES_KEY, TxConstants.ALLOW_EMPTY_VALUES_DEFAULT) :
+      TxConstants.ALLOW_EMPTY_VALUES_DEFAULT;
+
+    // If the property is not present in the tableDescriptor, get it from the Configuration
+    return  (allowEmptyValuesFromTableDesc != null) ?
+      Boolean.valueOf(allowEmptyValuesFromTableDesc) : allowEmptyValuesFromConfig;
+  }
+
+  private long getTxMaxLifetimeMillis(RegionCoprocessorEnvironment env) {
+    Configuration conf = getConfiguration(env);
+    if (conf != null) {
+      return TimeUnit.SECONDS.toMillis(conf.getInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME,
+                                                   TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME));
+    }
+    return TimeUnit.SECONDS.toMillis(TxConstants.Manager.DEFAULT_TX_MAX_LIFETIME);
   }
 
   private boolean isFamilyDelete(List<Cell> familyCells) {
@@ -265,12 +321,46 @@ public class TransactionProcessor extends BaseRegionObserver {
   }
 
   @Override
+  public void postFlush(ObserverContext<RegionCoprocessorEnvironment> e) throws IOException {
+    // Record whether the region is empty after a flush
+    HRegion region = e.getEnvironment().getRegion();
+    // After a flush, if the memstore size is zero and there are no store files for any stores in the region
+    // then the region must be empty
+    long numStoreFiles = numStoreFilesForRegion(e);
+    long memstoreSize = region.getMemstoreSize().get();
+    LOG.debug(String.format("Region %s: memstore size = %s, num store files = %s",
+                            region.getRegionInfo().getRegionNameAsString(), memstoreSize, numStoreFiles));
+    if (memstoreSize == 0 && numStoreFiles == 0) {
+      if (compactionState != null) {
+        compactionState.persistRegionEmpty(System.currentTimeMillis());
+      }
+    }
+  }
+
+  @Override
   public InternalScanner preCompactScannerOpen(ObserverContext<RegionCoprocessorEnvironment> c, Store store,
       List<? extends KeyValueScanner> scanners, ScanType scanType, long earliestPutTs, InternalScanner s,
       CompactionRequest request)
       throws IOException {
-    return createStoreScanner(c.getEnvironment(), "compaction", cache.getLatestState(), store, scanners,
-                              scanType, earliestPutTs);
+    // Get the latest tx snapshot state for the compaction
+    TransactionVisibilityState snapshot = cache.getLatestState();
+
+    // Record tx state before the compaction
+    if (compactionState != null) {
+      compactionState.record(request, snapshot);
+    }
+
+    // Also make sure to use the same snapshot for the compaction
+    return createStoreScanner(c.getEnvironment(), "compaction", snapshot, store, scanners, scanType, earliestPutTs);
+  }
+
+  @Override
+  public void postCompact(ObserverContext<RegionCoprocessorEnvironment> e, Store store, StoreFile resultFile,
+                          CompactionRequest request) throws IOException {
+    // Persist the compaction state after a successful compaction
+    if (compactionState != null) {
+      compactionState.persist();
+    }
   }
 
   protected InternalScanner createStoreScanner(RegionCoprocessorEnvironment env, String action,
@@ -311,6 +401,30 @@ public class TransactionProcessor extends BaseRegionObserver {
     return null;
   }
 
+  /**
+   * Make sure that the transaction is within the max valid transaction lifetime.
+   *
+   * @param env {@link RegionCoprocessorEnvironment} of the Region to which the coprocessor is associated
+   * @param op {@link OperationWithAttributes} HBase operation to access its attributes if required
+   * @param tx {@link Transaction} supplied by the
+   * @throws DoNotRetryIOException thrown if the transaction is older than the max lifetime of a transaction
+   *         IOException throw if the value of max lifetime of transaction is unavailable
+   */
+  protected void ensureValidTxLifetime(RegionCoprocessorEnvironment env,
+                                       @SuppressWarnings("unused") OperationWithAttributes op,
+                                       @Nullable Transaction tx) throws IOException {
+    if (tx == null) {
+      return;
+    }
+
+    boolean validLifetime =
+      (TxUtils.getTimestamp(tx.getTransactionId()) + txMaxLifetimeMillis) > System.currentTimeMillis();
+    if (!validLifetime) {
+      throw new DoNotRetryIOException(String.format("Transaction %s has exceeded max lifetime %s ms",
+                                                    tx.getTransactionId(), txMaxLifetimeMillis));
+    }
+  }
+
   private boolean isRollbackOperation(OperationWithAttributes op) throws IOException {
     return op.getAttribute(TxConstants.TX_ROLLBACK_ATTRIBUTE_KEY) != null ||
       // to support old clients
@@ -326,6 +440,55 @@ public class TransactionProcessor extends BaseRegionObserver {
    */
   protected Filter getTransactionFilter(Transaction tx, ScanType type, Filter filter) {
     return TransactionFilters.getVisibilityFilter(tx, ttlByFamily, allowEmptyValues, type, filter);
+  }
+
+  /**
+   * Refresh the properties related to transaction pruning. This method needs to be invoked if there is change in the
+   * prune related properties after clearing the state by calling {@link #resetPruneState}.
+   *
+   * @param env {@link RegionCoprocessorEnvironment} of this region
+   */
+  protected void initializePruneState(RegionCoprocessorEnvironment env) {
+    Configuration conf = getConfiguration(env);
+    if (conf != null) {
+      pruneEnable = conf.getBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE,
+                                    TxConstants.TransactionPruning.DEFAULT_PRUNE_ENABLE);
+
+      if (Boolean.TRUE.equals(pruneEnable)) {
+        TableName pruneTable = TableName.valueOf(conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
+                                                          TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE));
+        long pruneFlushInterval = TimeUnit.SECONDS.toMillis(conf.getLong(
+          TxConstants.TransactionPruning.PRUNE_FLUSH_INTERVAL,
+          TxConstants.TransactionPruning.DEFAULT_PRUNE_FLUSH_INTERVAL));
+
+        compactionState = new CompactionState(env, pruneTable, pruneFlushInterval);
+        if (LOG.isDebugEnabled()) {
+          LOG.debug(String.format("Automatic invalid list pruning is enabled for table %s:%s. Compaction state will " +
+                                    "be recorded in table %s:%s", env.getRegionInfo().getTable().getNamespaceAsString(),
+                                  env.getRegionInfo().getTable().getNameAsString(), pruneTable.getNamespaceAsString(),
+                                  pruneTable.getNameAsString()));
+        }
+      }
+    }
+  }
+
+  /**
+   * Stop and clear state related to pruning.
+   */
+  protected void resetPruneState() {
+    pruneEnable = false;
+    if (compactionState != null) {
+      compactionState.stop();
+      compactionState = null;
+    }
+  }
+
+  private long numStoreFilesForRegion(ObserverContext<RegionCoprocessorEnvironment> c) {
+    long numStoreFiles = 0;
+    for (Store store : c.getEnvironment().getRegion().getStores().values()) {
+      numStoreFiles += store.getStorefiles().size();
+    }
+    return numStoreFiles;
   }
 
   /**

@@ -33,14 +33,34 @@ import java.util.concurrent.TimeUnit;
  */
 public abstract class TransactionSystemTest {
 
-  public static final byte[] C1 = new byte[] { 'c', '1' };
-  public static final byte[] C2 = new byte[] { 'c', '2' };
-  public static final byte[] C3 = new byte[] { 'c', '3' };
-  public static final byte[] C4 = new byte[] { 'c', '4' };
+  private static final byte[] C1 = new byte[] { 'c', '1' };
+  private static final byte[] C2 = new byte[] { 'c', '2' };
+  private static final byte[] C3 = new byte[] { 'c', '3' };
+  private static final byte[] C4 = new byte[] { 'c', '4' };
 
   protected abstract TransactionSystemClient getClient() throws Exception;
 
   protected abstract TransactionStateStorage getStateStorage() throws Exception;
+
+  @Test // can't do (expected=IllegalArgumentException) because the subclass needs to perform an extra assert
+  public void testNegativeTimeout() throws Exception {
+    try {
+      getClient().startShort(-1);
+      Assert.fail("Expected illegal argument for negative timeout");
+    } catch (IllegalArgumentException e) {
+      // expected
+    }
+  }
+
+  @Test // can't do (expected=IllegalArgumentException) because the subclass needs to perform an extra assert
+  public void testExcessiveTimeout() throws Exception {
+    try {
+      getClient().startShort((int) TimeUnit.DAYS.toSeconds(10));
+      Assert.fail("Expected illegal argument for excessive timeout");
+    } catch (IllegalArgumentException e) {
+      // expected
+    }
+  }
 
   @Test
   public void testCommitRaceHandling() throws Exception {

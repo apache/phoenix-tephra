@@ -19,6 +19,7 @@
 package org.apache.tephra.hbase.coprocessor;
 
 import com.google.common.collect.Maps;
+
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HConstants;
@@ -27,6 +28,7 @@ import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterBase;
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 import org.apache.hadoop.hbase.regionserver.ScanType;
+import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.tephra.Transaction;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.util.TxUtils;
@@ -34,6 +36,7 @@ import org.apache.tephra.util.TxUtils;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+
 import javax.annotation.Nullable;
 
 /**
@@ -291,6 +294,7 @@ public class TransactionVisibilityFilter extends FilterBase {
 
   private static final class DeleteTracker {
     private long familyDeleteTs;
+    private byte[] rowKey;
 
     public static boolean isFamilyDelete(Cell cell) {
       return !TxUtils.isPreExistingVersion(cell.getTimestamp()) &&
@@ -300,14 +304,17 @@ public class TransactionVisibilityFilter extends FilterBase {
 
     public void addFamilyDelete(Cell delete) {
       this.familyDeleteTs = delete.getTimestamp();
+      this.rowKey = Bytes.copy(delete.getRowArray(), delete.getRowOffset(), delete.getRowLength());
     }
 
     public boolean isDeleted(Cell cell) {
-      return cell.getTimestamp() <= familyDeleteTs;
+      return rowKey != null && Bytes.compareTo(cell.getRowArray(), cell.getRowOffset(), 
+        cell.getRowLength(), rowKey, 0, rowKey.length) == 0 && cell.getTimestamp() <= familyDeleteTs;
     }
 
     public void reset() {
       this.familyDeleteTs = 0;
+      this.rowKey = null;
     }
   }
 }

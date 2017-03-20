@@ -149,4 +149,43 @@ public class TxUtils {
   public static boolean isPreExistingVersion(long version) {
     return version < MAX_NON_TX_TIMESTAMP;
   }
+
+  /**
+   * Returns the maximum transaction that can be removed from the invalid list for the state represented by the given
+   * transaction.
+   */
+  public static long getPruneUpperBound(Transaction tx) {
+    // If there are no invalid transactions, and no in-progress transactions then we can prune the invalid list
+    // up to the current read pointer
+    if (tx.getInvalids().length == 0 && tx.getInProgress().length == 0) {
+      return tx.getReadPointer() - 1;
+    }
+
+    long maxInvalidTx =
+      tx.getInvalids().length > 0 ? tx.getInvalids()[tx.getInvalids().length - 1] : Transaction.NO_TX_IN_PROGRESS;
+    long firstInProgress = tx.getFirstInProgress();
+    return Math.min(maxInvalidTx, firstInProgress - 1);
+  }
+
+  /**
+   * Returns the greatest transaction that has passed the maximum duration a transaction can be used for data writes.
+   * In other words, at <code>timeMills</code> there can be no writes from transactions equal to or smaller
+   * than the returned bound.
+   *
+   * @param timeMills time in milliseconds for which the inactive transaction bound needs to be determined
+   * @param txMaxLifetimeMillis maximum duration a transaction can be used for data writes, in milliseconds
+   */
+  public static long getInactiveTxBound(long timeMills, long txMaxLifetimeMillis) {
+    return (timeMills - txMaxLifetimeMillis) * TxConstants.MAX_TX_PER_MS - 1;
+  }
+
+  /**
+   * Returns the timestamp at which the given transaction id was generated.
+   *
+   * @param txId transaction id
+   * @return timestamp in milliseconds
+   */
+  public static long getTimestamp(long txId) {
+    return txId / TxConstants.MAX_TX_PER_MS;
+  }
 }

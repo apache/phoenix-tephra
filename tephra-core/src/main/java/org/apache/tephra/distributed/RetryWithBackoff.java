@@ -33,33 +33,31 @@ public class RetryWithBackoff extends RetryStrategy {
   private static final Logger LOG =
       LoggerFactory.getLogger(RetryWithBackoff.class);
 
-  int initialSleep; // initial sleep time
-  int backoffFactor; // factor by which to increase sleep for each retry
-  int maxSleep; // max sleep time. stop retrying when we exceed this
-  int sleep; // current sleep time
+  private int backoffFactor; // factor by which to increase sleep for each retry
+  private int maxSleep; // max sleep time. stop retrying when we exceed this
+  private int sleep; // current sleep time
 
   /**
-   * @param initial the initial sleep time (before first retry)
+   * @param initialSleep the initial sleep time (before first retry)
    * @param backoff the backoff factor by which sleep time is multiplied
    *                after each retry
    * @param limit the max sleep time. if sleep time reaches this limit, we
    *              stop retrying
    */
-  protected RetryWithBackoff(int initial, int backoff, int limit) {
-    initialSleep = initial;
+  private RetryWithBackoff(int initialSleep, int backoff, int limit) {
     backoffFactor = backoff;
     maxSleep = limit;
     sleep = initialSleep;
   }
 
   @Override
-  boolean failOnce() {
+  public boolean failOnce() {
     return sleep < maxSleep;
   }
 
   @Override
-  void beforeRetry() {
-    LOG.info("Sleeping " + sleep + " ms before retry.");
+  public void beforeRetry() {
+    LOG.debug("Sleeping " + sleep + " ms before retry.");
     long current = System.currentTimeMillis();
     long end = current + sleep;
     while (current < end) {

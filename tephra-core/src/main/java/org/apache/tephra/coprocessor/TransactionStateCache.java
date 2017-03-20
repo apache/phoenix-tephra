@@ -33,6 +33,7 @@ import org.apache.tephra.util.ConfigurationFactory;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 /**
  * Periodically refreshes transaction state from the latest stored snapshot.  This is implemented as a singleton
@@ -70,7 +71,11 @@ public class TransactionStateCache extends AbstractIdleService implements Config
 
   @Override
   protected void startUp() throws Exception {
-    refreshState();
+    try {
+      refreshState();
+    } catch (IOException ioe) {
+      LOG.info("Error refreshing transaction state cache.", ioe);
+    }
     startRefreshService();
   }
 
@@ -100,7 +105,7 @@ public class TransactionStateCache extends AbstractIdleService implements Config
         LOG.info("Could not load configuration");
       }
     } catch (Exception e) {
-      LOG.info("Failed to initialize TransactionStateCache due to: " + e.getMessage());
+      LOG.info("Failed to initialize TransactionStateCache due to: ", e);
     }
   }
 
@@ -125,7 +130,7 @@ public class TransactionStateCache extends AbstractIdleService implements Config
             try {
               refreshState();
             } catch (IOException ioe) {
-              LOG.info("Error refreshing transaction state cache: " + ioe.getMessage());
+              LOG.info("Error refreshing transaction state cache.", ioe);
             }
           }
           try {
@@ -170,6 +175,7 @@ public class TransactionStateCache extends AbstractIdleService implements Config
     }
   }
 
+  @Nullable
   public TransactionVisibilityState getLatestState() {
     return latestState;
   }

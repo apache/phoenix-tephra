@@ -149,6 +149,23 @@ public class TxConstants {
     public static final String CFG_TX_LONG_TIMEOUT = "data.tx.long.timeout";
     /** Default value for long running transaction timeout, in seconds. */
     public static final int DEFAULT_TX_LONG_TIMEOUT = (int) TimeUnit.DAYS.toSeconds(1);
+    /**
+     * The limit for the allowed transaction timeout, in seconds. Attempts to start a transaction with a longer
+     * timeout will fail.
+     */
+    public static final String CFG_TX_MAX_TIMEOUT = "data.tx.max.timeout";
+    /**
+     * The default value for the transaction timeout limit, in seconds: unlimited.
+     */
+    public static final int DEFAULT_TX_MAX_TIMEOUT = Integer.MAX_VALUE;
+    /**
+     * The maximum time in seconds that a transaction can be used for data writes.
+     */
+    public static final String CFG_TX_MAX_LIFETIME = "data.tx.max.lifetime";
+    /**
+     * The default value for the maximum transaction lifetime.
+     */
+    public static final int DEFAULT_TX_MAX_LIFETIME = (int) TimeUnit.HOURS.toSeconds(25);
     /** The frequency (in seconds) to perform periodic snapshots, or 0 for no periodic snapshots. */
     public static final String CFG_TX_SNAPSHOT_INTERVAL = "data.tx.snapshot.interval";
     /** Default value for frequency of periodic snapshots of transaction state. */
@@ -336,4 +353,49 @@ public class TxConstants {
     public static final byte CURRENT_VERSION = 3;
   }
 
+  /**
+   * Configuration for invalid transaction pruning
+   */
+  public static final class TransactionPruning {
+    /**
+     * Flag to enable automatic invalid transaction pruning.
+     */
+    public static final String PRUNE_ENABLE = "data.tx.prune.enable";
+    /**
+     * The table used to store intermediate state when pruning is enabled.
+     */
+    public static final String PRUNE_STATE_TABLE = "data.tx.prune.state.table";
+    /**
+     * Interval in seconds to schedule prune run.
+     */
+    public static final String PRUNE_INTERVAL = "data.tx.prune.interval";
+
+    /**
+     * Interval in seconds to schedule flush of prune table entries to store.
+     */
+    public static final String PRUNE_FLUSH_INTERVAL = "data.tx.prune.flush.interval";
+
+    /**
+     * The time in seconds used to pad transaction max lifetime while pruning.
+     */
+    public static final String PRUNE_GRACE_PERIOD = "data.tx.grace.period";
+
+    /**
+     * Comma separated list of invalid transaction pruning plugins to load
+     */
+    public static final String PLUGINS = "data.tx.prune.plugins";
+    /**
+     * Class name for the plugins will be plugin-name + ".class" suffix
+     */
+    public static final String PLUGIN_CLASS_SUFFIX = ".class";
+
+    public static final boolean DEFAULT_PRUNE_ENABLE = false;
+    public static final String DEFAULT_PRUNE_STATE_TABLE = "tephra.state";
+    public static final long DEFAULT_PRUNE_INTERVAL = TimeUnit.HOURS.toSeconds(6);
+    public static final long DEFAULT_PRUNE_FLUSH_INTERVAL = TimeUnit.MINUTES.toSeconds(1);
+    public static final long DEFAULT_PRUNE_GRACE_PERIOD = TimeUnit.HOURS.toSeconds(24);
+    public static final String DEFAULT_PLUGIN = "data.tx.prune.plugin.default";
+    public static final String DEFAULT_PLUGIN_CLASS =
+      "org.apache.tephra.hbase.txprune.HBaseTransactionPruningPlugin";
+  }
 }
