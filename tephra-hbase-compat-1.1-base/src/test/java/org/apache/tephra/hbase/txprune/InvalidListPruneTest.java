@@ -19,7 +19,6 @@
 
 package org.apache.tephra.hbase.txprune;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.ImmutableSortedSet;
@@ -39,6 +38,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.tephra.TransactionContext;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TxConstants;
+import org.apache.tephra.coprocessor.CacheSupplier;
 import org.apache.tephra.coprocessor.TransactionStateCache;
 import org.apache.tephra.hbase.AbstractHBaseTableTest;
 import org.apache.tephra.hbase.TransactionAwareHTable;
@@ -400,11 +400,16 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
     private static final AtomicLong lastMajorCompactionTime = new AtomicLong(-1);
 
     @Override
-    protected Supplier<TransactionStateCache> getTransactionStateCacheSupplier(RegionCoprocessorEnvironment env) {
-      return new Supplier<TransactionStateCache>() {
+    protected CacheSupplier<TransactionStateCache> getTransactionStateCacheSupplier(RegionCoprocessorEnvironment env) {
+      return new CacheSupplier<TransactionStateCache>() {
         @Override
         public TransactionStateCache get() {
           return new InMemoryTransactionStateCache();
+        }
+
+        @Override
+        public void release() {
+          // no-op
         }
       };
     }

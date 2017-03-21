@@ -94,6 +94,10 @@ public class PruneUpperBoundWriter extends AbstractIdleService {
     if (flushThread != null) {
       flushThread.interrupt();
       flushThread.join(TimeUnit.SECONDS.toMillis(1));
+      if (flushThread.isAlive()) {
+        flushThread.interrupt();
+        flushThread.join(TimeUnit.SECONDS.toMillis(1));
+      }
     }
   }
 
