@@ -18,7 +18,6 @@
 
 package org.apache.tephra.hbase.coprocessor;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.apache.commons.logging.Log;
@@ -57,6 +56,7 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.tephra.Transaction;
 import org.apache.tephra.TransactionCodec;
 import org.apache.tephra.TxConstants;
+import org.apache.tephra.coprocessor.CacheSupplier;
 import org.apache.tephra.coprocessor.TransactionStateCache;
 import org.apache.tephra.coprocessor.TransactionStateCacheSupplier;
 import org.apache.tephra.hbase.txprune.CompactionState;
@@ -108,6 +108,7 @@ public class TransactionProcessor extends BaseRegionObserver {
   private final TransactionCodec txCodec;
   private TransactionStateCache cache;
   private volatile CompactionState compactionState;
+  private CacheSupplier<TransactionStateCache> cacheSupplier;
 
   protected volatile Boolean pruneEnable;
   protected volatile Long txMaxLifetimeMillis;
@@ -125,7 +126,7 @@ public class TransactionProcessor extends BaseRegionObserver {
   public void start(CoprocessorEnvironment e) throws IOException {
     if (e instanceof RegionCoprocessorEnvironment) {
       RegionCoprocessorEnvironment env = (RegionCoprocessorEnvironment) e;
-      Supplier<TransactionStateCache> cacheSupplier = getTransactionStateCacheSupplier(env);
+      this.cacheSupplier = getTransactionStateCacheSupplier(env);
       this.cache = cacheSupplier.get();
 
       HTableDescriptor tableDesc = env.getRegion().getTableDesc();
@@ -168,13 +169,19 @@ public class TransactionProcessor extends BaseRegionObserver {
     return env.getConfiguration();
   }
 
-  protected Supplier<TransactionStateCache> getTransactionStateCacheSupplier(RegionCoprocessorEnvironment env) {
+  protected CacheSupplier<TransactionStateCache> getTransactionStateCacheSupplier(RegionCoprocessorEnvironment env) {
     return new TransactionStateCacheSupplier(env.getConfiguration());
   }
 
   @Override
   public void stop(CoprocessorEnvironment e) throws IOException {
-    resetPruneState();
+    try {
+      resetPruneState();
+    } finally {
+      if (cacheSupplier != null) {
+        cacheSupplier.release();
+      }
+    }
   }
 
   @Override
