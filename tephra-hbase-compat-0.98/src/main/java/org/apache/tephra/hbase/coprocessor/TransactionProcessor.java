@@ -18,7 +18,6 @@
 
 package org.apache.tephra.hbase.coprocessor;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.apache.commons.logging.Log;
@@ -127,7 +126,7 @@ public class TransactionProcessor extends BaseRegionObserver {
   public void start(CoprocessorEnvironment e) throws IOException {
     if (e instanceof RegionCoprocessorEnvironment) {
       RegionCoprocessorEnvironment env = (RegionCoprocessorEnvironment) e;
-      Supplier<TransactionStateCache> cacheSupplier = getTransactionStateCacheSupplier(env);
+      this.cacheSupplier = getTransactionStateCacheSupplier(env);
       this.cache = cacheSupplier.get();
 
       HTableDescriptor tableDesc = env.getRegion().getTableDesc();

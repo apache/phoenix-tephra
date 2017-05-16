@@ -79,7 +79,7 @@ public class TransactionContext {
   }
 
   /**
-   * Starts a new transaction.  Calling this will initiate a new transaction using the {@link TransactionSystemClient},
+   * Starts a new transaction. Calling this will initiate a new transaction using the {@link TransactionSystemClient},
    * and pass the returned transaction to {@link TransactionAware#startTx(Transaction)} for each registered
    * TransactionAware.  If an exception is encountered, the transaction will be aborted and a
    * {@code TransactionFailureException} wrapping the root cause will be thrown.

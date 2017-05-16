@@ -69,8 +69,11 @@ service TTransactionServer {
   // temporary tx2 stuff
   TTransaction startLong(),
   TTransaction startShort(),
+  TTransaction startLongClientId(1: string clientId) throws (1: TGenericException e),
   // TODO remove this as it was replaced with startShortWithTimeout in 0.10
   TTransaction startShortTimeout(1: i32 timeout),
+  TTransaction startShortClientId(1: string clientId) throws (1: TGenericException e),
+  TTransaction startShortWithClientIdAndTimeOut(1: string clientId, 2: i32 timeout) throws (1:TGenericException e),
   TTransaction startShortWithTimeout(1: i32 timeout) throws (1:TGenericException e),
   TBoolean canCommitTx(1: TTransaction tx, 2: set<binary> changes) throws (1:TTransactionNotInProgressException e),
   TBoolean commitTx(1: TTransaction tx) throws (1:TTransactionNotInProgressException e),

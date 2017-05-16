@@ -63,7 +63,7 @@ public class TransactionExecutorTest {
       new ConfigModule(conf),
       new DiscoveryModules().getInMemoryModules(),
       Modules.override(
-        new TransactionModules().getInMemoryModules()).with(new AbstractModule() {
+        new TransactionModules("clientB").getInMemoryModules()).with(new AbstractModule() {
         @Override
         protected void configure() {
           TransactionManager txManager = new TransactionManager(conf);

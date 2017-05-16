@@ -73,8 +73,35 @@ public class TransactionServiceThriftHandler implements TTransactionServer.Iface
   }
 
   @Override
+  public TTransaction startLongClientId(String clientId) throws TException {
+    try {
+      return TransactionConverterUtils.wrap(txManager.startLong(clientId));
+    } catch (IllegalArgumentException ex) {
+      throw new TGenericException(ex.getMessage(), ex.getClass().getName());
+    }
+  }
+
+  @Override
   public TTransaction startShortTimeout(int timeout) throws TException {
     return TransactionConverterUtils.wrap(txManager.startShort(timeout));
+  }
+
+  @Override
+  public TTransaction startShortClientId(String clientId) throws TException {
+    try {
+      return TransactionConverterUtils.wrap(txManager.startShort(clientId));
+    } catch (IllegalArgumentException ex) {
+      throw new TGenericException(ex.getMessage(), ex.getClass().getName());
+    }
+  }
+
+  @Override
+  public TTransaction startShortWithClientIdAndTimeOut(String clientId, int timeout) throws TException {
+    try {
+      return TransactionConverterUtils.wrap(txManager.startShort(clientId, timeout));
+    } catch (IllegalArgumentException ex) {
+      throw new TGenericException(ex.getMessage(), ex.getClass().getName());
+    }
   }
 
   @Override

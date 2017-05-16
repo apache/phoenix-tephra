@@ -28,6 +28,7 @@ import org.apache.tephra.TransactionExecutor;
 import org.apache.tephra.TransactionExecutorFactory;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TransactionSystemClient;
+import org.apache.tephra.TxConstants;
 import org.apache.tephra.inmemory.InMemoryTxSystemClient;
 import org.apache.tephra.metrics.DefaultMetricsCollector;
 import org.apache.tephra.metrics.MetricsCollector;
@@ -35,10 +36,21 @@ import org.apache.tephra.persist.LocalFileTransactionStateStorage;
 import org.apache.tephra.persist.TransactionStateStorage;
 import org.apache.tephra.snapshot.SnapshotCodecProvider;
 
+import java.lang.management.ManagementFactory;
+
 /**
  * Guice bindings for running in single-node mode (persistence to local disk and in-memory client).
  */
 final class TransactionLocalModule extends AbstractModule {
+  private final String clientId;
+
+  public TransactionLocalModule() {
+    this(ManagementFactory.getRuntimeMXBean().getName());
+  }
+
+  public TransactionLocalModule(String clientId) {
+    this.clientId = clientId;
+  }
 
   @Override
   protected void configure() {
@@ -50,6 +62,8 @@ final class TransactionLocalModule extends AbstractModule {
     bind(TransactionManager.class).in(Scopes.SINGLETON);
     bind(TransactionSystemClient.class).to(InMemoryTxSystemClient.class).in(Singleton.class);
     bind(MetricsCollector.class).to(DefaultMetricsCollector.class);
+
+    bindConstant().annotatedWith(Names.named(TxConstants.CLIENT_ID)).to(clientId);
 
     install(new FactoryModuleBuilder()
               .implement(TransactionExecutor.class, DefaultTransactionExecutor.class)
