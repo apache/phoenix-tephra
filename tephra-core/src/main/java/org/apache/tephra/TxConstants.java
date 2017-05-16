@@ -120,6 +120,11 @@ public class TxConstants {
   public static final boolean DEFAULT_READ_NON_TX_DATA = false;
 
   /**
+   * Used to inject the name of the client that is starting the transaction.
+   */
+  public static final String CLIENT_ID = "tephra.client.id";
+
+  /**
    * TransactionManager configuration.
    */
   public static final class Manager {

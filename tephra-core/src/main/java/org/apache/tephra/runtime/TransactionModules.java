@@ -20,22 +20,31 @@ package org.apache.tephra.runtime;
 
 import com.google.inject.Module;
 
+import java.lang.management.ManagementFactory;
+
 /**
  * Provides access to Google Guice modules for in-memory, single-node, and distributed operation.
  */
 public class TransactionModules {
+  private final String clientId;
+
+  public TransactionModules(String clientId) {
+    this.clientId = clientId;
+  }
+
   public TransactionModules() {
+    this(ManagementFactory.getRuntimeMXBean().getName());
   }
 
   public Module getInMemoryModules() {
-    return new TransactionInMemoryModule();
+    return new TransactionInMemoryModule(clientId);
   }
 
   public Module getSingleNodeModules() {
-    return new TransactionLocalModule();
+    return new TransactionLocalModule(clientId);
   }
 
   public Module getDistributedModules() {
-    return new TransactionDistributedModule();
+    return new TransactionDistributedModule(clientId);
   }
 }

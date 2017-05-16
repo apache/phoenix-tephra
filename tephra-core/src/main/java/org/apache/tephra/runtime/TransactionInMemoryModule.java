@@ -21,11 +21,13 @@ package org.apache.tephra.runtime;
 import com.google.inject.AbstractModule;
 import com.google.inject.Scopes;
 import com.google.inject.assistedinject.FactoryModuleBuilder;
+import com.google.inject.name.Names;
 import org.apache.tephra.DefaultTransactionExecutor;
 import org.apache.tephra.TransactionExecutor;
 import org.apache.tephra.TransactionExecutorFactory;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TransactionSystemClient;
+import org.apache.tephra.TxConstants;
 import org.apache.tephra.inmemory.InMemoryTxSystemClient;
 import org.apache.tephra.metrics.MetricsCollector;
 import org.apache.tephra.metrics.TxMetricsCollector;
@@ -33,11 +35,22 @@ import org.apache.tephra.persist.NoOpTransactionStateStorage;
 import org.apache.tephra.persist.TransactionStateStorage;
 import org.apache.tephra.snapshot.SnapshotCodecProvider;
 
+import java.lang.management.ManagementFactory;
+
 /**
  * Guice bindings for running completely in-memory (no persistence).  This should only be used for
  * test classes, as the transaction state cannot be recovered in the case of a failure.
  */
 public class TransactionInMemoryModule extends AbstractModule {
+  private final String clientId;
+
+  public TransactionInMemoryModule() {
+    this(ManagementFactory.getRuntimeMXBean().getName());
+  }
+
+  public TransactionInMemoryModule(String clientId) {
+    this.clientId = clientId;
+  }
 
   @Override
   protected void configure() {
@@ -47,6 +60,8 @@ public class TransactionInMemoryModule extends AbstractModule {
     bind(TransactionSystemClient.class).to(InMemoryTxSystemClient.class).in(Scopes.SINGLETON);
     // no metrics output for in-memory
     bind(MetricsCollector.class).to(TxMetricsCollector.class);
+
+    bindConstant().annotatedWith(Names.named(TxConstants.CLIENT_ID)).to(clientId);
 
     install(new FactoryModuleBuilder()
               .implement(TransactionExecutor.class, DefaultTransactionExecutor.class)

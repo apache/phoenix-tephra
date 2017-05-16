@@ -23,6 +23,7 @@ import com.google.common.base.Throwables;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
+import com.google.inject.name.Named;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.InvalidTruncateTimeException;
 import org.apache.tephra.Transaction;
@@ -42,6 +43,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
+import java.lang.management.ManagementFactory;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
@@ -59,6 +61,9 @@ public class TransactionServiceClient implements TransactionSystemClient {
 
   // the retry strategy we will use
   private final RetryStrategyProvider retryStrategyProvider;
+
+  // client id that is used to identify the transactions
+  private final String clientId;
 
   /**
    * Utility to be used for basic verification of transaction system availability and functioning
@@ -126,14 +131,24 @@ public class TransactionServiceClient implements TransactionSystemClient {
   }
 
   /**
+   * Create from a configuration. This will first attempt to find a zookeeper for service discovery.
+   * This constructor can be used if Guice dependency injection is not used. JVM name will be used for the client id.
+   * @param config a configuration containing the zookeeper properties
+   */
+  public TransactionServiceClient(Configuration config, ThriftClientProvider clientProvider) {
+    this(config, clientProvider, ManagementFactory.getRuntimeMXBean().getName());
+  }
+
+  /**
    * Create from a configuration. This will first attempt to find a zookeeper
    * for service discovery. Otherwise it will look for the port in the
    * config and use localhost.
    * @param config a configuration containing the zookeeper properties
+   * @param clientId id of the client that identifies it when it starts a transaction
    */
   @Inject
-  public TransactionServiceClient(Configuration config,
-                                  ThriftClientProvider clientProvider) {
+  public TransactionServiceClient(Configuration config, ThriftClientProvider clientProvider,
+                                  @Named(TxConstants.CLIENT_ID) String clientId) {
 
     // initialize the retry logic
     String retryStrat = config.get(
@@ -155,6 +170,7 @@ public class TransactionServiceClient implements TransactionSystemClient {
     LOG.debug("Retry strategy is " + this.retryStrategyProvider);
 
     this.clientProvider = clientProvider;
+    this.clientId = clientId;
   }
 
   /**
@@ -247,7 +263,7 @@ public class TransactionServiceClient implements TransactionSystemClient {
           @Override
           public Transaction execute(TransactionServiceThriftClient client)
             throws TException {
-            return client.startLong();
+            return client.startLong(clientId);
           }
         });
     } catch (Exception e) {
@@ -263,7 +279,7 @@ public class TransactionServiceClient implements TransactionSystemClient {
           @Override
           public Transaction execute(TransactionServiceThriftClient client)
             throws TException {
-            return client.startShort();
+            return client.startShort(clientId);
           }
         });
     } catch (Exception e) {
@@ -279,7 +295,7 @@ public class TransactionServiceClient implements TransactionSystemClient {
           @Override
           public Transaction execute(TransactionServiceThriftClient client)
             throws TException {
-            return client.startShort(timeout);
+            return client.startShort(clientId, timeout);
           }
         });
     } catch (Exception e) {

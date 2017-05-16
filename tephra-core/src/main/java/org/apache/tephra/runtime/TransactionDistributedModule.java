@@ -28,6 +28,7 @@ import org.apache.tephra.TransactionExecutor;
 import org.apache.tephra.TransactionExecutorFactory;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TransactionSystemClient;
+import org.apache.tephra.TxConstants;
 import org.apache.tephra.distributed.TransactionServiceClient;
 import org.apache.tephra.metrics.DefaultMetricsCollector;
 import org.apache.tephra.metrics.MetricsCollector;
@@ -35,10 +36,22 @@ import org.apache.tephra.persist.HDFSTransactionStateStorage;
 import org.apache.tephra.persist.TransactionStateStorage;
 import org.apache.tephra.snapshot.SnapshotCodecProvider;
 
+import java.lang.management.ManagementFactory;
+
 /**
  * Guice bindings for running in distributed mode on a cluster.
  */
 final class TransactionDistributedModule extends AbstractModule {
+
+  private final String clientId;
+
+  public TransactionDistributedModule() {
+    this(ManagementFactory.getRuntimeMXBean().getName());
+  }
+
+  public TransactionDistributedModule(String clientId) {
+    this.clientId = clientId;
+  }
 
   @Override
   protected void configure() {
@@ -47,6 +60,8 @@ final class TransactionDistributedModule extends AbstractModule {
     bind(SnapshotCodecProvider.class).in(Singleton.class);
     bind(TransactionStateStorage.class).annotatedWith(Names.named("persist")).to(HDFSTransactionStateStorage.class);
     bind(TransactionStateStorage.class).toProvider(TransactionStateStorageProvider.class);
+
+    bindConstant().annotatedWith(Names.named(TxConstants.CLIENT_ID)).to(clientId);
 
     // to catch issues during configure time
     bind(TransactionManager.class);
