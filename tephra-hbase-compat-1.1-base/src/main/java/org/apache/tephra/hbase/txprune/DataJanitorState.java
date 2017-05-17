@@ -291,7 +291,7 @@ public class DataJanitorState {
         } else {
           LOG.warn(String.format("Got incorrect count for regions saved at time %s, expected = %s but actual = %s",
                                  timeRegions.getTime(), count, timeRegions.getRegions().size()));
-          time = time - 1;
+          time = timeRegions.getTime() - 1;
         }
       }
       return null;
