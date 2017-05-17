@@ -142,7 +142,7 @@ public class DataJanitorStateTest extends AbstractHBaseTableTest {
     Assert.assertEquals(expectedMap, dataJanitorState.getPruneUpperBoundForRegions(allRegions));
   }
 
-  @Test
+  @Test(timeout = 30000L) // The timeout is used to verify the fix for TEPHRA-230, the test will timeout without the fix
   public void testSaveRegionTime() throws Exception {
     int maxTime = 100;
 
@@ -169,16 +169,21 @@ public class DataJanitorStateTest extends AbstractHBaseTableTest {
                         dataJanitorState.getRegionsOnOrBeforeTime(maxTime + 1000));
     Assert.assertNull(dataJanitorState.getRegionsOnOrBeforeTime(-10));
 
-    // Now change the count stored for regions saved at time 0 and 30
+    // Now change the count stored for regions saved at time 0, 30 and 90
     try (HTableInterface stateTable = connection.getTable(pruneStateTable)) {
       dataJanitorState.saveRegionCountForTime(stateTable, Bytes.toBytes(Long.MAX_VALUE), 3);
       dataJanitorState.saveRegionCountForTime(stateTable, Bytes.toBytes(Long.MAX_VALUE - 30L), 3);
+      dataJanitorState.saveRegionCountForTime(stateTable, Bytes.toBytes(Long.MAX_VALUE - 90L), 0);
     }
+
     // Now querying for time 0 should return null, and querying for time 30 should return regions from time 20
     Assert.assertNull(dataJanitorState.getRegionsOnOrBeforeTime(0));
     Assert.assertEquals(new TimeRegions(20, regionsTime.get(20L)), dataJanitorState.getRegionsOnOrBeforeTime(30));
     Assert.assertEquals(new TimeRegions(20, regionsTime.get(20L)), dataJanitorState.getRegionsOnOrBeforeTime(35));
     Assert.assertEquals(new TimeRegions(20, regionsTime.get(20L)), dataJanitorState.getRegionsOnOrBeforeTime(25));
+    // Querying for anything higher than 90 should give 80 (reproduces TEPHRA-230)
+    Assert.assertEquals(new TimeRegions(80, regionsTime.get(80L)),
+                        dataJanitorState.getRegionsOnOrBeforeTime(Long.MAX_VALUE));
 
     // Delete regions saved on or before time 30
     dataJanitorState.deleteAllRegionsOnOrBeforeTime(30);
