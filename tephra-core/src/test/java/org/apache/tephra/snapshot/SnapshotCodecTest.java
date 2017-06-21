@@ -20,8 +20,11 @@ package org.apache.tephra.snapshot;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -46,6 +49,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -303,6 +307,14 @@ public class SnapshotCodecTest {
     Transaction transaction = txManager.startLong();
     Transaction checkpointTx = txManager.checkpoint(transaction);
 
+    // create invalid transactions (invalidated out of order)
+    Transaction shortTx1 = txManager.startShort();
+    Transaction shortTx2 = txManager.startShort();
+    Transaction shortTx3 = txManager.startShort();
+    txManager.invalidate(shortTx3.getTransactionId());
+    txManager.invalidate(shortTx1.getTransactionId());
+    txManager.invalidate(shortTx2.getTransactionId());
+
     // shutdown to force a snapshot
     txManager.stopAndWait();
 
@@ -311,6 +323,7 @@ public class SnapshotCodecTest {
     txStorage.startAndWait();
 
     TransactionSnapshot snapshot = txStorage.getLatestSnapshot();
+    Assert.assertTrue(Ordering.natural().isOrdered((snapshot.getInvalid())));
     TransactionVisibilityState txVisibilityState = txStorage.getLatestTransactionVisibilityState();
     assertTransactionVisibilityStateEquals(snapshot, txVisibilityState);
 
@@ -339,6 +352,7 @@ public class SnapshotCodecTest {
 
     // state should be recovered
     snapshot = txManager.getCurrentState();
+    Assert.assertTrue(Ordering.natural().isOrdered((snapshot.getInvalid())));
     inProgress = snapshot.getInProgress();
     Assert.assertEquals(2, inProgress.size());
 
@@ -363,6 +377,7 @@ public class SnapshotCodecTest {
     txStorage2.startAndWait();
 
     snapshot = txStorage2.getLatestSnapshot();
+    Assert.assertTrue(Ordering.natural().isOrdered((snapshot.getInvalid())));
     Assert.assertTrue(snapshot.getInProgress().isEmpty());
     txStorage2.stopAndWait();
   }
