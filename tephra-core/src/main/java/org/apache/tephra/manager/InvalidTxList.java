@@ -110,7 +110,7 @@ public class InvalidTxList {
   }
 
   /**
-   * @return list of invalid transactions. The list is not sorted.
+   * @return list of invalid transactions. The list is not guaranteed to be sorted.
    */
   public LongList toRawList() {
     return LongLists.unmodifiable(invalid);
