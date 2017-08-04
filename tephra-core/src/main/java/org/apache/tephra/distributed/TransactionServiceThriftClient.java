@@ -106,6 +106,23 @@ public class TransactionServiceThriftClient {
     }
   }
 
+  public Transaction startLong(String clientId) throws TException {
+    try {
+      return TransactionConverterUtils.unwrap(client.startLongClientId(clientId));
+    } catch (TGenericException e) {
+      // currently, we only expect IllegalArgumentException here, if the clientId is null
+      if (!IllegalArgumentException.class.getName().equals(e.getOriginalExceptionClass())) {
+        LOG.trace("Expecting only {} as the original exception class but found {}",
+                  IllegalArgumentException.class.getName(), e.getOriginalExceptionClass());
+        throw e;
+      }
+      throw new IllegalArgumentException(e.getMessage());
+    } catch (TException e) {
+      isValid.set(false);
+      throw e;
+    }
+  }
+
   public Transaction startShort() throws TException {
     try {
       return TransactionConverterUtils.unwrap(client.startShort());
@@ -120,6 +137,40 @@ public class TransactionServiceThriftClient {
       return TransactionConverterUtils.unwrap(client.startShortWithTimeout(timeout));
     } catch (TGenericException e) {
       // currently, we only expect IllegalArgumentException here, if the timeout is invalid
+      if (!IllegalArgumentException.class.getName().equals(e.getOriginalExceptionClass())) {
+        LOG.trace("Expecting only {} as the original exception class but found {}",
+                  IllegalArgumentException.class.getName(), e.getOriginalExceptionClass());
+        throw e;
+      }
+      throw new IllegalArgumentException(e.getMessage());
+    } catch (TException e) {
+      isValid.set(false);
+      throw e;
+    }
+  }
+
+  public Transaction startShort(String clientId) throws TException {
+    try {
+      return TransactionConverterUtils.unwrap(client.startShortClientId(clientId));
+    } catch (TGenericException e) {
+      // currently, we only expect IllegalArgumentException here, if the clientId is null
+      if (!IllegalArgumentException.class.getName().equals(e.getOriginalExceptionClass())) {
+        LOG.trace("Expecting only {} as the original exception class but found {}",
+                  IllegalArgumentException.class.getName(), e.getOriginalExceptionClass());
+        throw e;
+      }
+      throw new IllegalArgumentException(e.getMessage());
+    } catch (TException e) {
+      isValid.set(false);
+      throw e;
+    }
+  }
+
+  public Transaction startShort(String clientId, int timeout) throws TException {
+    try {
+      return TransactionConverterUtils.unwrap(client.startShortWithClientIdAndTimeOut(clientId, timeout));
+    } catch (TGenericException e) {
+      // currently, we only expect IllegalArgumentException here, if the timeout is invalid or if clientId is null
       if (!IllegalArgumentException.class.getName().equals(e.getOriginalExceptionClass())) {
         LOG.trace("Expecting only {} as the original exception class but found {}",
                   IllegalArgumentException.class.getName(), e.getOriginalExceptionClass());

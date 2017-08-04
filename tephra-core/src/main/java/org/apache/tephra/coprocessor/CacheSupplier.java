@@ -16,35 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.tephra.runtime;
+package org.apache.tephra.coprocessor;
 
-import com.google.inject.Module;
-
-import java.lang.management.ManagementFactory;
+import com.google.common.base.Supplier;
+import com.google.common.util.concurrent.Service;
 
 /**
- * Provides access to Google Guice modules for in-memory, single-node, and distributed operation.
+ * Provides ability to get and release objects
+ *
+ * @param <T> type of the object supplied
  */
-public class TransactionModules {
-  private final String clientId;
+public interface CacheSupplier<T extends Service> extends Supplier<T> {
 
-  public TransactionModules(String clientId) {
-    this.clientId = clientId;
-  }
+  /**
+   * @return Get an instance of T and if it is the first call, then the service will be started. Subsequent calls
+   * will get a reference to the same instance
+   */
+  @Override
+  T get();
 
-  public TransactionModules() {
-    this(ManagementFactory.getRuntimeMXBean().getName());
-  }
-
-  public Module getInMemoryModules() {
-    return new TransactionInMemoryModule(clientId);
-  }
-
-  public Module getSingleNodeModules() {
-    return new TransactionLocalModule(clientId);
-  }
-
-  public Module getDistributedModules() {
-    return new TransactionDistributedModule(clientId);
-  }
+  /**
+   * Release the object obtained through {code Supplier#get()}. If this is the last release call, then the service will
+   * be stopped.
+   */
+  void release();
 }

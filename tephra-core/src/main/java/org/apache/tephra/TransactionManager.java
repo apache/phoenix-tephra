@@ -118,8 +118,11 @@ public class TransactionManager extends AbstractService {
   //poll every 10 second to emit metrics
   private static final long METRICS_POLL_INTERVAL = 10000L;
 
+  //Client id that is used if a client doesn't provide one while starting a transaction.
+  private static final String DEFAULT_CLIENTID = "unknown";
+
   // Transactions that are in progress, with their info.
-  private final NavigableMap<Long, InProgressTx> inProgress = new ConcurrentSkipListMap<Long, InProgressTx>();
+  private final NavigableMap<Long, InProgressTx> inProgress = new ConcurrentSkipListMap<>();
 
   // the list of transactions that are invalid (not properly committed/aborted, or timed out)
   private final InvalidTxList invalidTxList = new InvalidTxList();
@@ -127,8 +130,7 @@ public class TransactionManager extends AbstractService {
   // todo: use moving array instead (use Long2ObjectMap<byte[]> in fastutil)
   // todo: should this be consolidated with inProgress?
   // commit time next writePointer -> changes made by this tx
-  private final NavigableMap<Long, Set<ChangeId>> committedChangeSets =
-    new ConcurrentSkipListMap<Long, Set<ChangeId>>();
+  private final NavigableMap<Long, Set<ChangeId>> committedChangeSets = new ConcurrentSkipListMap<>();
   // not committed yet
   private final Map<Long, Set<ChangeId>> committingChangeSets = Maps.newConcurrentMap();
 
@@ -347,15 +349,16 @@ public class TransactionManager extends AbstractService {
         long currentTime = System.currentTimeMillis();
         Map<Long, InProgressType> timedOut = Maps.newHashMap();
         for (Map.Entry<Long, InProgressTx> tx : inProgress.entrySet()) {
-          long expiration = tx.getValue().getExpiration();
+          InProgressTx inProgressTx = tx.getValue();
+          long expiration = inProgressTx.getExpiration();
           if (expiration >= 0L && currentTime > expiration) {
             // timed out, remember tx id (can't remove while iterating over entries)
-            timedOut.put(tx.getKey(), tx.getValue().getType());
-            LOG.info("Tx invalid list: added tx {} because of timeout", tx.getKey());
+            timedOut.put(tx.getKey(), inProgressTx.getType());
+            LOG.info("Tx invalid list: added tx {} belonging to client '{}' because of timeout.",
+                     tx.getKey(), inProgressTx.getClientId());
           } else if (expiration < 0) {
             LOG.warn("Transaction {} has negative expiration time {}. Likely cause is the transaction was not " +
-                       "migrated correctly, this transaction will be expired immediately",
-                     tx.getKey(), expiration);
+                       "migrated correctly, this transaction will be expired immediately", tx.getKey(), expiration);
             timedOut.put(tx.getKey(), InProgressType.LONG);
           }
         }
@@ -463,7 +466,7 @@ public class TransactionManager extends AbstractService {
 
   public synchronized TransactionSnapshot getCurrentState() {
     return TransactionSnapshot.copyFrom(System.currentTimeMillis(), readPointer, lastWritePointer,
-                                        invalidTxList.toRawList(), inProgress, committingChangeSets,
+                                        invalidTxList, inProgress, committingChangeSets,
                                         committedChangeSets);
   }
 
@@ -592,8 +595,8 @@ public class TransactionManager extends AbstractService {
               } else if (type == null) {
                 type = TransactionType.SHORT;
               }
-              addInProgressAndAdvance(edit.getWritePointer(), edit.getVisibilityUpperBound(),
-                                      expiration, type);
+              // We don't persist the client id.
+              addInProgressAndAdvance(edit.getWritePointer(), edit.getVisibilityUpperBound(), expiration, type, null);
               break;
             case COMMITTING:
               addCommittingChangeSet(edit.getWritePointer(), edit.getChanges());
@@ -727,10 +730,28 @@ public class TransactionManager extends AbstractService {
   }
 
   /**
+   * Start a short transaction with a client id and default timeout.
+   * @param clientId id of the client requesting a transaction.
+   */
+  public Transaction startShort(String clientId) {
+    return startShort(clientId, defaultTimeout);
+  }
+
+  /**
    * Start a short transaction with a given timeout.
    * @param timeoutInSeconds the time out period in seconds.
    */
   public Transaction startShort(int timeoutInSeconds) {
+    return startShort(DEFAULT_CLIENTID, timeoutInSeconds);
+  }
+
+  /**
+   * Start a short transaction with a given timeout.
+   * @param clientId id of the client requesting a transaction.
+   * @param timeoutInSeconds the time out period in seconds.
+   */
+  public Transaction startShort(String clientId, int timeoutInSeconds) {
+    Preconditions.checkArgument(clientId != null, "clientId must not be null");
     Preconditions.checkArgument(timeoutInSeconds > 0,
                                 "timeout must be positive but is %s seconds", timeoutInSeconds);
     Preconditions.checkArgument(timeoutInSeconds <= maxTimeout,
@@ -738,7 +759,7 @@ public class TransactionManager extends AbstractService {
     txMetricsCollector.rate("start.short");
     Stopwatch timer = new Stopwatch().start();
     long expiration = getTxExpiration(timeoutInSeconds);
-    Transaction tx = startTx(expiration, TransactionType.SHORT);
+    Transaction tx = startTx(expiration, TransactionType.SHORT, clientId);
     txMetricsCollector.histogram("start.short.latency", (int) timer.elapsedMillis());
     return tx;
   }
@@ -763,15 +784,23 @@ public class TransactionManager extends AbstractService {
    * transaction moves it to the invalid list because we assume that its writes cannot be rolled back.
    */
   public Transaction startLong() {
+    return startLong(DEFAULT_CLIENTID);
+  }
+
+  /**
+   * Starts a long transaction with a client id.
+   */
+  public Transaction startLong(String clientId) {
+    Preconditions.checkArgument(clientId != null, "clientId must not be null");
     txMetricsCollector.rate("start.long");
     Stopwatch timer = new Stopwatch().start();
     long expiration = getTxExpiration(defaultLongTimeout);
-    Transaction tx = startTx(expiration, TransactionType.LONG);
+    Transaction tx = startTx(expiration, TransactionType.LONG, clientId);
     txMetricsCollector.histogram("start.long.latency", (int) timer.elapsedMillis());
     return tx;
   }
 
-  private Transaction startTx(long expiration, TransactionType type) {
+  private Transaction startTx(long expiration, TransactionType type, @Nullable String clientId) {
     Transaction tx = null;
     long txid;
     // guard against changes to the transaction log while processing
@@ -781,7 +810,7 @@ public class TransactionManager extends AbstractService {
         ensureAvailable();
         txid = getNextWritePointer();
         tx = createTransaction(txid, type);
-        addInProgressAndAdvance(tx.getTransactionId(), tx.getVisibilityUpperBound(), expiration, type);
+        addInProgressAndAdvance(tx.getTransactionId(), tx.getVisibilityUpperBound(), expiration, type, clientId);
       }
       // appending to WAL out of global lock for concurrent performance
       // we should still be able to arrive at the same state even if log entries are out of order
@@ -793,13 +822,13 @@ public class TransactionManager extends AbstractService {
   }
 
   private void addInProgressAndAdvance(long writePointer, long visibilityUpperBound,
-                                       long expiration, TransactionType type) {
-    addInProgressAndAdvance(writePointer, visibilityUpperBound, expiration, InProgressType.of(type));
+                                       long expiration, TransactionType type, @Nullable String clientId) {
+    addInProgressAndAdvance(writePointer, visibilityUpperBound, expiration, InProgressType.of(type), clientId);
   }
 
   private void addInProgressAndAdvance(long writePointer, long visibilityUpperBound,
-                                       long expiration, InProgressType type) {
-    inProgress.put(writePointer, new InProgressTx(visibilityUpperBound, expiration, type));
+                                       long expiration, InProgressType type, @Nullable String clientId) {
+    inProgress.put(writePointer, new InProgressTx(clientId, visibilityUpperBound, expiration, type));
     advanceWritePointer(writePointer);
   }
 
@@ -1026,6 +1055,7 @@ public class TransactionManager extends AbstractService {
     Set<ChangeId> previousChangeSet = committingChangeSets.remove(writePointer);
     // remove from in-progress set, so that it does not get excluded in the future
     InProgressTx previous = inProgress.remove(writePointer);
+
     // This check is to prevent from invalidating committed transactions
     if (previous != null || previousChangeSet != null) {
       // add tx to invalids
@@ -1040,7 +1070,12 @@ public class TransactionManager extends AbstractService {
           inProgress.keySet().removeAll(childWritePointers);
         }
       }
-      LOG.info("Tx invalid list: added tx {} because of invalidate", writePointer);
+
+      String clientId = DEFAULT_CLIENTID;
+      if (previous != null && previous.getClientId() != null) {
+        clientId = previous.getClientId();
+      }
+      LOG.info("Tx invalid list: added tx {} belonging to client '{}' because of invalidate", writePointer, clientId);
       if (previous != null && !previous.isLongRunning()) {
         // tx was short-running: must move read pointer
         moveReadPointerIfNeeded(writePointer);
@@ -1170,7 +1205,7 @@ public class TransactionManager extends AbstractService {
     InProgressTx existingTx = inProgress.get(parentWritePointer);
     existingTx.addCheckpointWritePointer(newWritePointer);
     addInProgressAndAdvance(newWritePointer, existingTx.getVisibilityUpperBound(), existingTx.getExpiration(),
-                            InProgressType.CHECKPOINT);
+                            InProgressType.CHECKPOINT, existingTx.getClientId());
   }
   
   // hack for exposing important metric
@@ -1378,9 +1413,25 @@ public class TransactionManager extends AbstractService {
     private final long expiration;
     private final InProgressType type;
     private final LongArrayList checkpointWritePointers;
+    // clientId is not part of hashCode computation or equality check since it is not persisted. Once it is persisted
+    // and restored, we can include it in the above.
+    private final String clientId;
+
+    public InProgressTx(String clientId, long visibilityUpperBound, long expiration, InProgressType type) {
+      this(clientId, visibilityUpperBound, expiration, type, new LongArrayList());
+    }
 
     public InProgressTx(long visibilityUpperBound, long expiration, InProgressType type) {
       this(visibilityUpperBound, expiration, type, new LongArrayList());
+    }
+
+    public InProgressTx(String clientId, long visibilityUpperBound, long expiration, InProgressType type,
+                        LongArrayList checkpointWritePointers) {
+      this.visibilityUpperBound = visibilityUpperBound;
+      this.expiration = expiration;
+      this.type = type;
+      this.checkpointWritePointers = checkpointWritePointers;
+      this.clientId = clientId;
     }
 
     public InProgressTx(long visibilityUpperBound, long expiration, InProgressType type,
@@ -1389,6 +1440,7 @@ public class TransactionManager extends AbstractService {
       this.expiration = expiration;
       this.type = type;
       this.checkpointWritePointers = checkpointWritePointers;
+      this.clientId = null;
     }
 
     // For backwards compatibility when long running txns were represented with -1 expiration
@@ -1408,6 +1460,11 @@ public class TransactionManager extends AbstractService {
     @Nullable
     public InProgressType getType() {
       return type;
+    }
+
+    @Nullable
+    public String getClientId() {
+      return clientId;
     }
 
     public boolean isLongRunning() {
@@ -1455,6 +1512,7 @@ public class TransactionManager extends AbstractService {
           .add("expiration", expiration)
           .add("type", type)
           .add("checkpointWritePointers", checkpointWritePointers)
+          .add("clientId", clientId)
           .toString();
     }
   }

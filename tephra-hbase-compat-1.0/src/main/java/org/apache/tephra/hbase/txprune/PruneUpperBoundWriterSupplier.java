@@ -20,70 +20,36 @@ package org.apache.tephra.hbase.txprune;
 
 
 import com.google.common.base.Supplier;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.tephra.coprocessor.CacheSupplier;
+import org.apache.tephra.coprocessor.ReferenceCountedSupplier;
 
 /**
  * Supplies instances of {@link PruneUpperBoundWriter} implementations.
  */
-public class PruneUpperBoundWriterSupplier implements Supplier<PruneUpperBoundWriter> {
-  private static final Log LOG = LogFactory.getLog(PruneUpperBoundWriterSupplier.class);
+public class PruneUpperBoundWriterSupplier implements CacheSupplier<PruneUpperBoundWriter> {
 
-  private static volatile PruneUpperBoundWriter instance;
-  private static volatile int refCount = 0;
-  private static final Object lock = new Object();
+  private static final ReferenceCountedSupplier<PruneUpperBoundWriter> referenceCountedSupplier =
+    new ReferenceCountedSupplier<>(PruneUpperBoundWriter.class.getSimpleName());
 
-  private final TableName tableName;
-  private final DataJanitorState dataJanitorState;
-  private final long pruneFlushInterval;
+  private final Supplier<PruneUpperBoundWriter> supplier;
 
-  public PruneUpperBoundWriterSupplier(TableName tableName, DataJanitorState dataJanitorState,
-                                       long pruneFlushInterval) {
-    this.tableName = tableName;
-    this.dataJanitorState = dataJanitorState;
-    this.pruneFlushInterval = pruneFlushInterval;
+  public PruneUpperBoundWriterSupplier(final TableName tableName, final DataJanitorState dataJanitorState,
+                                       final long pruneFlushInterval) {
+    this.supplier = new Supplier<PruneUpperBoundWriter>() {
+      @Override
+      public PruneUpperBoundWriter get() {
+        return new PruneUpperBoundWriter(tableName, dataJanitorState, pruneFlushInterval);
+      }
+    };
   }
 
   @Override
   public PruneUpperBoundWriter get() {
-    synchronized (lock) {
-      if (instance == null) {
-        instance = new PruneUpperBoundWriter(tableName, dataJanitorState, pruneFlushInterval);
-        instance.startAndWait();
-      }
-      refCount++;
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Incrementing Reference Count for PruneUpperBoundWriter " + refCount);
-      }
-      return instance;
-    }
+    return referenceCountedSupplier.getOrCreate(supplier);
   }
 
   public void release() {
-    synchronized (lock) {
-      refCount--;
-      if (LOG.isDebugEnabled()) {
-        LOG.debug("Decrementing Reference Count for PruneUpperBoundWriter " + refCount);
-      }
-
-      if (refCount == 0) {
-        try {
-          instance.stopAndWait();
-        } catch (Exception ex) {
-          LOG.warn("Exception while trying to shutdown PruneUpperBoundWriter thread. ", ex);
-        } finally {
-          // If the thread is still alive (might happen if the thread was blocked on HBase PUT call), interrupt it again
-          if (instance.isAlive()) {
-            try {
-              instance.shutDown();
-            } catch (Exception e) {
-              LOG.warn("Exception while trying to shutdown PruneUpperBoundWriter thread. ", e);
-            }
-          }
-          instance = null;
-        }
-      }
-    }
+    referenceCountedSupplier.release();
   }
 }

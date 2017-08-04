@@ -61,7 +61,7 @@ public class TransactionContextTest {
       new ConfigModule(conf),
       new DiscoveryModules().getInMemoryModules(),
       Modules.override(
-        new TransactionModules().getInMemoryModules()).with(new AbstractModule() {
+        new TransactionModules("clientA").getInMemoryModules()).with(new AbstractModule() {
         @Override
         protected void configure() {
           TransactionManager txManager = new TransactionManager(conf);

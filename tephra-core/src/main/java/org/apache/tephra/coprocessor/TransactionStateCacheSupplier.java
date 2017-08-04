@@ -24,31 +24,40 @@ import org.apache.hadoop.conf.Configuration;
 /**
  * Supplies instances of {@link TransactionStateCache} implementations.
  */
-public class TransactionStateCacheSupplier implements Supplier<TransactionStateCache> {
-  protected static volatile TransactionStateCache instance;
-  protected static Object lock = new Object();
+public class TransactionStateCacheSupplier implements CacheSupplier<TransactionStateCache> {
 
-  protected final Configuration conf;
+  private static final ReferenceCountedSupplier<TransactionStateCache> referenceCountedSupplier =
+    new ReferenceCountedSupplier<>(TransactionStateCache.class.getSimpleName());
 
-  public TransactionStateCacheSupplier(Configuration conf) {
-    this.conf = conf;
+  private final Supplier<TransactionStateCache> supplier;
+
+  public TransactionStateCacheSupplier(Supplier<TransactionStateCache> supplier) {
+    this.supplier = supplier;
+  }
+
+  public TransactionStateCacheSupplier(final Configuration conf) {
+    this.supplier = new Supplier<TransactionStateCache>() {
+      @Override
+      public TransactionStateCache get() {
+        TransactionStateCache transactionStateCache = new TransactionStateCache();
+        transactionStateCache.setConf(conf);
+        return transactionStateCache;
+      }
+    };
   }
 
   /**
    * Returns a singleton instance of the transaction state cache, performing lazy initialization if necessary.
-   * @return A shared instance of the transaction state cache.
+   *
+   * @return A shared instance of the transaction state cache
    */
   @Override
   public TransactionStateCache get() {
-    if (instance == null) {
-      synchronized (lock) {
-        if (instance == null) {
-          instance = new TransactionStateCache();
-          instance.setConf(conf);
-          instance.start();
-        }
-      }
-    }
-    return instance;
+    return referenceCountedSupplier.getOrCreate(supplier);
+  }
+
+  @Override
+  public void release() {
+    referenceCountedSupplier.release();
   }
 }

@@ -131,25 +131,24 @@ public abstract class AbstractTransactionStateStorageTest {
     TransactionStateStorage storage3 = null;
     try {
       storage = getStorage(conf);
-      TransactionManager txManager = new TransactionManager
-        (conf, storage, new TxMetricsCollector());
+      TransactionManager txManager = new TransactionManager(conf, storage, new TxMetricsCollector());
       txManager.startAndWait();
 
       // TODO: replace with new persistence tests
       final byte[] a = { 'a' };
       final byte[] b = { 'b' };
       // Start and invalidate a transaction
-      Transaction invalid = txManager.startShort();
+      Transaction invalid = txManager.startShort("clientTx");
       txManager.invalidate(invalid.getTransactionId());
       // start a tx1, add a change A and commit
-      Transaction tx1 = txManager.startShort();
+      Transaction tx1 = txManager.startShort("client1");
       Assert.assertTrue(txManager.canCommit(tx1, Collections.singleton(a)));
       Assert.assertTrue(txManager.commit(tx1));
       // start a tx2 and add a change B
-      Transaction tx2 = txManager.startShort();
+      Transaction tx2 = txManager.startShort("client2");
       Assert.assertTrue(txManager.canCommit(tx2, Collections.singleton(b)));
       // start a tx3
-      Transaction tx3 = txManager.startShort();
+      Transaction tx3 = txManager.startShort("client3");
       // restart
       txManager.stopAndWait();
       TransactionSnapshot origState = txManager.getCurrentState();

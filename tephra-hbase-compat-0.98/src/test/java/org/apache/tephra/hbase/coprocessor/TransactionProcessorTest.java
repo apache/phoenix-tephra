@@ -70,6 +70,7 @@ import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.coprocessor.TransactionStateCache;
 import org.apache.tephra.coprocessor.TransactionStateCacheSupplier;
+import org.apache.tephra.manager.InvalidTxList;
 import org.apache.tephra.metrics.TxMetricsCollector;
 import org.apache.tephra.persist.HDFSTransactionStateStorage;
 import org.apache.tephra.persist.TransactionSnapshot;
@@ -147,8 +148,10 @@ public class TransactionProcessorTest {
     conf.set(TxConstants.Persist.CFG_TX_SNAPHOT_CODEC_CLASSES, DefaultSnapshotCodec.class.getName());
 
     // write an initial transaction snapshot
+    InvalidTxList invalidTxList = new InvalidTxList();
+    invalidTxList.addAll(invalidSet);
     TransactionSnapshot txSnapshot = TransactionSnapshot.copyFrom(
-      System.currentTimeMillis(), V[6] - 1, V[7], invalidSet,
+      System.currentTimeMillis(), V[6] - 1, V[7], invalidTxList,
       // this will set visibility upper bound to V[6]
       Maps.newTreeMap(ImmutableSortedMap.of(V[6], new TransactionManager.InProgressTx(
         V[6] - 1, Long.MAX_VALUE, TransactionManager.InProgressType.SHORT))),
