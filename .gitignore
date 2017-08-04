@@ -25,3 +25,6 @@ hs_err_pid*
 
 # Maven build directory
 target
+
+# MacOS file
+.DS_Store
