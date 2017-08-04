@@ -299,21 +299,6 @@ Update the following sections of documentation if needed
   - "Getting Started" section in `site/markdown/GettingStarted.md`
   - "Hadoop/HBase Environment" `section in site/markdown/index.md`
 
-Build javadocs for the next development version:
-
-```sh
-git checkout master
-mvn clean package javadoc:aggregate -DskipTests
-```
-
-Copy over the development javadocs to `src/site/resources`:
-
-```sh
-git checkout site
-rm -rf src/site/resources/apidocs
-cp -r target/site/apidocs src/site/resources/apidocs
-```
-
 Build the website:
 
 ```sh
@@ -346,9 +331,17 @@ Verify the website again:
 open site/index.html
 ```
 
-Commit the site chagnes:
+Commit the site changes:
 
 ```sh
 svn add [new-release-dirs]
 svn commit -m "Apache Tephra site for release N.N.N"
+```
+
+Commit the site changes back to git:
+
+```sh
+cd [tephra-src-git-dir]
+git commit -m "Update site for release N.N.N"
+git push origin site
 ```
