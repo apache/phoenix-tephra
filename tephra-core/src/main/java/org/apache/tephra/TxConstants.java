@@ -179,6 +179,23 @@ public class TxConstants {
     public static final String CFG_TX_SNAPSHOT_RETAIN = "data.tx.snapshot.retain";
     /** Default value for number of most recent snapshots to retain. */
     public static final int DEFAULT_TX_SNAPSHOT_RETAIN = 10;
+
+    /** The limit for the number of entries in a change set. If exceeded, the transaction fails. */
+    public static final String CFG_TX_CHANGESET_COUNT_LIMIT = "data.tx.changeset.count.limit";
+    /** The warning threshold for the number of entries in a change set. If exceeded, a warning is logged. */
+    public static final String CFG_TX_CHANGESET_COUNT_WARN_THRESHOLD = "data.tx.changeset.count.warn.threshold";
+    /** The limit for the total size in bytes of a change set. If exceeded, the transaction fails. */
+    public static final String CFG_TX_CHANGESET_SIZE_LIMIT = "data.tx.changeset.size.limit";
+    /** The warning threshold for the total size in bytes of a change set. If exceeded, a warning is logged. */
+    public static final String CFG_TX_CHANGESET_SIZE_WARN_THRESHOLD = "data.tx.changeset.size.warn.threshold";
+    /** The default limit for the number of entries in a change set is unlimited. */
+    public static final int DEFAULT_TX_CHANGESET_COUNT_LIMIT = Integer.MAX_VALUE;
+    /** The default warning threshold for the number of entries in a change set is unlimited. */
+    public static final int DEFAULT_TX_CHANGESET_COUNT_WARN_THRESHOLD = Integer.MAX_VALUE;
+    /** The default limit for the total size in bytes of a change set is unlimited. */
+    public static final long DEFAULT_TX_CHANGESET_SIZE_LIMIT = Long.MAX_VALUE;
+    /** The default warning threshold for the total size in bytes of a change set is unlimited. */
+    public static final long DEFAULT_TX_CHANGESET_SIZE_WARN_THRESHOLD = Long.MAX_VALUE;
   }
 
   /**

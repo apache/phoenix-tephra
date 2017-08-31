@@ -162,6 +162,11 @@ public class TransactionManager extends AbstractService {
   private final Lock logReadLock = logLock.readLock();
   private final Lock logWriteLock = logLock.writeLock();
 
+  private final int changeSetCountLimit;
+  private final int changeSetCountThreshold;
+  private final long changeSetSizeLimit;
+  private final long changeSetSizeThreshold;
+
   // fudge factor (in milliseconds) used when interpreting transactions as LONG based on expiration
   // TODO: REMOVE WITH txnBackwardsCompatCheck()
   private final long longTimeoutTolerance;
@@ -187,6 +192,15 @@ public class TransactionManager extends AbstractService {
     // must always keep at least 1 snapshot
     snapshotRetainCount = Math.max(conf.getInt(TxConstants.Manager.CFG_TX_SNAPSHOT_RETAIN,
                                                TxConstants.Manager.DEFAULT_TX_SNAPSHOT_RETAIN), 1);
+
+    changeSetCountLimit = conf.getInt(TxConstants.Manager.CFG_TX_CHANGESET_COUNT_LIMIT,
+                                      TxConstants.Manager.DEFAULT_TX_CHANGESET_COUNT_LIMIT);
+    changeSetCountThreshold = conf.getInt(TxConstants.Manager.CFG_TX_CHANGESET_COUNT_WARN_THRESHOLD,
+                                          TxConstants.Manager.DEFAULT_TX_CHANGESET_COUNT_WARN_THRESHOLD);
+    changeSetSizeLimit = conf.getLong(TxConstants.Manager.CFG_TX_CHANGESET_SIZE_LIMIT,
+                                      TxConstants.Manager.DEFAULT_TX_CHANGESET_SIZE_LIMIT);
+    changeSetSizeThreshold = conf.getLong(TxConstants.Manager.CFG_TX_CHANGESET_SIZE_WARN_THRESHOLD,
+                                          TxConstants.Manager.DEFAULT_TX_CHANGESET_SIZE_WARN_THRESHOLD);
 
     // intentionally not using a constant, as this config should not be exposed
     // TODO: REMOVE WITH txnBackwardsCompatCheck()
@@ -839,10 +853,13 @@ public class TransactionManager extends AbstractService {
     }
   }
 
-  public boolean canCommit(Transaction tx, Collection<byte[]> changeIds) throws TransactionNotInProgressException {
+  public boolean canCommit(Transaction tx, Collection<byte[]> changeIds)
+    throws TransactionNotInProgressException, TransactionSizeException {
+
     txMetricsCollector.rate("canCommit");
     Stopwatch timer = new Stopwatch().start();
-    if (inProgress.get(tx.getTransactionId()) == null) {
+    InProgressTx inProgressTx = inProgress.get(tx.getTransactionId());
+    if (inProgressTx == null) {
       synchronized (this) {
         // invalid transaction, either this has timed out and moved to invalid, or something else is wrong.
         if (invalidTxList.contains(tx.getTransactionId())) {
@@ -857,10 +874,8 @@ public class TransactionManager extends AbstractService {
       }
     }
 
-    Set<ChangeId> set = Sets.newHashSetWithExpectedSize(changeIds.size());
-    for (byte[] change : changeIds) {
-      set.add(new ChangeId(change));
-    }
+    Set<ChangeId> set =
+      validateChangeSet(tx, changeIds, inProgressTx.clientId != null ? inProgressTx.clientId : DEFAULT_CLIENTID);
 
     if (hasConflicts(tx, set)) {
       return false;
@@ -878,6 +893,51 @@ public class TransactionManager extends AbstractService {
     }
     txMetricsCollector.histogram("canCommit.latency", (int) timer.elapsedMillis());
     return true;
+  }
+
+  /**
+   * Validate the number of changes and the total size of changes. Log a warning if either of them exceeds the
+   * configured threshold, or log a warning and throw an exception if it exceeds the configured limit.
+   *
+   * We log here because application developers may ignore warnings. Logging here gives us a single point
+   * (the tx manager log) to identify all clients that send excessively large change sets.
+   *
+   * @return the same set of changes, transformed into a set of {@link ChangeId}s.
+   * @throws TransactionSizeException if the number or total size of the changes exceed the limit.
+   */
+  private Set<ChangeId> validateChangeSet(Transaction tx, Collection<byte[]> changeIds,
+                                          String clientId) throws TransactionSizeException {
+    if (changeIds.size() > changeSetCountLimit) {
+      LOG.warn("Change set for transaction {} belonging to client '{}' has {} entries and exceeds " +
+                 "the allowed size of {}. Limit the number of changes, or use a long-running transaction. ",
+               tx.getTransactionId(), clientId, changeIds.size(), changeSetCountLimit);
+      throw new TransactionSizeException(String.format(
+        "Change set for transaction %d has %d entries and exceeds the limit of %d",
+        tx.getTransactionId(), changeIds.size(), changeSetCountLimit));
+    } else if (changeIds.size() > changeSetCountThreshold) {
+      LOG.warn("Change set for transaction {} belonging to client '{}' has {} entries. " +
+                 "It is recommended to limit the number of changes to {}, or to use a long-running transaction. ",
+               tx.getTransactionId(), clientId, changeIds.size(), changeSetCountThreshold);
+    }
+    long byteCount = 0L;
+    Set<ChangeId> set = Sets.newHashSetWithExpectedSize(changeIds.size());
+    for (byte[] change : changeIds) {
+      set.add(new ChangeId(change));
+      byteCount += change.length;
+    }
+    if (byteCount > changeSetSizeLimit) {
+      LOG.warn("Change set for transaction {} belonging to client '{}' has total size of {} bytes and exceeds " +
+                 "the allowed size of {} bytes. Limit the total size of changes, or use a long-running transaction. ",
+               tx.getTransactionId(), clientId, byteCount, changeSetSizeLimit);
+      throw new TransactionSizeException(String.format(
+        "Change set for transaction %d has total size of %d bytes and exceeds the limit of %d bytes",
+        tx.getTransactionId(), byteCount, changeSetSizeLimit));
+    } else if (byteCount > changeSetSizeThreshold) {
+      LOG.warn("Change set for transaction {} belonging to client '{}' has total size of {} bytes. " +
+                 "It is recommended to limit the total size to {} bytes, or to use a long-running transaction. ",
+               tx.getTransactionId(), clientId, byteCount, changeSetSizeThreshold);
+    }
+    return set;
   }
 
   private void addCommittingChangeSet(long writePointer, Set<ChangeId> changes) {

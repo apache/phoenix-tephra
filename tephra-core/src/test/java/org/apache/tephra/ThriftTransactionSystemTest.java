@@ -52,7 +52,6 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ThriftTransactionSystemTest extends TransactionSystemTest {
@@ -74,13 +73,12 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
     zkServer = InMemoryZKServer.builder().setDataDir(tmpFolder.newFolder()).build();
     zkServer.startAndWait();
 
-    Configuration conf = new Configuration();
+    Configuration conf = getCommonConfiguration();
     conf.setBoolean(TxConstants.Manager.CFG_DO_PERSIST, false);
     conf.set(TxConstants.Service.CFG_DATA_TX_ZOOKEEPER_QUORUM, zkServer.getConnectionStr());
     // we want to use a retry strategy that lets us query the number of times it retried:
     conf.set(TxConstants.Service.CFG_DATA_TX_CLIENT_RETRY_STRATEGY, CountingRetryStrategyProvider.class.getName());
     conf.setInt(TxConstants.Service.CFG_DATA_TX_CLIENT_ATTEMPTS, 2);
-    conf.setInt(TxConstants.Manager.CFG_TX_MAX_TIMEOUT, (int) TimeUnit.DAYS.toSeconds(5)); // very long limit
 
     Injector injector = Guice.createInjector(
       new ConfigModule(conf),

@@ -25,6 +25,7 @@ import org.apache.tephra.InvalidTruncateTimeException;
 import org.apache.tephra.Transaction;
 import org.apache.tephra.TransactionCouldNotTakeSnapshotException;
 import org.apache.tephra.TransactionNotInProgressException;
+import org.apache.tephra.TransactionSizeException;
 import org.apache.tephra.distributed.thrift.TGenericException;
 import org.apache.tephra.distributed.thrift.TInvalidTruncateTimeException;
 import org.apache.tephra.distributed.thrift.TTransactionCouldNotTakeSnapshotException;
@@ -196,7 +197,26 @@ public class TransactionServiceThriftClient {
     }
   }
 
-
+  public boolean canCommitOrThrow(Transaction tx, Collection<byte[]> changeIds)
+    throws TException, TransactionNotInProgressException, TransactionSizeException {
+    try {
+      return client.canCommitTx(TransactionConverterUtils.wrap(tx),
+                                ImmutableSet.copyOf(Iterables.transform(changeIds, BYTES_WRAPPER))).isValue();
+    } catch (TTransactionNotInProgressException e) {
+      throw new TransactionNotInProgressException(e.getMessage());
+    } catch (TGenericException e) {
+      // currently, we only expect TransactionSizeException here
+      if (!TransactionSizeException.class.getName().equals(e.getOriginalExceptionClass())) {
+        LOG.trace("Expecting only {} as the original exception class but found {}",
+                  TransactionSizeException.class.getName(), e.getOriginalExceptionClass());
+        throw e;
+      }
+      throw new TransactionSizeException(e.getMessage());
+    } catch (TException e) {
+      isValid.set(false);
+      throw e;
+    }
+  }
 
   public boolean commit(Transaction tx) throws TException, TransactionNotInProgressException {
     try {

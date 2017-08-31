@@ -26,11 +26,11 @@ import org.apache.tephra.metrics.TxMetricsCollector;
 import org.apache.tephra.persist.InMemoryTransactionStateStorage;
 import org.apache.tephra.persist.TransactionStateStorage;
 import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
@@ -39,10 +39,10 @@ import java.util.concurrent.TimeUnit;
  */
 public class TransactionManagerTest extends TransactionSystemTest {
 
-  static Configuration conf = new Configuration();
+  private static Configuration conf;
 
-  TransactionManager txManager = null;
-  TransactionStateStorage txStateStorage = null;
+  private static TransactionManager txManager = null;
+  private static TransactionStateStorage txStateStorage = null;
 
   @Override
   protected TransactionSystemClient getClient() {
@@ -54,10 +54,10 @@ public class TransactionManagerTest extends TransactionSystemTest {
     return txStateStorage;
   }
 
-  @Before
-  public void before() {
+  @BeforeClass
+  public static void beforeClass() {
+    conf = getCommonConfiguration();
     conf.setInt(TxConstants.Manager.CFG_TX_CLEANUP_INTERVAL, 0); // no cleanup thread
-    conf.setInt(TxConstants.Manager.CFG_TX_MAX_TIMEOUT, (int) TimeUnit.DAYS.toSeconds(5)); // very long limit
     // todo should create two sets of tests, one with LocalFileTxStateStorage and one with InMemoryTxStateStorage
     txStateStorage = new InMemoryTransactionStateStorage();
     txManager = new TransactionManager
@@ -65,104 +65,24 @@ public class TransactionManagerTest extends TransactionSystemTest {
     txManager.startAndWait();
   }
 
-  @After
-  public void after() {
+  @AfterClass
+  public static void afterClass() {
     txManager.stopAndWait();
   }
 
-  @Test
-  public void testCheckpointing() throws TransactionNotInProgressException {
-    // create a few transactions
-    Transaction tx1 = txManager.startShort();
-    Transaction tx2 = txManager.startShort();
-    Transaction tx3 = txManager.startShort();
-
-    // start and commit a few
-    for (int i = 0; i < 5; i++) {
-      Transaction tx = txManager.startShort();
-      Assert.assertTrue(txManager.canCommit(tx, Collections.singleton(new byte[] { (byte) i })));
-      Assert.assertTrue(txManager.commit(tx));
-    }
-
-    // checkpoint the transactions
-    Transaction tx3c = txManager.checkpoint(tx3);
-    Transaction tx2c = txManager.checkpoint(tx2);
-    Transaction tx1c = txManager.checkpoint(tx1);
-
-    // start and commit a few (this moves the read pointer past all checkpoint write versions)
-    for (int i = 5; i < 10; i++) {
-      Transaction tx = txManager.startShort();
-      Assert.assertTrue(txManager.canCommit(tx, Collections.singleton(new byte[] { (byte) i })));
-      Assert.assertTrue(txManager.commit(tx));
-    }
-
-    // start new tx and validate all write pointers are excluded
-    Transaction tx = txManager.startShort();
-    validateSorted(tx.getInProgress());
-    validateSorted(tx.getInvalids());
-    Assert.assertFalse(tx.isVisible(tx1.getWritePointer()));
-    Assert.assertFalse(tx.isVisible(tx2.getWritePointer()));
-    Assert.assertFalse(tx.isVisible(tx3.getWritePointer()));
-    Assert.assertFalse(tx.isVisible(tx1c.getWritePointer()));
-    Assert.assertFalse(tx.isVisible(tx2c.getWritePointer()));
-    Assert.assertFalse(tx.isVisible(tx3c.getWritePointer()));
-    txManager.abort(tx);
-
-    // abort one of the checkpoints
-    txManager.abort(tx1c);
-
-    // start new tx and validate all write pointers are excluded
-    tx = txManager.startShort();
-    validateSorted(tx.getInProgress());
-    validateSorted(tx.getInvalids());
-    Assert.assertFalse(tx.isVisible(tx2.getWritePointer()));
-    Assert.assertFalse(tx.isVisible(tx3.getWritePointer()));
-    Assert.assertFalse(tx.isVisible(tx2c.getWritePointer()));
-    Assert.assertFalse(tx.isVisible(tx3c.getWritePointer()));
-    txManager.abort(tx);
-
-    // invalidate one of the checkpoints
-    txManager.invalidate(tx2c.getTransactionId());
-
-    // start new tx and validate all write pointers are excluded
-    tx = txManager.startShort();
-    validateSorted(tx.getInProgress());
-    validateSorted(tx.getInvalids());
-    Assert.assertFalse(tx.isVisible(tx2.getWritePointer()));
-    Assert.assertFalse(tx.isVisible(tx3.getWritePointer()));
-    Assert.assertFalse(tx.isVisible(tx2c.getWritePointer()));
-    Assert.assertFalse(tx.isVisible(tx3c.getWritePointer()));
-    txManager.abort(tx);
-
-    // commit the last checkpoint
-    Assert.assertTrue(txManager.canCommit(tx3, Collections.<byte[]>emptyList()));
-    Assert.assertTrue(txManager.commit(tx3c));
-
-    // start new tx and validate all write pointers are excluded
-    tx = txManager.startShort();
-    validateSorted(tx.getInProgress());
-    validateSorted(tx.getInvalids());
-    Assert.assertFalse(tx.isVisible(tx2.getWritePointer()));
-    Assert.assertFalse(tx.isVisible(tx2c.getWritePointer()));
-    txManager.abort(tx);
-  }
-
-  private void validateSorted(long[] array) {
-    Long lastSeen = null;
-    for (long value : array) {
-      Assert.assertTrue(String.format("%s is not sorted", Arrays.toString(array)),
-                        lastSeen == null || lastSeen < value);
-      lastSeen = value;
-    }
+  @After
+  public void after() {
+    txManager.resetState();
   }
 
   @Test
   public void testTransactionCleanup() throws Exception {
-    conf.setInt(TxConstants.Manager.CFG_TX_CLEANUP_INTERVAL, 3);
-    conf.setInt(TxConstants.Manager.CFG_TX_TIMEOUT, 2);
+    Configuration config = new Configuration(conf);
+    config.setInt(TxConstants.Manager.CFG_TX_CLEANUP_INTERVAL, 3);
+    config.setInt(TxConstants.Manager.CFG_TX_TIMEOUT, 2);
     // using a new tx manager that cleans up
     TransactionManager txm = new TransactionManager
-      (conf, new InMemoryTransactionStateStorage(), new TxMetricsCollector());
+      (config, new InMemoryTransactionStateStorage(), new TxMetricsCollector());
     txm.startAndWait();
     try {
       Assert.assertEquals(0, txm.getInvalidSize());
@@ -250,11 +170,12 @@ public class TransactionManagerTest extends TransactionSystemTest {
 
   @Test
   public void testLongTransactionCleanup() throws Exception {
-    conf.setInt(TxConstants.Manager.CFG_TX_CLEANUP_INTERVAL, 3);
-    conf.setInt(TxConstants.Manager.CFG_TX_LONG_TIMEOUT, 2);
+    Configuration config = new Configuration(conf);
+    config.setInt(TxConstants.Manager.CFG_TX_CLEANUP_INTERVAL, 3);
+    config.setInt(TxConstants.Manager.CFG_TX_LONG_TIMEOUT, 2);
     // using a new tx manager that cleans up
     TransactionManager txm = new TransactionManager
-      (conf, new InMemoryTransactionStateStorage(), new TxMetricsCollector());
+      (config, new InMemoryTransactionStateStorage(), new TxMetricsCollector());
     txm.startAndWait();
     try {
       Assert.assertEquals(0, txm.getInvalidSize());

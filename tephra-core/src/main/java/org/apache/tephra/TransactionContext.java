@@ -270,15 +270,12 @@ public class TransactionContext {
 
     boolean canCommit = false;
     try {
-      canCommit = txClient.canCommit(currentTx, changes);
-    } catch (TransactionNotInProgressException e) {
-      String message = String.format("Transaction %d is not in progress.", currentTx.getTransactionId());
-      LOG.warn(message, e);
-      abort(new TransactionFailureException(message, e));
+      canCommit = txClient.canCommitOrThrow(currentTx, changes);
+    } catch (TransactionNotInProgressException | TransactionSizeException e) {
+      throw e;
       // abort will throw that exception
     } catch (Throwable e) {
       String message = String.format("Exception from canCommit for transaction %d.", currentTx.getTransactionId());
-      LOG.warn(message, e);
       abort(new TransactionFailureException(message, e));
       // abort will throw that exception
     }
