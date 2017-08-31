@@ -70,8 +70,30 @@ public interface TransactionSystemClient {
    * @param tx transaction to verify
    * @param changeIds ids of changes made by transaction
    * @return true if transaction can be committed otherwise false
+   * @throws TransactionNotInProgressException if the transaction is not in progress; most likely it has timed out.
+   *
+   * @deprecated since 0.13-incubating; use {@link #canCommitOrThrow(Transaction, Collection)} instead
    */
+  @Deprecated
   boolean canCommit(Transaction tx, Collection<byte[]> changeIds) throws TransactionNotInProgressException;
+
+  /**
+   * Checks if transaction with the set of changes can be committed. E.g. it can check conflicts with other changes and
+   * refuse commit if there are conflicts. It is assumed that no other changes will be done in between this method call
+   * and {@link #commit(Transaction)} which may check conflicts again to avoid races.
+   * <p/>
+   * Since we do conflict detection at commit time as well, this may seem redundant. The idea is to check for conflicts
+   * before we persist changes to avoid rollback in case of conflicts as much as possible.
+   * NOTE: in some situations we may want to skip this step to save on RPC with a risk of many rollback ops. So by
+   *       default we take safe path.
+   *
+   * @param tx transaction to verify
+   * @param changeIds ids of changes made by transaction
+   * @return true if transaction can be committed otherwise false
+   * @throws TransactionSizeException if the size of the chgange set exceeds the allowed limit
+   * @throws TransactionNotInProgressException if the transaction is not in progress; most likely it has timed out.
+   */
+  boolean canCommitOrThrow(Transaction tx, Collection<byte[]> changeIds) throws TransactionFailureException;
 
   /**
    * Makes transaction visible. It will again check conflicts of changes submitted previously with

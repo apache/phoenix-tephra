@@ -28,7 +28,9 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.InvalidTruncateTimeException;
 import org.apache.tephra.Transaction;
 import org.apache.tephra.TransactionCouldNotTakeSnapshotException;
+import org.apache.tephra.TransactionFailureException;
 import org.apache.tephra.TransactionNotInProgressException;
+import org.apache.tephra.TransactionSizeException;
 import org.apache.tephra.TransactionSystemClient;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.runtime.ConfigModule;
@@ -64,6 +66,11 @@ public class TransactionServiceClient implements TransactionSystemClient {
 
   // client id that is used to identify the transactions
   private final String clientId;
+
+  private final int changeSetCountLimit;
+  private final int changeSetCountThreshold;
+  private final long changeSetSizeLimit;
+  private final long changeSetSizeThreshold;
 
   /**
    * Utility to be used for basic verification of transaction system availability and functioning
@@ -109,7 +116,7 @@ public class TransactionServiceClient implements TransactionSystemClient {
                    ", inProgress: " + tx.getInProgress().length);
       }
       LOG.info("Checking if canCommit tx...");
-      boolean canCommit = client.canCommit(tx, Collections.<byte[]>emptyList());
+      boolean canCommit = client.canCommitOrThrow(tx, Collections.<byte[]>emptyList());
       LOG.info("canCommit: " + canCommit);
       if (canCommit) {
         LOG.info("Committing tx...");
@@ -171,6 +178,15 @@ public class TransactionServiceClient implements TransactionSystemClient {
 
     this.clientProvider = clientProvider;
     this.clientId = clientId;
+
+    changeSetCountLimit = config.getInt(TxConstants.Manager.CFG_TX_CHANGESET_COUNT_LIMIT,
+                                        TxConstants.Manager.DEFAULT_TX_CHANGESET_COUNT_LIMIT);
+    changeSetCountThreshold = config.getInt(TxConstants.Manager.CFG_TX_CHANGESET_COUNT_WARN_THRESHOLD,
+                                            TxConstants.Manager.DEFAULT_TX_CHANGESET_COUNT_WARN_THRESHOLD);
+    changeSetSizeLimit = config.getLong(TxConstants.Manager.CFG_TX_CHANGESET_SIZE_LIMIT,
+                                        TxConstants.Manager.DEFAULT_TX_CHANGESET_SIZE_LIMIT);
+    changeSetSizeThreshold = config.getLong(TxConstants.Manager.CFG_TX_CHANGESET_SIZE_WARN_THRESHOLD,
+                                            TxConstants.Manager.DEFAULT_TX_CHANGESET_SIZE_WARN_THRESHOLD);
   }
 
   /**
@@ -317,6 +333,51 @@ public class TransactionServiceClient implements TransactionSystemClient {
           }
         });
     } catch (TransactionNotInProgressException e) {
+      throw e;
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  @Override
+  public boolean canCommitOrThrow(final Transaction tx, final Collection<byte[]> changeIds)
+    throws TransactionFailureException {
+
+    // we want to validate the size of the change set here before sending it over the wire.
+    // if the change set is large, it can cause memory issues on the server side.
+    if (changeIds.size() > changeSetCountLimit) {
+      throw new TransactionSizeException(String.format(
+        "Change set for transaction %d has %d entries and exceeds the limit of %d",
+        tx.getTransactionId(), changeIds.size(), changeSetCountLimit));
+    } else if (changeIds.size() > changeSetCountThreshold) {
+      LOG.warn("Change set for transaction {} has {} entries. " +
+                 "It is recommended to limit the number of changes to {}, or to use a long-running transaction. ",
+               tx.getTransactionId(), changeIds.size(), changeSetCountThreshold);
+    }
+    long byteCount = 0L;
+    for (byte[] change : changeIds) {
+      byteCount += change.length;
+    }
+    if (byteCount > changeSetSizeLimit) {
+      throw new TransactionSizeException(String.format(
+        "Change set for transaction %d has total size of %d bytes and exceeds the limit of %d bytes",
+        tx.getTransactionId(), byteCount, changeSetSizeLimit));
+    } else if (byteCount > changeSetSizeThreshold) {
+      LOG.warn("Change set for transaction {} has total size of {} bytes. " +
+                 "It is recommended to limit the total size to {} bytes, or to use a long-running transaction. ",
+               tx.getTransactionId(), byteCount, changeSetSizeThreshold);
+    }
+
+    try {
+      return execute(
+        new Operation<Boolean>("canCommit") {
+          @Override
+          public Boolean execute(TransactionServiceThriftClient client)
+            throws Exception {
+            return client.canCommitOrThrow(tx, changeIds);
+          }
+        });
+    } catch (TransactionNotInProgressException | TransactionSizeException e) {
       throw e;
     } catch (Exception e) {
       throw Throwables.propagate(e);

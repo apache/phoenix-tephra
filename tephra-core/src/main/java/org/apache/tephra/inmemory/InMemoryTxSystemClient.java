@@ -22,8 +22,10 @@ import com.google.inject.Inject;
 import org.apache.tephra.InvalidTruncateTimeException;
 import org.apache.tephra.Transaction;
 import org.apache.tephra.TransactionCouldNotTakeSnapshotException;
+import org.apache.tephra.TransactionFailureException;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TransactionNotInProgressException;
+import org.apache.tephra.TransactionSizeException;
 import org.apache.tephra.TransactionSystemClient;
 import org.apache.tephra.TxConstants;
 import org.slf4j.Logger;
@@ -67,6 +69,15 @@ public class InMemoryTxSystemClient implements TransactionSystemClient {
 
   @Override
   public boolean canCommit(Transaction tx, Collection<byte[]> changeIds) throws TransactionNotInProgressException {
+    try {
+      return changeIds.isEmpty() || txManager.canCommit(tx, changeIds);
+    } catch (TransactionSizeException e) {
+      return false;
+    }
+  }
+
+  @Override
+  public boolean canCommitOrThrow(Transaction tx, Collection<byte[]> changeIds) throws TransactionFailureException {
     return changeIds.isEmpty() || txManager.canCommit(tx, changeIds);
   }
 
