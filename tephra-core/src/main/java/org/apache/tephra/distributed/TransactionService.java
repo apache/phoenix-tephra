@@ -121,14 +121,14 @@ public final class TransactionService extends InMemoryTransactionService {
       @Override
       public void follower() {
         ListenableFuture<State> stopFuture = null;
+        if (pruningService != null && pruningService.isRunning()) {
+          // Wait for pruning service to stop after un-registering from discovery
+          stopFuture = pruningService.stop();
+        }
         // First stop the transaction server as un-registering from discovery can block sometimes.
         // That can lead to multiple transaction servers being active at the same time.
         if (server != null && server.isRunning()) {
           server.stopAndWait();
-        }
-        if (pruningService != null && pruningService.isRunning()) {
-          // Wait for pruning service to stop after un-registering from discovery
-          stopFuture = pruningService.stop();
         }
         undoRegister();
 
