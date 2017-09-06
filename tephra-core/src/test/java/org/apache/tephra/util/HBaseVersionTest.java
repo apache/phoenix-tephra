@@ -84,6 +84,9 @@ public class HBaseVersionTest {
 
     ver = HBaseVersion.VersionNumber.create("1.2.1");
     assertVersionNumber(ver, 1, 2, 1, null, false);
+
+    ver = HBaseVersion.VersionNumber.create("1.3.1");
+    assertVersionNumber(ver, 1, 3, 1, null, false);
   }
 
   private void assertVersionNumber(HBaseVersion.VersionNumber version, Integer expectedMajor, Integer expectedMinor,
