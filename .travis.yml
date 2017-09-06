@@ -18,6 +18,9 @@
 
 language: java
 
+# Run it on precise, until we figure out how to make jdk7 work (or no longer support jdk7).
+dist: precise
+
 jdk:
   - oraclejdk7
   - oraclejdk8
