@@ -31,6 +31,7 @@ import org.apache.tephra.distributed.thrift.TTransactionCouldNotTakeSnapshotExce
 import org.apache.tephra.distributed.thrift.TTransactionNotInProgressException;
 import org.apache.tephra.distributed.thrift.TTransactionServer;
 import org.apache.tephra.rpc.RPCServiceHandler;
+import org.apache.tephra.txprune.TransactionPruningService;
 import org.apache.thrift.TException;
 
 import java.io.ByteArrayOutputStream;
@@ -57,9 +58,11 @@ import java.util.Set;
 public class TransactionServiceThriftHandler implements TTransactionServer.Iface, RPCServiceHandler {
 
   private final TransactionManager txManager;
+  private final TransactionPruningService pruningService;
 
-  public TransactionServiceThriftHandler(TransactionManager txManager) {
+  public TransactionServiceThriftHandler(TransactionManager txManager, TransactionPruningService pruningService) {
     this.txManager = txManager;
+    this.pruningService = pruningService;
   }
 
   @Override
@@ -206,7 +209,12 @@ public class TransactionServiceThriftHandler implements TTransactionServer.Iface
     }
   }
 
-  /* RPCServiceHandler implementation */
+  @Override
+  public void pruneNow() throws TException {
+    pruningService.pruneNow();
+  }
+
+/* RPCServiceHandler implementation */
 
   @Override
   public void init() throws Exception {

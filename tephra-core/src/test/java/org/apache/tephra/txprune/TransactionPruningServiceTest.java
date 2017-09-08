@@ -19,6 +19,7 @@
 
 package org.apache.tephra.txprune;
 
+import com.google.common.base.Stopwatch;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
@@ -67,7 +68,6 @@ public class TransactionPruningServiceTest {
              "org.apache.tephra.txprune.TransactionPruningServiceTest$MockPlugin2");
     // Setup schedule to run every second
     conf.setBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE, true);
-    conf.setInt(TxConstants.TransactionPruning.PRUNE_INTERVAL, 1);
     conf.setInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME, 10);
     conf.setLong(TxConstants.TransactionPruning.PRUNE_GRACE_PERIOD, 0);
 
@@ -96,7 +96,11 @@ public class TransactionPruningServiceTest {
     pruningService.startAndWait();
     // This will cause the pruning run to happen three times,
     // but we are interested in only first two runs for the assertions later
-    TimeUnit.SECONDS.sleep(3);
+    int pruneRuns = TestTransactionPruningRunnable.getRuns();
+    pruningService.pruneNow();
+    pruningService.pruneNow();
+    pruningService.pruneNow();
+    TestTransactionPruningRunnable.waitForRuns(pruneRuns + 3, 5, TimeUnit.MILLISECONDS);
     pruningService.stopAndWait();
 
     // Assert inactive transaction bound that the plugins receive.
@@ -131,7 +135,6 @@ public class TransactionPruningServiceTest {
              "org.apache.tephra.txprune.TransactionPruningServiceTest$MockPlugin2");
     // Setup schedule to run every second
     conf.setBoolean(TxConstants.TransactionPruning.PRUNE_ENABLE, true);
-    conf.setInt(TxConstants.TransactionPruning.PRUNE_INTERVAL, 1);
     conf.setInt(TxConstants.Manager.CFG_TX_MAX_LIFETIME, 10);
     conf.setLong(TxConstants.TransactionPruning.PRUNE_GRACE_PERIOD, 0);
 
@@ -160,7 +163,11 @@ public class TransactionPruningServiceTest {
     pruningService.startAndWait();
     // This will cause the pruning run to happen three times,
     // but we are interested in only first two runs for the assertions later
-    TimeUnit.SECONDS.sleep(3);
+    int pruneRuns = TestTransactionPruningRunnable.getRuns();
+    pruningService.pruneNow();
+    pruningService.pruneNow();
+    pruningService.pruneNow();
+    TestTransactionPruningRunnable.waitForRuns(pruneRuns + 3, 5, TimeUnit.MILLISECONDS);
     pruningService.stopAndWait();
 
     // Assert inactive transaction bound
@@ -233,6 +240,7 @@ public class TransactionPruningServiceTest {
    * Extends {@link TransactionPruningRunnable} to use mock time to help in testing.
    */
   private static class TestTransactionPruningRunnable extends TransactionPruningRunnable {
+    private static int pruneRuns = 0;
     private static Iterator<Long> currentTime;
     TestTransactionPruningRunnable(TransactionManager txManager, Map<String, TransactionPruningPlugin> plugins,
                                    long txMaxLifetimeMillis, long txPruneBufferMillis) {
@@ -246,6 +254,25 @@ public class TransactionPruningServiceTest {
 
     static void setCurrentTime(Iterator<Long> currentTime) {
       TestTransactionPruningRunnable.currentTime = currentTime;
+    }
+
+    @Override
+    public void run() {
+      super.run();
+      pruneRuns++;
+    }
+
+    private static int getRuns() {
+      return pruneRuns;
+    }
+
+    public static void waitForRuns(int runs, int timeout, TimeUnit unit) throws Exception {
+      long timeoutMillis = unit.toMillis(timeout);
+      Stopwatch stopWatch = new Stopwatch();
+      stopWatch.start();
+      while (pruneRuns < runs && stopWatch.elapsedMillis() < timeoutMillis) {
+        TimeUnit.MILLISECONDS.sleep(100);
+      }
     }
   }
 

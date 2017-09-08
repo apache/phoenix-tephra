@@ -140,4 +140,9 @@ public class DetachedTxSystemClient implements TransactionSystemClient {
   public int getInvalidSize() {
     return 0;
   }
+
+  @Override
+  public void pruneNow() {
+    // do nothing
+  }
 }

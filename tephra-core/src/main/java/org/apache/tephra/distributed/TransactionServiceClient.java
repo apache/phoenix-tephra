@@ -488,4 +488,22 @@ public class TransactionServiceClient implements TransactionSystemClient {
       throw Throwables.propagate(e);
     }
   }
+
+  @Override
+  public void pruneNow() {
+    try {
+      this.execute(
+        new Operation<Void>("pruneNow") {
+          @Override
+          public Void execute(TransactionServiceThriftClient client)
+            throws TException {
+            client.pruneNow();
+            return null;
+          }
+        });
+    } catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
 }
