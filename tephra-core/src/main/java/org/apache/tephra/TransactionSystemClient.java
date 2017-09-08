@@ -140,4 +140,9 @@ public interface TransactionSystemClient {
    * @return the size of invalid list
    */
   int getInvalidSize();
+
+  /**
+   * Trigger transaction pruning now.
+   */
+  void pruneNow();
 }

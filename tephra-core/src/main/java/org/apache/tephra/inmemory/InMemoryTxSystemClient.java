@@ -133,4 +133,10 @@ public class InMemoryTxSystemClient implements TransactionSystemClient {
   public int getInvalidSize() {
     return txManager.getInvalidSize();
   }
+
+
+  @Override
+  public void pruneNow() {
+    // no-op: no pruning in-memory
+  }
 }

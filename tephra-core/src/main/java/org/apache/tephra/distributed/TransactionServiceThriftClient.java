@@ -302,6 +302,15 @@ public class TransactionServiceThriftClient {
     }
   }
 
+  public void pruneNow() throws TException {
+    try {
+      client.pruneNow();
+    } catch (TException e) {
+      isValid.set(false);
+      throw e;
+    }
+  }
+
   public boolean isValid() {
     return isValid.get();
   }

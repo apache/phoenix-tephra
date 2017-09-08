@@ -86,4 +86,5 @@ service TTransactionServer {
   TBoolean truncateInvalidTxBefore(1: i64 time) throws (1: TInvalidTruncateTimeException e),
   i32 invalidTxSize(),
   TTransaction checkpoint(1: TTransaction tx) throws (1: TTransactionNotInProgressException e),
+  void pruneNow(),
 }
