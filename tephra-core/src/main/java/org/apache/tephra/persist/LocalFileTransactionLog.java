@@ -18,6 +18,7 @@
 
 package org.apache.tephra.persist;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.metrics.MetricsCollector;
 
 import java.io.BufferedInputStream;
@@ -40,8 +41,8 @@ public class LocalFileTransactionLog extends AbstractTransactionLog {
    * Creates a new transaction log using the given file instance.
    * @param logFile The log file to use.
    */
-  public LocalFileTransactionLog(File logFile, long timestamp, MetricsCollector metricsCollector) {
-    super(timestamp, metricsCollector);
+  LocalFileTransactionLog(File logFile, long timestamp, MetricsCollector metricsCollector, Configuration conf) {
+    super(timestamp, metricsCollector, conf);
     this.logFile = logFile;
   }
 
@@ -64,9 +65,14 @@ public class LocalFileTransactionLog extends AbstractTransactionLog {
     private final FileOutputStream fos;
     private final DataOutputStream out;
 
-    public LogWriter(File logFile) throws IOException {
+    LogWriter(File logFile) throws IOException {
       this.fos = new FileOutputStream(logFile);
       this.out = new DataOutputStream(new BufferedOutputStream(fos, LocalFileTransactionStateStorage.BUFFER_SIZE));
+    }
+
+    @Override
+    public long getPosition() throws IOException {
+      return fos.getChannel().position();
     }
 
     @Override
@@ -97,7 +103,7 @@ public class LocalFileTransactionLog extends AbstractTransactionLog {
     private final DataInputStream in;
     private Entry reuseEntry = new Entry();
 
-    public LogReader(File logFile) throws IOException {
+    LogReader(File logFile) throws IOException {
       this.fin = new FileInputStream(logFile);
       this.in = new DataInputStream(new BufferedInputStream(fin, LocalFileTransactionStateStorage.BUFFER_SIZE));
     }
