@@ -20,8 +20,6 @@ package org.apache.tephra.snapshot;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSortedMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -31,8 +29,8 @@ import com.google.inject.Injector;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.ChangeId;
 import org.apache.tephra.Transaction;
+import org.apache.tephra.TransactionFailureException;
 import org.apache.tephra.TransactionManager;
-import org.apache.tephra.TransactionNotInProgressException;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.persist.TransactionSnapshot;
 import org.apache.tephra.persist.TransactionStateStorage;
@@ -49,7 +47,6 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -290,7 +287,7 @@ public class SnapshotCodecTest {
   }
 
   @Test
-  public void testSnapshotCodecV4() throws IOException, TransactionNotInProgressException {
+  public void testSnapshotCodecV4() throws IOException, TransactionFailureException {
     File testDir = tmpDir.newFolder("testSnapshotCodecV4");
     Configuration conf = new Configuration();
     conf.set(TxConstants.Persist.CFG_TX_SNAPHOT_CODEC_CLASSES, SnapshotCodecV4.class.getName());

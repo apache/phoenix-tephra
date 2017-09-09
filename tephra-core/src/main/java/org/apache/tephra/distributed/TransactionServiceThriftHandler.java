@@ -22,6 +22,7 @@ import com.google.common.collect.Sets;
 import org.apache.tephra.InvalidTruncateTimeException;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TransactionNotInProgressException;
+import org.apache.tephra.TransactionSizeException;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.distributed.thrift.TBoolean;
 import org.apache.tephra.distributed.thrift.TGenericException;
@@ -129,6 +130,26 @@ public class TransactionServiceThriftHandler implements TTransactionServer.Iface
       return new TBoolean(txManager.canCommit(TransactionConverterUtils.unwrap(tx), changeIds));
     } catch (TransactionNotInProgressException e) {
       throw new TTransactionNotInProgressException(e.getMessage());
+    } catch (TransactionSizeException e) {
+      return new TBoolean(false); // can't throw exception -> just indicate that it failed
+    }
+  }
+
+  @Override
+  public TBoolean canCommitOrThrow(TTransaction tx, Set<ByteBuffer> changes) throws TException {
+
+    Set<byte[]> changeIds = Sets.newHashSet();
+    for (ByteBuffer bb : changes) {
+      byte[] changeId = new byte[bb.remaining()];
+      bb.get(changeId);
+      changeIds.add(changeId);
+    }
+    try {
+      return new TBoolean(txManager.canCommit(TransactionConverterUtils.unwrap(tx), changeIds));
+    } catch (TransactionNotInProgressException e) {
+      throw new TTransactionNotInProgressException(e.getMessage());
+    } catch (TransactionSizeException e) {
+      throw new TGenericException(e.getMessage(), TransactionSizeException.class.getName());
     }
   }
 

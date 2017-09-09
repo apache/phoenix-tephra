@@ -634,6 +634,11 @@ public class TransactionContextTest {
     }
 
     @Override
+    public boolean canCommitOrThrow(Transaction tx, Collection<byte[]> changeIds) throws TransactionFailureException {
+      return canCommit(tx, changeIds);
+    }
+
+    @Override
     public boolean commit(Transaction tx) throws TransactionNotInProgressException {
       if (failCommits-- > 0) {
         return false;
