@@ -20,7 +20,9 @@ package org.apache.tephra;
 
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
+import com.google.inject.Inject;
 import com.google.inject.Injector;
+import com.google.inject.Provider;
 import com.google.inject.Scopes;
 import com.google.inject.util.Modules;
 import org.apache.hadoop.conf.Configuration;
@@ -34,14 +36,18 @@ import org.apache.tephra.runtime.DiscoveryModules;
 import org.apache.tephra.runtime.TransactionClientModule;
 import org.apache.tephra.runtime.TransactionModules;
 import org.apache.tephra.runtime.ZKModule;
+import org.apache.tephra.txprune.TransactionPruningService;
 import org.apache.tephra.util.Tests;
+import org.apache.twill.discovery.DiscoveryService;
 import org.apache.twill.internal.zookeeper.InMemoryZKServer;
+import org.apache.twill.zookeeper.ZKClient;
 import org.apache.twill.zookeeper.ZKClientService;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +63,8 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
   private static TransactionService txService;
   private static TransactionStateStorage storage;
   private static TransactionSystemClient txClient;
+
+  private static AtomicInteger pruneRuns = new AtomicInteger();
 
   @ClassRule
   public static TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -83,6 +91,7 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
           @Override
           protected void configure() {
             bind(TransactionStateStorage.class).to(InMemoryTransactionStateStorage.class).in(Scopes.SINGLETON);
+            bind(TransactionService.class).to(TestTransactionService.class).in(Scopes.SINGLETON);
           }
         }),
       new TransactionClientModule()
@@ -150,6 +159,13 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
     Assert.assertEquals(0, CountingRetryStrategyProvider.retries.get());
   }
 
+  @Test
+  public void testPruneNow() {
+    int runs = pruneRuns.get();
+    txClient.pruneNow();
+    Assert.assertEquals(pruneRuns.get(), runs + 1);
+  }
+
   // implements a retry strategy that lets us verify how many times it retried
   public static class CountingRetryStrategyProvider extends RetryNTimes.Provider {
 
@@ -167,6 +183,25 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
         public void beforeRetry() {
           retries.incrementAndGet();
           delegate.beforeRetry();
+        }
+      };
+    }
+  }
+
+  public static class TestTransactionService extends TransactionService {
+    @Inject
+    public TestTransactionService(Configuration conf, ZKClient zkClient,
+                                  DiscoveryService discoveryService,
+                                  Provider<TransactionManager> txManagerProvider) {
+      super(conf, zkClient, discoveryService, txManagerProvider);
+    }
+
+    @Override
+    protected TransactionPruningService createPruningService(Configuration conf, TransactionManager txManager) {
+      return new TransactionPruningService(conf, txManager) {
+        @Override
+        public void pruneNow() {
+          pruneRuns.incrementAndGet();
         }
       };
     }

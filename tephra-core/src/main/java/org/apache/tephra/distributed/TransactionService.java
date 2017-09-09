@@ -48,9 +48,9 @@ import java.util.concurrent.TimeoutException;
 import javax.annotation.Nullable;
 
 /**
- *
+ * Transaction Service that includes Transaction Manager, Thrift Server, and Pruning Service.
  */
-public final class TransactionService extends InMemoryTransactionService {
+public class TransactionService extends InMemoryTransactionService {
   private static final Logger LOG = LoggerFactory.getLogger(TransactionService.class);
   private LeaderElection leaderElection;
   private final Configuration conf;
@@ -97,7 +97,7 @@ public final class TransactionService extends InMemoryTransactionService {
           }
         }, MoreExecutors.sameThreadExecutor());
 
-        pruningService = new TransactionPruningService(conf, txManager);
+        pruningService = createPruningService(conf, txManager);
 
         server = ThriftRPCServer.builder(TTransactionServer.class)
           .setHost(address)
@@ -105,7 +105,7 @@ public final class TransactionService extends InMemoryTransactionService {
           .setWorkerThreads(threads)
           .setMaxReadBufferBytes(maxReadBufferBytes)
           .setIOThreads(ioThreads)
-          .build(new TransactionServiceThriftHandler(txManager));
+          .build(new TransactionServiceThriftHandler(txManager, pruningService));
         try {
           server.startAndWait();
           pruningService.startAndWait();
@@ -140,6 +140,14 @@ public final class TransactionService extends InMemoryTransactionService {
     leaderElection.start();
 
     notifyStarted();
+  }
+
+  /**
+   * Called at startup to create the pruning service.
+   */
+  @VisibleForTesting
+  protected TransactionPruningService createPruningService(Configuration conf, TransactionManager txManager) {
+    return new TransactionPruningService(conf, txManager);
   }
 
   @VisibleForTesting
@@ -178,5 +186,17 @@ public final class TransactionService extends InMemoryTransactionService {
   @Nullable
   public TransactionManager getTransactionManager() {
     return txManager;
+  }
+
+  /**
+   * This allows systems that embed the transaction service access to the pruning service,
+   * so that they can trigger prunning (rather than waiting for its scheduled run time).
+   *
+   * @return null if pruning is not enabled
+   */
+  @SuppressWarnings({"WeakerAccess", "unused"})
+  @Nullable
+  public TransactionPruningService getTransactionPruningService() {
+    return pruningService;
   }
 }
