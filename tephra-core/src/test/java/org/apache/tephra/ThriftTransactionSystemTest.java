@@ -29,7 +29,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.distributed.RetryNTimes;
 import org.apache.tephra.distributed.RetryStrategy;
 import org.apache.tephra.distributed.TransactionService;
-import org.apache.tephra.persist.InMemoryTransactionStateStorage;
+import org.apache.tephra.persist.LocalFileTransactionStateStorage;
 import org.apache.tephra.persist.TransactionStateStorage;
 import org.apache.tephra.runtime.ConfigModule;
 import org.apache.tephra.runtime.DiscoveryModules;
@@ -52,6 +52,7 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class ThriftTransactionSystemTest extends TransactionSystemTest {
@@ -79,6 +80,8 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
     // we want to use a retry strategy that lets us query the number of times it retried:
     conf.set(TxConstants.Service.CFG_DATA_TX_CLIENT_RETRY_STRATEGY, CountingRetryStrategyProvider.class.getName());
     conf.setInt(TxConstants.Service.CFG_DATA_TX_CLIENT_ATTEMPTS, 2);
+    conf.setInt(TxConstants.Manager.CFG_TX_MAX_TIMEOUT, (int) TimeUnit.DAYS.toSeconds(5)); // very long limit
+    conf.set(TxConstants.Manager.CFG_TX_SNAPSHOT_LOCAL_DIR, tmpFolder.newFolder().toString());
 
     Injector injector = Guice.createInjector(
       new ConfigModule(conf),
@@ -88,7 +91,7 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
         .with(new AbstractModule() {
           @Override
           protected void configure() {
-            bind(TransactionStateStorage.class).to(InMemoryTransactionStateStorage.class).in(Scopes.SINGLETON);
+            bind(TransactionStateStorage.class).to(LocalFileTransactionStateStorage.class).in(Scopes.SINGLETON);
             bind(TransactionService.class).to(TestTransactionService.class).in(Scopes.SINGLETON);
           }
         }),
