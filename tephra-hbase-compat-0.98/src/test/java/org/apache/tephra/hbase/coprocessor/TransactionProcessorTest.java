@@ -80,6 +80,7 @@ import org.apache.tephra.snapshot.SnapshotCodecProvider;
 import org.apache.tephra.util.TxUtils;
 import org.apache.zookeeper.KeeperException;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -180,7 +181,7 @@ public class TransactionProcessorTest {
     try {
       region.initialize();
       TransactionStateCache cache = new TransactionStateCacheSupplier(conf).get();
-      LOG.info("Coprocessor is using transaction state: " + cache.getLatestState());
+      LOG.info("Coprocessor is using transaction state: " + waitForTransactionState(cache));
 
       for (int i = 1; i <= 8; i++) {
         for (int k = 1; k <= i; k++) {
@@ -195,7 +196,8 @@ public class TransactionProcessorTest {
       // force a flush to clear the data
       // during flush, the coprocessor should drop all KeyValues with timestamps in the invalid set
       LOG.info("Flushing region " + region.getRegionNameAsString());
-      region.flushcache();
+      HRegion.FlushResult flushResult = region.flushcache();
+      Assert.assertTrue("Unexpected flush result: " + flushResult, flushResult.isFlushSucceeded());
 
       // now a normal scan should only return the valid rows
       // do not use a filter here to test that cleanup works on flush
@@ -237,7 +239,7 @@ public class TransactionProcessorTest {
     try {
       region.initialize();
       TransactionStateCache cache = new TransactionStateCacheSupplier(conf).get();
-      LOG.info("Coprocessor is using transaction state: " + cache.getLatestState());
+      LOG.info("Coprocessor is using transaction state: " + waitForTransactionState(cache));
 
       byte[] row = Bytes.toBytes(1);
       for (int i = 4; i < V.length; i++) {
@@ -622,6 +624,21 @@ public class TransactionProcessorTest {
     assertNotNull(cachedSnapshot);
     assertEquals(invalidSet, cachedSnapshot.getInvalid());
     cache.stopAndWait();
+  }
+
+  private TransactionVisibilityState waitForTransactionState(TransactionStateCache cache) throws InterruptedException {
+    long timeout = 5000; // ms
+    do {
+      TransactionVisibilityState state = cache.getLatestState();
+      if (state != null) {
+        return state;
+      }
+      TimeUnit.MILLISECONDS.sleep(100);
+      timeout -= 100;
+    } while (timeout > 0L);
+    LOG.error("Timed out waiting foe transaction state cache");
+    Assert.fail("Timed out waiting foe transaction state cache");
+    return null;
   }
 
   private static class MockRegionServerServices implements RegionServerServices {
