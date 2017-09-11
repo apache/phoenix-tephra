@@ -58,7 +58,6 @@ import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.hadoop.hbase.util.FSUtils;
 import org.apache.hadoop.hbase.zookeeper.ZooKeeperWatcher;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
-import org.apache.tephra.ChangeId;
 import org.apache.tephra.Transaction;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TxConstants;
@@ -89,7 +88,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -151,7 +149,7 @@ public class TransactionProcessorTest {
         // this will set visibility upper bound to V[6]
         Maps.newTreeMap(ImmutableSortedMap.of(V[6], new TransactionManager.InProgressTx(
           V[6] - 1, Long.MAX_VALUE, TransactionManager.InProgressType.SHORT))),
-        new HashMap<Long, Set<ChangeId>>(), new TreeMap<Long, Set<ChangeId>>());
+        new HashMap<Long, TransactionManager.ChangeSet>(), new TreeMap<Long, TransactionManager.ChangeSet>());
     txVisibilityState = new TransactionSnapshot(txSnapshot.getTimestamp(), txSnapshot.getReadPointer(),
                                                 txSnapshot.getWritePointer(), txSnapshot.getInvalid(),
                                                 txSnapshot.getInProgress());

@@ -60,7 +60,7 @@ public interface TransactionSystemClient {
   /**
    * Checks if transaction with the set of changes can be committed. E.g. it can check conflicts with other changes and
    * refuse commit if there are conflicts. It is assumed that no other changes will be done in between this method call
-   * and {@link #commit(Transaction)} which may check conflicts again to avoid races.
+   * and {@link #commitOrThrow(Transaction)} which will check conflicts again to avoid races.
    * <p/>
    * Since we do conflict detection at commit time as well, this may seem redundant. The idea is to check for conflicts
    * before we persist changes to avoid rollback in case of conflicts as much as possible.
@@ -80,7 +80,7 @@ public interface TransactionSystemClient {
   /**
    * Checks if transaction with the set of changes can be committed. E.g. it can check conflicts with other changes and
    * refuse commit if there are conflicts. It is assumed that no other changes will be done in between this method call
-   * and {@link #commit(Transaction)} which may check conflicts again to avoid races.
+   * and {@link #commitOrThrow(Transaction)} which will check conflicts again to avoid races.
    * <p/>
    * Since we do conflict detection at commit time as well, this may seem redundant. The idea is to check for conflicts
    * before we persist changes to avoid rollback in case of conflicts as much as possible.
@@ -89,19 +89,36 @@ public interface TransactionSystemClient {
    *
    * @param tx transaction to verify
    * @param changeIds ids of changes made by transaction
-   * @return true if transaction can be committed otherwise false
-   * @throws TransactionSizeException if the size of the chgange set exceeds the allowed limit
-   * @throws TransactionNotInProgressException if the transaction is not in progress; most likely it has timed out.
+   *
+   * @throws TransactionSizeException if the size of the change set exceeds the allowed limit
+   * @throws TransactionConflictException if the change set has a conflict with an overlapping transaction
+   * @throws TransactionNotInProgressException if the transaction is not in progress; most likely it has timed out
    */
-  boolean canCommitOrThrow(Transaction tx, Collection<byte[]> changeIds) throws TransactionFailureException;
+  void canCommitOrThrow(Transaction tx, Collection<byte[]> changeIds)
+    throws TransactionFailureException;
 
   /**
    * Makes transaction visible. It will again check conflicts of changes submitted previously with
-   * {@link #canCommit(Transaction, java.util.Collection)}
+   * {@link #canCommitOrThrow(Transaction, java.util.Collection)}
+   *
    * @param tx transaction to make visible.
    * @return true if transaction can be committed otherwise false
+   *
+   * @deprecated as of 0.13-incubating. Use {@link #canCommitOrThrow(Transaction, Collection)} instead.
    */
+  @Deprecated
   boolean commit(Transaction tx) throws TransactionNotInProgressException;
+
+  /**
+   * Makes transaction visible. It will again check conflicts of changes submitted previously with
+   * {@link #canCommitOrThrow(Transaction, java.util.Collection)}
+   *
+   * @param tx transaction to make visible.
+   *
+   * @throws TransactionConflictException if the transaction has a conflict with an overlapping transaction
+   * @throws TransactionNotInProgressException if the transaction is not in progress; most likely it has timed out
+   */
+  void commitOrThrow(Transaction tx) throws TransactionFailureException;
 
   /**
    * Makes transaction visible. You should call it only when all changes of this tx are undone.

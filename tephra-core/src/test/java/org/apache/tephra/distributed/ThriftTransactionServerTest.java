@@ -197,7 +197,7 @@ public class ThriftTransactionServerTest {
     // simply start + commit transaction
     TransactionSystemClient txClient = getClient();
     Transaction tx = txClient.startShort();
-    txClient.commit(tx);
+    txClient.commitOrThrow(tx);
 
     // Expire zookeeper session, which causes Thrift server to stop running.
     expireZkSession(zkClientService);
@@ -215,7 +215,7 @@ public class ThriftTransactionServerTest {
     txClient = getClient();
     // verify that we can start and commit a transaction after becoming leader again
     tx = txClient.startShort();
-    txClient.commit(tx);
+    txClient.commitOrThrow(tx);
   }
 
   private void expireZkSession(ZKClientService zkClientService) throws Exception {

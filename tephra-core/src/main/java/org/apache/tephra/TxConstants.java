@@ -196,6 +196,17 @@ public class TxConstants {
     public static final long DEFAULT_TX_CHANGESET_SIZE_LIMIT = Long.MAX_VALUE;
     /** The default warning threshold for the total size in bytes of a change set is unlimited. */
     public static final long DEFAULT_TX_CHANGESET_SIZE_WARN_THRESHOLD = Long.MAX_VALUE;
+
+    /** Whether and how long to retain the client id of a transaction. Valid values are:
+     * <ul>
+     *   <li>OFF - do not retain the client id at all</li>
+     *   <li>ACTIVE - retain the client id until a transaction commits, aborts, or is invalidated</li>
+     *   <li>COMMITTED - retain the client id after it commits, as long as it participates in conflict detection</li>
+     * </ul>
+     */
+    public static final String CFG_TX_RETAIN_CLIENT_ID = "data.tx.retain.client.id";
+    /** Default for how long to retain a transaction's client id */
+    public static final String DEFAULT_TX_RETAIN_CLIENT_ID = "COMMITTED";
   }
 
   /**

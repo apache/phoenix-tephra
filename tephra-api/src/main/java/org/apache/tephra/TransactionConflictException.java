@@ -22,11 +22,50 @@ package org.apache.tephra;
  * Thrown to indicate transaction conflict occurred when trying to commit a transaction.
  */
 public class TransactionConflictException extends TransactionFailureException {
+
+  private final Long transactionId;
+  private final String conflictingKey;
+  private final String conflictingClient;
+
+  /**
+   * @deprecated since 0.13-incubating. Use {@link #TransactionConflictException(long, String, String)} instead.
+   */
+  @Deprecated
   public TransactionConflictException(String message) {
     super(message);
+    transactionId = null;
+    conflictingKey = null;
+    conflictingClient = null;
   }
 
+  /**
+   * @deprecated since 0.13-incubating. Use {@link #TransactionConflictException(long, String, String)} instead.
+   */
+  @Deprecated
   public TransactionConflictException(String message, Throwable cause) {
     super(message, cause);
+    transactionId = null;
+    conflictingKey = null;
+    conflictingClient = null;
+  }
+
+  public TransactionConflictException(long transactionId, String conflictingKey, String conflictingClient) {
+    super(String.format("Transaction %d conflicts with %s on change key '%s'", transactionId,
+                        conflictingClient == null ? "unknown client" : conflictingClient, conflictingKey));
+    this.transactionId = transactionId;
+    this.conflictingKey = conflictingKey;
+    this.conflictingClient = conflictingClient;
+  }
+
+  public Long getTransactionId() {
+    return transactionId;
+  }
+
+  public String getConflictingKey() {
+    return conflictingKey;
+  }
+
+  public String getConflictingClient() {
+    return conflictingClient;
   }
 }

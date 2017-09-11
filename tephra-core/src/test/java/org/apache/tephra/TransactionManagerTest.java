@@ -31,12 +31,14 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
 /**
  *
  */
+@SuppressWarnings("WeakerAccess")
 public class TransactionManagerTest extends TransactionSystemTest {
 
   private static Configuration conf;
@@ -76,6 +78,92 @@ public class TransactionManagerTest extends TransactionSystemTest {
   }
 
   @Test
+  public void testCheckpointing() throws TransactionFailureException {
+    // create a few transactions
+    Transaction tx1 = txManager.startShort();
+    Transaction tx2 = txManager.startShort();
+    Transaction tx3 = txManager.startShort();
+
+    // start and commit a few
+    for (int i = 0; i < 5; i++) {
+      Transaction tx = txManager.startShort();
+      txManager.canCommit(tx.getTransactionId(), Collections.singleton(new byte[] { (byte) i }));
+      txManager.commit(tx.getTransactionId(), tx.getWritePointer());
+    }
+
+    // checkpoint the transactions
+    Transaction tx3c = txManager.checkpoint(tx3);
+    Transaction tx2c = txManager.checkpoint(tx2);
+    Transaction tx1c = txManager.checkpoint(tx1);
+
+    // start and commit a few (this moves the read pointer past all checkpoint write versions)
+    for (int i = 5; i < 10; i++) {
+      Transaction tx = txManager.startShort();
+      txManager.canCommit(tx.getTransactionId(), Collections.singleton(new byte[] { (byte) i }));
+      txManager.commit(tx.getTransactionId(), tx.getWritePointer());
+    }
+
+    // start new tx and validate all write pointers are excluded
+    Transaction tx = txManager.startShort();
+    validateSorted(tx.getInProgress());
+    validateSorted(tx.getInvalids());
+    Assert.assertFalse(tx.isVisible(tx1.getWritePointer()));
+    Assert.assertFalse(tx.isVisible(tx2.getWritePointer()));
+    Assert.assertFalse(tx.isVisible(tx3.getWritePointer()));
+    Assert.assertFalse(tx.isVisible(tx1c.getWritePointer()));
+    Assert.assertFalse(tx.isVisible(tx2c.getWritePointer()));
+    Assert.assertFalse(tx.isVisible(tx3c.getWritePointer()));
+    txManager.abort(tx);
+
+    // abort one of the checkpoints
+    txManager.abort(tx1c);
+
+    // start new tx and validate all write pointers are excluded
+    tx = txManager.startShort();
+    validateSorted(tx.getInProgress());
+    validateSorted(tx.getInvalids());
+    Assert.assertFalse(tx.isVisible(tx2.getWritePointer()));
+    Assert.assertFalse(tx.isVisible(tx3.getWritePointer()));
+    Assert.assertFalse(tx.isVisible(tx2c.getWritePointer()));
+    Assert.assertFalse(tx.isVisible(tx3c.getWritePointer()));
+    txManager.abort(tx);
+
+    // invalidate one of the checkpoints
+    txManager.invalidate(tx2c.getTransactionId());
+
+    // start new tx and validate all write pointers are excluded
+    tx = txManager.startShort();
+    validateSorted(tx.getInProgress());
+    validateSorted(tx.getInvalids());
+    Assert.assertFalse(tx.isVisible(tx2.getWritePointer()));
+    Assert.assertFalse(tx.isVisible(tx3.getWritePointer()));
+    Assert.assertFalse(tx.isVisible(tx2c.getWritePointer()));
+    Assert.assertFalse(tx.isVisible(tx3c.getWritePointer()));
+    txManager.abort(tx);
+
+    // commit the last checkpoint
+    txManager.canCommit(tx3.getTransactionId(), Collections.<byte[]>emptyList());
+    txManager.commit(tx3c.getTransactionId(), tx3c.getWritePointer());
+
+    // start new tx and validate all write pointers are excluded
+    tx = txManager.startShort();
+    validateSorted(tx.getInProgress());
+    validateSorted(tx.getInvalids());
+    Assert.assertFalse(tx.isVisible(tx2.getWritePointer()));
+    Assert.assertFalse(tx.isVisible(tx2c.getWritePointer()));
+    txManager.abort(tx);
+  }
+
+  private void validateSorted(long[] array) {
+    Long lastSeen = null;
+    for (long value : array) {
+      Assert.assertTrue(String.format("%s is not sorted", Arrays.toString(array)),
+                        lastSeen == null || lastSeen < value);
+      lastSeen = value;
+    }
+  }
+
+  @Test
   public void testTransactionCleanup() throws Exception {
     Configuration config = new Configuration(conf);
     config.setInt(TxConstants.Manager.CFG_TX_CLEANUP_INTERVAL, 3);
@@ -98,8 +186,8 @@ public class TransactionManagerTest extends TransactionSystemTest {
       // start and commit a bunch of transactions
       for (int i = 0; i < 10; i++) {
         Transaction tx = txm.startShort();
-        Assert.assertTrue(txm.canCommit(tx, Collections.singleton(new byte[] { (byte) i })));
-        Assert.assertTrue(txm.commit(tx));
+        txm.canCommit(tx.getTransactionId(), Collections.singleton(new byte[] { (byte) i }));
+        txm.commit(tx.getTransactionId(), tx.getWritePointer());
       }
       // all of these should still be in the committed set
       Assert.assertEquals(0, txm.getInvalidSize());
@@ -124,14 +212,14 @@ public class TransactionManagerTest extends TransactionSystemTest {
                                  tx2.getWritePointer(),
                                  tx2c.getWritePointer()}, txx.getInvalids());
       // try to commit the last transaction that was started
-      Assert.assertTrue(txm.canCommit(txx, Collections.singleton(new byte[] { 0x0a })));
-      Assert.assertTrue(txm.commit(txx));
+      txm.canCommit(txx.getTransactionId(), Collections.singleton(new byte[] { 0x0a }));
+      txm.commit(txx.getTransactionId(), txx.getWritePointer());
 
       // now the committed change sets should be empty again
       Assert.assertEquals(0, txm.getCommittedSize());
       // cannot commit transaction as it was timed out
       try {
-        txm.canCommit(tx1, Collections.singleton(new byte[] { 0x11 }));
+        txm.canCommit(tx1.getTransactionId(), Collections.singleton(new byte[] { 0x11 }));
         Assert.fail();
       } catch (TransactionNotInProgressException e) {
         // expected
@@ -148,14 +236,14 @@ public class TransactionManagerTest extends TransactionSystemTest {
       // run another bunch of transactions
       for (int i = 0; i < 10; i++) {
         Transaction tx = txm.startShort();
-        Assert.assertTrue(txm.canCommit(tx, Collections.singleton(new byte[] { (byte) i })));
-        Assert.assertTrue(txm.commit(tx));
+        txm.canCommit(tx.getTransactionId(), Collections.singleton(new byte[] { (byte) i }));
+        txm.commit(tx.getTransactionId(), tx.getWritePointer());
       }
       // none of these should still be in the committed set (tx2 is long-running).
       Assert.assertEquals(0, txm.getInvalidSize());
       Assert.assertEquals(0, txm.getCommittedSize());
       // commit tx2, abort tx3
-      Assert.assertTrue(txm.commit(ltx1));
+      txm.commit(ltx1.getTransactionId(), ltx1.getWritePointer());
       txm.abort(ltx2);
       // none of these should still be in the committed set (tx2 is long-running).
       // Only tx3 is invalid list as it was aborted and is long-running. tx1 is short one and it rolled back its changes
@@ -196,7 +284,7 @@ public class TransactionManagerTest extends TransactionSystemTest {
 
       // cannot commit transaction as it was timed out
       try {
-        txm.canCommit(tx1, Collections.singleton(new byte[] { 0x11 }));
+        txm.canCommit(tx1.getTransactionId(), Collections.singleton(new byte[] { 0x11 }));
         Assert.fail();
       } catch (TransactionNotInProgressException e) {
         // expected
