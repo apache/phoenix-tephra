@@ -20,6 +20,7 @@
 package org.apache.tephra.hbase.txprune;
 
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -43,8 +44,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
@@ -287,6 +290,10 @@ public class HBaseTransactionPruningPlugin implements TransactionPruningPlugin {
    * @throws IOException when not able to talk to HBase
    */
   private long computePruneUpperBound(TimeRegions timeRegions) throws IOException {
+    // Get the tables for the current time from the latest regions set
+    final Set<TableName> existingTables = getTableNamesForRegions(timeRegions.getRegions());
+    LOG.debug("Tables for time {} = {}", timeRegions.getTime(), existingTables);
+
     do {
       LOG.debug("Computing prune upper bound for {}", timeRegions);
       SortedSet<byte[]> transactionalRegions = timeRegions.getRegions();
@@ -301,6 +308,15 @@ public class HBaseTransactionPruningPlugin implements TransactionPruningPlugin {
                       "and hence the data must be incomplete", time);
         }
         continue;
+      }
+
+      // Remove non-existing tables from the transactional regions set, so that we don't lookup prune upper bounds
+      // for them. Since the deleted tables do not exist anymore, there is no need to make sure they have been
+      // compacted. This ensures that transient tables do not block pruning progress.
+      transactionalRegions = filterDeletedTableRegions(existingTables, transactionalRegions);
+      if (LOG.isDebugEnabled()) {
+        LOG.debug("Transactional regions after removing the regions of non-existing tables = {}",
+                  Iterables.transform(transactionalRegions, TimeRegions.BYTE_ARR_TO_STRING_FN));
       }
 
       // Get the prune upper bounds for all the transactional regions
@@ -334,6 +350,25 @@ public class HBaseTransactionPruningPlugin implements TransactionPruningPlugin {
       timeRegions = dataJanitorState.getRegionsOnOrBeforeTime(time - 1);
     } while (timeRegions != null);
     return -1;
+  }
+
+  private SortedSet<byte[]> filterDeletedTableRegions(final Set<TableName> existingTables,
+                                                      SortedSet<byte[]> transactionalRegions) {
+    return Sets.filter(transactionalRegions,
+                       new Predicate<byte[]>() {
+                         @Override
+                         public boolean apply(byte[] region) {
+                           return existingTables.contains(HRegionInfo.getTable(region));
+                         }
+                       });
+  }
+
+  private Set<TableName> getTableNamesForRegions(Set<byte[]> regions) {
+    Set<TableName> tableNames = new HashSet<>(regions.size());
+    for (byte[] region : regions) {
+      tableNames.add(HRegionInfo.getTable(region));
+    }
+    return tableNames;
   }
 
   private Map<byte[], Long> handleEmptyRegions(long inactiveTransactionBound,
