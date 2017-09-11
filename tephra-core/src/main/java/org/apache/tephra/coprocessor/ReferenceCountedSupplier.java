@@ -54,7 +54,7 @@ public class ReferenceCountedSupplier<T extends Service> {
         // Instance has not been instantiated
         T serviceInstance = instanceSupplier.get();
         instance.set(serviceInstance);
-        serviceInstance.start();
+        serviceInstance.startAndWait();
       }
       int newCount = refCount.incrementAndGet();
       if (LOG.isDebugEnabled()) {
