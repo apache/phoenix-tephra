@@ -364,8 +364,8 @@ public class SnapshotCodecTest {
     Assert.assertTrue(inProgressTx.getCheckpointWritePointers().isEmpty());
 
     // Should be able to commit the transaction
-    Assert.assertTrue(txManager.canCommit(checkpointTx, Collections.<byte[]>emptyList()));
-    Assert.assertTrue(txManager.commit(checkpointTx));
+    txManager.canCommit(checkpointTx.getTransactionId(), Collections.<byte[]>emptyList());
+    txManager.commit(checkpointTx.getTransactionId(), checkpointTx.getWritePointer());
 
     // save a new snapshot
     txManager.stopAndWait();

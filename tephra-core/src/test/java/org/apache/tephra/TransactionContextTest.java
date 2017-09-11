@@ -18,16 +18,12 @@
 
 package org.apache.tephra;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
-import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Singleton;
 import com.google.inject.util.Modules;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.tephra.inmemory.InMemoryTxSystemClient;
 import org.apache.tephra.runtime.ConfigModule;
 import org.apache.tephra.runtime.DiscoveryModules;
 import org.apache.tephra.runtime.TransactionModules;
@@ -40,8 +36,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
-import java.util.Collection;
-import java.util.List;
 
 /**
  * Tests the transaction executor.
@@ -74,10 +68,10 @@ public class TransactionContextTest {
     txClient = (DummyTxClient) injector.getInstance(TransactionSystemClient.class);
   }
 
-  final DummyTxAware ds1 = new DummyTxAware(), ds2 = new DummyTxAware();
+  private final DummyTxAware ds1 = new DummyTxAware(), ds2 = new DummyTxAware();
 
-  static final byte[] A = { 'a' };
-  static final byte[] B = { 'b' };
+  private static final byte[] A = { 'a' };
+  private static final byte[] B = { 'b' };
 
   private static TransactionContext newTransactionContext(TransactionAware... txAwares) {
     return new TransactionContext(txClient, txAwares);
@@ -115,7 +109,7 @@ public class TransactionContextTest {
 
   @Test
   public void testPostCommitFailure() throws TransactionFailureException, InterruptedException {
-    ds1.failPostCommitTxOnce = InduceFailure.ThrowException;
+    ds1.failPostCommitTxOnce = DummyTxAware.InduceFailure.ThrowException;
     TransactionContext context = newTransactionContext(ds1, ds2);
     // start transaction
     context.start();
@@ -145,7 +139,7 @@ public class TransactionContextTest {
 
   @Test
   public void testPersistFailure() throws TransactionFailureException, InterruptedException {
-    ds1.failCommitTxOnce = InduceFailure.ThrowException;
+    ds1.failCommitTxOnce = DummyTxAware.InduceFailure.ThrowException;
     TransactionContext context = newTransactionContext(ds1, ds2);
     // start transaction
     context.start();
@@ -175,7 +169,7 @@ public class TransactionContextTest {
 
   @Test
   public void testPersistFalse() throws TransactionFailureException, InterruptedException {
-    ds1.failCommitTxOnce = InduceFailure.ReturnFalse;
+    ds1.failCommitTxOnce = DummyTxAware.InduceFailure.ReturnFalse;
     TransactionContext context = newTransactionContext(ds1, ds2);
     // start transaction
     context.start();
@@ -205,8 +199,8 @@ public class TransactionContextTest {
 
   @Test
   public void testPersistAndRollbackFailure() throws TransactionFailureException, InterruptedException {
-    ds1.failCommitTxOnce = InduceFailure.ThrowException;
-    ds1.failRollbackTxOnce = InduceFailure.ThrowException;
+    ds1.failCommitTxOnce = DummyTxAware.InduceFailure.ThrowException;
+    ds1.failRollbackTxOnce = DummyTxAware.InduceFailure.ThrowException;
     TransactionContext context = newTransactionContext(ds1, ds2);
     // start transaction
     context.start();
@@ -236,8 +230,8 @@ public class TransactionContextTest {
 
   @Test
   public void testPersistAndRollbackFalse() throws TransactionFailureException, InterruptedException {
-    ds1.failCommitTxOnce = InduceFailure.ReturnFalse;
-    ds1.failRollbackTxOnce = InduceFailure.ReturnFalse;
+    ds1.failCommitTxOnce = DummyTxAware.InduceFailure.ReturnFalse;
+    ds1.failRollbackTxOnce = DummyTxAware.InduceFailure.ReturnFalse;
     TransactionContext context = newTransactionContext(ds1, ds2);
     // start transaction
     context.start();
@@ -327,8 +321,8 @@ public class TransactionContextTest {
 
   @Test
   public void testChangesAndRollbackFailure() throws TransactionFailureException, InterruptedException {
-    ds1.failChangesTxOnce = InduceFailure.ThrowException;
-    ds1.failRollbackTxOnce = InduceFailure.ThrowException;
+    ds1.failChangesTxOnce = DummyTxAware.InduceFailure.ThrowException;
+    ds1.failRollbackTxOnce = DummyTxAware.InduceFailure.ThrowException;
     TransactionContext context = newTransactionContext(ds1, ds2);
     // start transaction
     context.start();
@@ -358,7 +352,7 @@ public class TransactionContextTest {
 
   @Test
   public void testStartAndRollbackFailure() throws TransactionFailureException, InterruptedException {
-    ds1.failStartTxOnce = InduceFailure.ThrowException;
+    ds1.failStartTxOnce = DummyTxAware.InduceFailure.ThrowException;
     TransactionContext context = newTransactionContext(ds1, ds2);
     // start transaction
     try {
@@ -410,7 +404,7 @@ public class TransactionContextTest {
 
   @Test
   public void testAddThenFailure() throws TransactionFailureException, InterruptedException {
-    ds2.failCommitTxOnce = InduceFailure.ThrowException;
+    ds2.failCommitTxOnce = DummyTxAware.InduceFailure.ThrowException;
 
     TransactionContext context = newTransactionContext(ds1);
     // start transaction
@@ -482,7 +476,7 @@ public class TransactionContextTest {
 
   @Test
   public void testAndThenRemoveOnFailure() throws TransactionFailureException {
-    ds1.failCommitTxOnce = InduceFailure.ThrowException;
+    ds1.failCommitTxOnce = DummyTxAware.InduceFailure.ThrowException;
     TransactionContext context = newTransactionContext();
 
     context.start();
@@ -506,176 +500,5 @@ public class TransactionContextTest {
     Assert.assertTrue(ds1.rolledBack);
 
     Assert.assertEquals(txClient.state, DummyTxClient.CommitState.Aborted);
-  }
-
-  enum InduceFailure { NoFailure, ReturnFalse, ThrowException }
-
-  static class DummyTxAware implements TransactionAware {
-
-    Transaction tx;
-    boolean started = false;
-    boolean committed = false;
-    boolean checked = false;
-    boolean rolledBack = false;
-    boolean postCommitted = false;
-    List<byte[]> changes = Lists.newArrayList();
-
-    InduceFailure failStartTxOnce = InduceFailure.NoFailure;
-    InduceFailure failChangesTxOnce = InduceFailure.NoFailure;
-    InduceFailure failCommitTxOnce = InduceFailure.NoFailure;
-    InduceFailure failPostCommitTxOnce = InduceFailure.NoFailure;
-    InduceFailure failRollbackTxOnce = InduceFailure.NoFailure;
-
-    void addChange(byte[] key) {
-      changes.add(key);
-    }
-
-    void reset() {
-      tx = null;
-      started = false;
-      checked = false;
-      committed = false;
-      rolledBack = false;
-      postCommitted = false;
-      changes.clear();
-    }
-
-    @Override
-    public void startTx(Transaction tx) {
-      reset();
-      started = true;
-      this.tx = tx;
-      if (failStartTxOnce == InduceFailure.ThrowException) {
-        failStartTxOnce = InduceFailure.NoFailure;
-        throw new RuntimeException("start failure");
-      }
-    }
-
-    @Override
-    public void updateTx(Transaction tx) {
-      this.tx = tx;
-    }
-
-    @Override
-    public Collection<byte[]> getTxChanges() {
-      checked = true;
-      if (failChangesTxOnce == InduceFailure.ThrowException) {
-        failChangesTxOnce = InduceFailure.NoFailure;
-        throw new RuntimeException("changes failure");
-      }
-      return ImmutableList.copyOf(changes);
-    }
-
-    @Override
-    public boolean commitTx() throws Exception {
-      committed = true;
-      if (failCommitTxOnce == InduceFailure.ThrowException) {
-        failCommitTxOnce = InduceFailure.NoFailure;
-        throw new RuntimeException("persist failure");
-      }
-      if (failCommitTxOnce == InduceFailure.ReturnFalse) {
-        failCommitTxOnce = InduceFailure.NoFailure;
-        return false;
-      }
-      return true;
-    }
-
-    @Override
-    public void postTxCommit() {
-      postCommitted = true;
-      if (failPostCommitTxOnce == InduceFailure.ThrowException) {
-        failPostCommitTxOnce = InduceFailure.NoFailure;
-        throw new RuntimeException("post failure");
-      }
-    }
-
-    @Override
-    public boolean rollbackTx() throws Exception {
-      rolledBack = true;
-      if (failRollbackTxOnce == InduceFailure.ThrowException) {
-        failRollbackTxOnce = InduceFailure.NoFailure;
-        throw new RuntimeException("rollback failure");
-      }
-      if (failRollbackTxOnce == InduceFailure.ReturnFalse) {
-        failRollbackTxOnce = InduceFailure.NoFailure;
-        return false;
-      }
-      return true;
-    }
-
-    @Override
-    public String getTransactionAwareName() {
-      return "dummy";
-    }
-  }
-
-  static class DummyTxClient extends InMemoryTxSystemClient {
-
-    boolean failCanCommitOnce = false;
-    int failCommits = 0;
-    enum CommitState {
-      Started, Committed, Aborted, Invalidated
-    }
-    CommitState state = CommitState.Started;
-
-    @Inject
-    DummyTxClient(TransactionManager txmgr) {
-      super(txmgr);
-    }
-
-    @Override
-    public boolean canCommit(Transaction tx, Collection<byte[]> changeIds) throws TransactionNotInProgressException {
-      if (failCanCommitOnce) {
-        failCanCommitOnce = false;
-        return false;
-      } else {
-        return super.canCommit(tx, changeIds);
-      }
-    }
-
-    @Override
-    public boolean canCommitOrThrow(Transaction tx, Collection<byte[]> changeIds) throws TransactionFailureException {
-      return canCommit(tx, changeIds);
-    }
-
-    @Override
-    public boolean commit(Transaction tx) throws TransactionNotInProgressException {
-      if (failCommits-- > 0) {
-        return false;
-      } else {
-        state = CommitState.Committed;
-        return super.commit(tx);
-      }
-    }
-
-    @Override
-    public Transaction startLong() {
-      state = CommitState.Started;
-      return super.startLong();
-    }
-
-    @Override
-    public Transaction startShort() {
-      state = CommitState.Started;
-      return super.startShort();
-    }
-
-    @Override
-    public Transaction startShort(int timeout) {
-      state = CommitState.Started;
-      return super.startShort(timeout);
-    }
-
-    @Override
-    public void abort(Transaction tx) {
-      state = CommitState.Aborted;
-      super.abort(tx);
-    }
-
-    @Override
-    public boolean invalidate(long tx) {
-      state = CommitState.Invalidated;
-      return super.invalidate(tx);
-    }
   }
 }

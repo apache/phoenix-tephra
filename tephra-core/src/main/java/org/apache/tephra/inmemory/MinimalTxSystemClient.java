@@ -61,13 +61,18 @@ public class MinimalTxSystemClient implements TransactionSystemClient {
   }
 
   @Override
-  public boolean canCommitOrThrow(Transaction tx, Collection<byte[]> changeIds) {
-    return true;
+  public void canCommitOrThrow(Transaction tx, Collection<byte[]> changeIds) {
+    // do nothing
   }
 
   @Override
   public boolean commit(Transaction tx) {
     return true;
+  }
+
+  @Override
+  public void commitOrThrow(Transaction tx) {
+    // do nothing
   }
 
   @Override
