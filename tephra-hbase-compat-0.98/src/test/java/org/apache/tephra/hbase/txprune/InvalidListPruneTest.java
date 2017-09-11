@@ -391,6 +391,71 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
     }
   }
 
+  @Test
+  public void testPruneTransientTable() throws Exception {
+    // Make sure that transient tables do not block the progress of pruning
+
+    // Create a temp table
+    TableName txTempTable = TableName.valueOf("tempTable");
+    createTable(txTempTable.getName(), new byte[][]{family}, false,
+                Collections.singletonList(TestTransactionProcessor.class.getName()));
+
+    TableName txDataTable2 = null;
+
+    TransactionPruningPlugin transactionPruningPlugin = new TestTransactionPruningPlugin();
+    transactionPruningPlugin.initialize(conf);
+
+    try {
+      long now1 = System.currentTimeMillis();
+      long inactiveTxTimeNow1 = (now1 - 150) * TxConstants.MAX_TX_PER_MS;
+      long noPruneUpperBound = -1;
+      long expectedPruneUpperBound1 = (now1 - 200) * TxConstants.MAX_TX_PER_MS;
+      InMemoryTransactionStateCache.setTransactionSnapshot(
+        new TransactionSnapshot(expectedPruneUpperBound1, expectedPruneUpperBound1, expectedPruneUpperBound1,
+                                ImmutableSet.of(expectedPruneUpperBound1),
+                                ImmutableSortedMap.<Long, TransactionManager.InProgressTx>of()));
+
+      // fetch prune upper bound, there should be no prune upper bound since nothing has been compacted yet.
+      // This run is only to store the initial set of regions
+      long pruneUpperBound1 = transactionPruningPlugin.fetchPruneUpperBound(now1, inactiveTxTimeNow1);
+      Assert.assertEquals(noPruneUpperBound, pruneUpperBound1);
+      transactionPruningPlugin.pruneComplete(now1, noPruneUpperBound);
+
+      // Now delete the transient table
+      hBaseAdmin.disableTable(txTempTable);
+      hBaseAdmin.deleteTable(txTempTable);
+      txTempTable = null;
+
+      // Compact the data table now
+      testUtil.compact(txDataTable1, true);
+      // Since the write to prune table happens async, we need to sleep a bit before checking the state of the table
+      TimeUnit.SECONDS.sleep(2);
+
+      // Create a new table that will not be compacted
+      txDataTable2 = TableName.valueOf("invalidListPruneTestTable2");
+      createTable(txDataTable2.getName(), new byte[][]{family}, false,
+                  Collections.singletonList(TestTransactionProcessor.class.getName()));
+
+      // fetch prune upper bound, there should be a prune upper bound even though txTempTable does not exist anymore,
+      // and txDataTable2 has not been compacted/flushed yet
+      long now2 = System.currentTimeMillis();
+      long inactiveTxTimeNow2 = (now1 - 150) * TxConstants.MAX_TX_PER_MS;
+      long pruneUpperBound2 = transactionPruningPlugin.fetchPruneUpperBound(now2, inactiveTxTimeNow2);
+      Assert.assertEquals(expectedPruneUpperBound1, pruneUpperBound2);
+      transactionPruningPlugin.pruneComplete(now2, expectedPruneUpperBound1);
+    } finally {
+      transactionPruningPlugin.destroy();
+      if (txDataTable2 != null) {
+        hBaseAdmin.disableTable(txDataTable2);
+        hBaseAdmin.deleteTable(txDataTable2);
+      }
+      if (txTempTable != null) {
+        hBaseAdmin.disableTable(txTempTable);
+        hBaseAdmin.deleteTable(txTempTable);
+      }
+    }
+  }
+
   private byte[] getRegionName(TableName dataTable, byte[] row) throws IOException {
     HRegionLocation regionLocation = connection.getRegionLocation(dataTable, row, true);
     return regionLocation.getRegionInfo().getRegionName();
