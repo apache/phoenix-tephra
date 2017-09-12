@@ -43,6 +43,12 @@ struct TTransaction {
   9: TVisibilityLevel visibilityLevel
 }
 
+exception TTransactionConflictException {
+  1: i64 transactionId,
+  2: string conflictingKey,
+  3: string conflictingClient
+}
+
 exception TTransactionNotInProgressException {
   1: string message
 }
@@ -73,15 +79,21 @@ service TTransactionServer {
   // TODO remove this as it was replaced with startShortWithTimeout in 0.10
   TTransaction startShortTimeout(1: i32 timeout),
   TTransaction startShortClientId(1: string clientId) throws (1: TGenericException e),
-  TTransaction startShortWithClientIdAndTimeOut(1: string clientId, 2: i32 timeout) throws (1:TGenericException e),
-  TTransaction startShortWithTimeout(1: i32 timeout) throws (1:TGenericException e),
-  TBoolean canCommitTx(1: TTransaction tx, 2: set<binary> changes) throws (1:TTransactionNotInProgressException e),
-  TBoolean canCommitOrThrow(1: TTransaction tx, 2: set<binary> changes) throws (1:TTransactionNotInProgressException e,
-                                                                                2:TGenericException g,),
+  TTransaction startShortWithClientIdAndTimeOut(1: string clientId, 2: i32 timeout) throws (1: TGenericException e),
+  TTransaction startShortWithTimeout(1: i32 timeout) throws (1: TGenericException e),
+  // TODO remove this as it was replaced with canCommitOrThrow in 0.13
+  TBoolean canCommitTx(1: TTransaction tx, 2: set<binary> changes) throws (1: TTransactionNotInProgressException e),
+  void canCommitOrThrow(1: i64 tx, 2: set<binary> changes) throws (1: TTransactionNotInProgressException e,
+                                                                   2: TTransactionConflictException c,
+                                                                   3: TGenericException g),
+  // TODO remove this as it was replaced with commitWithExn in 0.13
   TBoolean commitTx(1: TTransaction tx) throws (1:TTransactionNotInProgressException e),
+  void commitOrThrow(1: i64 txId, 2: i64 wp) throws (1: TTransactionNotInProgressException e,
+                                                     2: TTransactionConflictException c,
+                                                     3: TGenericException g),
   void abortTx(1: TTransaction tx),
-  bool invalidateTx(1: i64 tx),
-  binary getSnapshot() throws (1:TTransactionCouldNotTakeSnapshotException e),
+  bool invalidateTx(1: i64 txid),
+  binary getSnapshot() throws (1: TTransactionCouldNotTakeSnapshotException e),
   void resetState(),
   string status(),
   TBoolean truncateInvalidTx(1: set<i64> txns),

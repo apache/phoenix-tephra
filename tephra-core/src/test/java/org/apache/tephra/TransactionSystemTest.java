@@ -90,7 +90,7 @@ public abstract class TransactionSystemTest {
     }
     Transaction tx = client.startShort();
     client.canCommitOrThrow(tx, fiftyChanges);
-    client.commit(tx);
+    client.commitOrThrow(tx);
 
     // now try another transaction with 51 changes
     fiftyChanges.add(new byte[] { 50 });
@@ -112,7 +112,7 @@ public abstract class TransactionSystemTest {
     }
     tx = client.startShort();
     client.canCommitOrThrow(tx, changes2k);
-    client.commit(tx);
+    client.commitOrThrow(tx);
 
     // now add another byte to the change set to exceed the limit
     changes2k.add(new byte[] { 0 });
@@ -134,14 +134,14 @@ public abstract class TransactionSystemTest {
     Transaction tx1 = client1.startShort();
     Transaction tx2 = client2.startShort();
 
-    Assert.assertTrue(client1.canCommitOrThrow(tx1, asList(C1, C2)));
+    client1.canCommitOrThrow(tx1, asList(C1, C2));
     // second one also can commit even thought there are conflicts with first since first one hasn't committed yet
-    Assert.assertTrue(client2.canCommitOrThrow(tx2, asList(C2, C3)));
+    client2.canCommitOrThrow(tx2, asList(C2, C3));
 
-    Assert.assertTrue(client1.commit(tx1));
+    client1.commitOrThrow(tx1);
 
     // now second one should not commit, since there are conflicts with tx1 that has been committed
-    Assert.assertFalse(client2.commit(tx2));
+    assertCommitConflicts(client2, tx2);
   }
 
   @Test
@@ -161,16 +161,16 @@ public abstract class TransactionSystemTest {
     Transaction tx4 = client4.startShort();
     Transaction tx5 = client5.startShort();
 
-    Assert.assertTrue(client1.canCommitOrThrow(tx1, asList(C1)));
-    Assert.assertTrue(client1.commit(tx1));
+    client1.canCommitOrThrow(tx1, asList(C1));
+    client1.commitOrThrow(tx1);
 
-    Assert.assertTrue(client2.canCommitOrThrow(tx2, asList(C2)));
-    Assert.assertTrue(client2.commit(tx2));
+    client2.canCommitOrThrow(tx2, asList(C2));
+    client2.commitOrThrow(tx2);
 
     // verifying conflicts detection
-    Assert.assertFalse(client3.canCommitOrThrow(tx3, asList(C1)));
-    Assert.assertFalse(client4.canCommitOrThrow(tx4, asList(C2)));
-    Assert.assertTrue(client5.canCommitOrThrow(tx5, asList(C3)));
+    assertCanCommitConflicts(client3, tx3, asList(C1));
+    assertCanCommitConflicts(client4, tx4, asList(C2));
+    client5.canCommitOrThrow(tx5, asList(C3));
   }
 
   @Test
@@ -178,15 +178,10 @@ public abstract class TransactionSystemTest {
     TransactionSystemClient client = getClient();
     Transaction tx = client.startShort();
 
-    Assert.assertTrue(client.canCommitOrThrow(tx, asList(C1, C2)));
-    Assert.assertTrue(client.commit(tx));
+    client.canCommitOrThrow(tx, asList(C1, C2));
+    client.commitOrThrow(tx);
     // cannot commit twice same tx
-    try {
-      Assert.assertFalse(client.commit(tx));
-      Assert.fail();
-    } catch (TransactionNotInProgressException e) {
-      // expected
-    }
+    assertCommitNotInProgress(client, tx);
   }
 
   @Test
@@ -194,7 +189,7 @@ public abstract class TransactionSystemTest {
     TransactionSystemClient client = getClient();
     Transaction tx = client.startShort();
 
-    Assert.assertTrue(client.canCommitOrThrow(tx, asList(C1, C2)));
+    client.canCommitOrThrow(tx, asList(C1, C2));
     client.abort(tx);
     // abort of not active tx has no affect
     client.abort(tx);
@@ -205,21 +200,12 @@ public abstract class TransactionSystemTest {
     TransactionSystemClient client = getClient();
     Transaction tx = client.startShort();
 
-    Assert.assertTrue(client.canCommitOrThrow(tx, asList(C1, C2)));
-    Assert.assertTrue(client.commit(tx));
+    client.canCommitOrThrow(tx, asList(C1, C2));
+    client.commitOrThrow(tx);
+
     // can't re-use same tx again
-    try {
-      client.canCommitOrThrow(tx, asList(C3, C4));
-      Assert.fail();
-    } catch (TransactionNotInProgressException e) {
-      // expected
-    }
-    try {
-      Assert.assertFalse(client.commit(tx));
-      Assert.fail();
-    } catch (TransactionNotInProgressException e) {
-      // expected
-    }
+    assertCanCommitNotInProgress(client, tx, asList(C3, C4));
+    assertCommitNotInProgress(client, tx);
 
     // abort of not active tx has no affect
     client.abort(tx);
@@ -229,24 +215,15 @@ public abstract class TransactionSystemTest {
   public void testUseNotStarted() throws Exception {
     TransactionSystemClient client = getClient();
     Transaction tx1 = client.startShort();
-    Assert.assertTrue(client.commit(tx1));
+    client.commitOrThrow(tx1);
 
     // we know this is one is older than current writePointer and was not used
     Transaction txOld = new Transaction(tx1.getReadPointer(), tx1.getTransactionId() - 1,
                                         new long[] {}, new long[] {}, Transaction.NO_TX_IN_PROGRESS, 
                                         TransactionType.SHORT);
-    try {
-      Assert.assertFalse(client.canCommitOrThrow(txOld, asList(C3, C4)));
-      Assert.fail();
-    } catch (TransactionNotInProgressException e) {
-      // expected
-    }
-    try {
-      Assert.assertFalse(client.commit(txOld));
-      Assert.fail();
-    } catch (TransactionNotInProgressException e) {
-      // expected
-    }
+    assertCanCommitNotInProgress(client, txOld, asList(C3, C4));
+    assertCommitNotInProgress(client, txOld);
+
     // abort of not active tx has no affect
     client.abort(txOld);
 
@@ -254,18 +231,9 @@ public abstract class TransactionSystemTest {
     Transaction txNew = new Transaction(tx1.getReadPointer(), tx1.getTransactionId() + 1,
                                         new long[] {}, new long[] {}, Transaction.NO_TX_IN_PROGRESS, 
                                         TransactionType.SHORT);
-    try {
-      Assert.assertFalse(client.canCommitOrThrow(txNew, asList(C3, C4)));
-      Assert.fail();
-    } catch (TransactionNotInProgressException e) {
-      // expected
-    }
-    try {
-      Assert.assertFalse(client.commit(txNew));
-      Assert.fail();
-    } catch (TransactionNotInProgressException e) {
-      // expected
-    }
+    assertCanCommitNotInProgress(client, txNew, asList(C3, C4));
+    assertCommitNotInProgress(client, txNew);
+
     // abort of not active tx has no affect
     client.abort(txNew);
   }
@@ -275,8 +243,9 @@ public abstract class TransactionSystemTest {
     TransactionSystemClient client = getClient();
     Transaction tx = client.startShort();
 
-    Assert.assertTrue(client.canCommitOrThrow(tx, asList(C1, C2)));
-    Assert.assertTrue(client.commit(tx));
+    client.canCommitOrThrow(tx, asList(C1, C2));
+    client.commitOrThrow(tx);
+
     // abort of not active tx has no affect
     client.abort(tx);
   }
@@ -292,7 +261,7 @@ public abstract class TransactionSystemTest {
     // Cannot invalidate a committed tx
     Transaction tx2 = client.startShort();
     client.canCommitOrThrow(tx2, asList(C3, C4));
-    client.commit(tx2);
+    client.commitOrThrow(tx2);
     Assert.assertFalse(client.invalidate(tx2.getTransactionId()));
   }
 
@@ -306,7 +275,7 @@ public abstract class TransactionSystemTest {
     Transaction tx1 = client.startShort();
     Transaction tx2 = client.startShort();
     client.canCommitOrThrow(tx1, asList(C1, C2));
-    client.commit(tx1);
+    client.commitOrThrow(tx1);
     client.canCommitOrThrow(tx2, asList(C3, C4));
 
     Transaction txPreReset = client.startShort();
@@ -409,8 +378,8 @@ public abstract class TransactionSystemTest {
     // start and commit a few
     for (int i = 0; i < 5; i++) {
       Transaction tx = client.startShort();
-      Assert.assertTrue(client.canCommit(tx, Collections.singleton(new byte[] { (byte) i })));
-      Assert.assertTrue(client.commit(tx));
+      client.canCommitOrThrow(tx, Collections.singleton(new byte[] { (byte) i }));
+      client.commitOrThrow(tx);
     }
 
     // checkpoint the transactions
@@ -421,8 +390,8 @@ public abstract class TransactionSystemTest {
     // start and commit a few (this moves the read pointer past all checkpoint write versions)
     for (int i = 5; i < 10; i++) {
       Transaction tx = client.startShort();
-      Assert.assertTrue(client.canCommit(tx, Collections.singleton(new byte[] { (byte) i })));
-      Assert.assertTrue(client.commit(tx));
+      client.canCommitOrThrow(tx, Collections.singleton(new byte[] { (byte) i }));
+      client.commitOrThrow(tx);
     }
 
     // start new tx and validate all write pointers are excluded
@@ -464,8 +433,8 @@ public abstract class TransactionSystemTest {
     client.abort(tx);
 
     // commit the last checkpoint
-    Assert.assertTrue(client.canCommit(tx3, Collections.<byte[]>emptyList()));
-    Assert.assertTrue(client.commit(tx3c));
+    client.canCommitOrThrow(tx3, Collections.<byte[]>emptyList());
+    client.commitOrThrow(tx3c);
 
     // start new tx and validate all write pointers are excluded
     tx = client.startShort();
@@ -482,6 +451,46 @@ public abstract class TransactionSystemTest {
       Assert.assertTrue(String.format("%s is not sorted", Arrays.toString(array)),
                         lastSeen == null || lastSeen < value);
       lastSeen = value;
+    }
+  }
+
+  private void assertCommitConflicts(TransactionSystemClient client, Transaction tx)
+    throws TransactionFailureException {
+    try {
+      client.commitOrThrow(tx);
+      Assert.fail();
+    } catch (TransactionConflictException e) {
+      //expected
+    }
+  }
+
+  private void assertCanCommitConflicts(TransactionSystemClient client, Transaction tx, Collection<byte[]> changes)
+    throws TransactionFailureException {
+    try {
+      client.canCommitOrThrow(tx, changes);
+      Assert.fail();
+    } catch (TransactionConflictException e) {
+      //expected
+    }
+  }
+
+  private void assertCommitNotInProgress(TransactionSystemClient client, Transaction tx)
+    throws TransactionFailureException {
+    try {
+      client.commitOrThrow(tx);
+      Assert.fail();
+    } catch (TransactionNotInProgressException e) {
+      //expected
+    }
+  }
+
+  private void assertCanCommitNotInProgress(TransactionSystemClient client, Transaction tx, Collection<byte[]> changes)
+    throws TransactionFailureException {
+    try {
+      client.canCommitOrThrow(tx, changes);
+      Assert.fail();
+    } catch (TransactionNotInProgressException e) {
+      //expected
     }
   }
 

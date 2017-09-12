@@ -23,11 +23,13 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import org.apache.tephra.InvalidTruncateTimeException;
 import org.apache.tephra.Transaction;
+import org.apache.tephra.TransactionConflictException;
 import org.apache.tephra.TransactionCouldNotTakeSnapshotException;
 import org.apache.tephra.TransactionNotInProgressException;
 import org.apache.tephra.TransactionSizeException;
 import org.apache.tephra.distributed.thrift.TGenericException;
 import org.apache.tephra.distributed.thrift.TInvalidTruncateTimeException;
+import org.apache.tephra.distributed.thrift.TTransactionConflictException;
 import org.apache.tephra.distributed.thrift.TTransactionCouldNotTakeSnapshotException;
 import org.apache.tephra.distributed.thrift.TTransactionNotInProgressException;
 import org.apache.tephra.distributed.thrift.TTransactionServer;
@@ -64,12 +66,12 @@ public class TransactionServiceThriftClient {
   /**
    * The thrift transport layer. We need this when we close the connection.
    */
-  TTransport transport;
+  private TTransport transport;
 
   /**
    * The actual thrift client.
    */
-  TTransactionServer.Client client;
+  private TTransactionServer.Client client;
 
   /**
    * Whether this client is valid for use.
@@ -184,30 +186,19 @@ public class TransactionServiceThriftClient {
     }
   }
 
-  public boolean canCommit(Transaction tx, Collection<byte[]> changeIds)
-    throws TException, TransactionNotInProgressException {
+  public void canCommit(Transaction tx, Collection<byte[]> changeIds)
+    throws TException, TransactionNotInProgressException, TransactionSizeException, TransactionConflictException {
     try {
-      return client.canCommitTx(TransactionConverterUtils.wrap(tx),
-                                ImmutableSet.copyOf(Iterables.transform(changeIds, BYTES_WRAPPER))).isValue();
+      client.canCommitOrThrow(tx.getTransactionId(),
+                              ImmutableSet.copyOf(Iterables.transform(changeIds, BYTES_WRAPPER)));
     } catch (TTransactionNotInProgressException e) {
       throw new TransactionNotInProgressException(e.getMessage());
-    } catch (TException e) {
-      isValid.set(false);
-      throw e;
-    }
-  }
-
-  public boolean canCommitOrThrow(Transaction tx, Collection<byte[]> changeIds)
-    throws TException, TransactionNotInProgressException, TransactionSizeException {
-    try {
-      return client.canCommitTx(TransactionConverterUtils.wrap(tx),
-                                ImmutableSet.copyOf(Iterables.transform(changeIds, BYTES_WRAPPER))).isValue();
-    } catch (TTransactionNotInProgressException e) {
-      throw new TransactionNotInProgressException(e.getMessage());
+    } catch (TTransactionConflictException e) {
+      throw new TransactionConflictException(e.getTransactionId(), e.getConflictingKey(), e.getConflictingClient());
     } catch (TGenericException e) {
       // currently, we only expect TransactionSizeException here
       if (!TransactionSizeException.class.getName().equals(e.getOriginalExceptionClass())) {
-        LOG.trace("Expecting only {} as the original exception class but found {}",
+        LOG.debug("Expecting only {} as the original exception class but found {}",
                   TransactionSizeException.class.getName(), e.getOriginalExceptionClass());
         throw e;
       }
@@ -218,11 +209,18 @@ public class TransactionServiceThriftClient {
     }
   }
 
-  public boolean commit(Transaction tx) throws TException, TransactionNotInProgressException {
+  public void commit(long txId, long wp)
+    throws TException, TransactionNotInProgressException, TransactionConflictException {
     try {
-      return client.commitTx(TransactionConverterUtils.wrap(tx)).isValue();
+      client.commitOrThrow(txId, wp);
     } catch (TTransactionNotInProgressException e) {
       throw new TransactionNotInProgressException(e.getMessage());
+    } catch (TTransactionConflictException e) {
+      throw new TransactionConflictException(e.getTransactionId(), e.getConflictingKey(), e.getConflictingClient());
+    } catch (TGenericException e) {
+      // we never throw this from commitOrThrow() - it was added as place holder to avoid future thrift API changes
+      LOG.debug("Unexpected {} from commitOrThrow()", TGenericException.class.getName());
+      throw e;
     } catch (TException e) {
       isValid.set(false);
       throw e;

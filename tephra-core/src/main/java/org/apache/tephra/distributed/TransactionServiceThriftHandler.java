@@ -20,6 +20,7 @@ package org.apache.tephra.distributed;
 
 import com.google.common.collect.Sets;
 import org.apache.tephra.InvalidTruncateTimeException;
+import org.apache.tephra.TransactionConflictException;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TransactionNotInProgressException;
 import org.apache.tephra.TransactionSizeException;
@@ -28,6 +29,7 @@ import org.apache.tephra.distributed.thrift.TBoolean;
 import org.apache.tephra.distributed.thrift.TGenericException;
 import org.apache.tephra.distributed.thrift.TInvalidTruncateTimeException;
 import org.apache.tephra.distributed.thrift.TTransaction;
+import org.apache.tephra.distributed.thrift.TTransactionConflictException;
 import org.apache.tephra.distributed.thrift.TTransactionCouldNotTakeSnapshotException;
 import org.apache.tephra.distributed.thrift.TTransactionNotInProgressException;
 import org.apache.tephra.distributed.thrift.TTransactionServer;
@@ -119,25 +121,16 @@ public class TransactionServiceThriftHandler implements TTransactionServer.Iface
 
   @Override
   public TBoolean canCommitTx(TTransaction tx, Set<ByteBuffer> changes) throws TException {
-
-    Set<byte[]> changeIds = Sets.newHashSet();
-    for (ByteBuffer bb : changes) {
-      byte[] changeId = new byte[bb.remaining()];
-      bb.get(changeId);
-      changeIds.add(changeId);
-    }
     try {
-      return new TBoolean(txManager.canCommit(TransactionConverterUtils.unwrap(tx), changeIds));
-    } catch (TransactionNotInProgressException e) {
-      throw new TTransactionNotInProgressException(e.getMessage());
-    } catch (TransactionSizeException e) {
-      return new TBoolean(false); // can't throw exception -> just indicate that it failed
+      canCommitOrThrow(tx.getTransactionId(), changes);
+      return new TBoolean(true);
+    } catch (TTransactionConflictException | TGenericException e) {
+      return new TBoolean(false);
     }
   }
 
   @Override
-  public TBoolean canCommitOrThrow(TTransaction tx, Set<ByteBuffer> changes) throws TException {
-
+  public void canCommitOrThrow(long txId, Set<ByteBuffer> changes) throws TException {
     Set<byte[]> changeIds = Sets.newHashSet();
     for (ByteBuffer bb : changes) {
       byte[] changeId = new byte[bb.remaining()];
@@ -145,20 +138,34 @@ public class TransactionServiceThriftHandler implements TTransactionServer.Iface
       changeIds.add(changeId);
     }
     try {
-      return new TBoolean(txManager.canCommit(TransactionConverterUtils.unwrap(tx), changeIds));
+      txManager.canCommit(txId, changeIds);
     } catch (TransactionNotInProgressException e) {
       throw new TTransactionNotInProgressException(e.getMessage());
     } catch (TransactionSizeException e) {
       throw new TGenericException(e.getMessage(), TransactionSizeException.class.getName());
+    } catch (TransactionConflictException e) {
+      throw new TTransactionConflictException(e.getTransactionId(), e.getConflictingKey(), e.getConflictingClient());
     }
   }
 
   @Override
   public TBoolean commitTx(TTransaction tx) throws TException {
     try {
-      return new TBoolean(txManager.commit(TransactionConverterUtils.unwrap(tx)));
+      commitOrThrow(tx.getTransactionId(), tx.getWritePointer());
+      return new TBoolean(true);
+    } catch (TTransactionConflictException | TGenericException e) {
+      return new TBoolean(false);
+    }
+  }
+
+  @Override
+  public void commitOrThrow(long txId, long wp) throws TException {
+    try {
+      txManager.commit(txId, wp);
     } catch (TransactionNotInProgressException e) {
       throw new TTransactionNotInProgressException(e.getMessage());
+    } catch (TransactionConflictException e) {
+      throw new TTransactionConflictException(e.getTransactionId(), e.getConflictingKey(), e.getConflictingClient());
     }
   }
 

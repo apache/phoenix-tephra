@@ -28,6 +28,7 @@ import it.unimi.dsi.fastutil.longs.LongArrayList;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.tephra.ChangeId;
 import org.apache.tephra.Transaction;
+import org.apache.tephra.TransactionConflictException;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TransactionType;
 import org.apache.tephra.TxConstants;
@@ -142,11 +143,11 @@ public abstract class AbstractTransactionStateStorageTest {
       txManager.invalidate(invalid.getTransactionId());
       // start a tx1, add a change A and commit
       Transaction tx1 = txManager.startShort("client1");
-      Assert.assertTrue(txManager.canCommit(tx1, Collections.singleton(a)));
-      Assert.assertTrue(txManager.commit(tx1));
+      txManager.canCommit(tx1.getTransactionId(), Collections.singleton(a));
+      txManager.commit(tx1.getTransactionId(), tx1.getWritePointer());
       // start a tx2 and add a change B
       Transaction tx2 = txManager.startShort("client2");
-      Assert.assertTrue(txManager.canCommit(tx2, Collections.singleton(b)));
+      txManager.canCommit(tx2.getTransactionId(), Collections.singleton(b));
       // start a tx3
       Transaction tx3 = txManager.startShort("client3");
       // restart
@@ -172,7 +173,7 @@ public abstract class AbstractTransactionStateStorageTest {
       txManager.abort(invalid);
 
       // commit tx2
-      Assert.assertTrue(txManager.commit(tx2));
+      txManager.commit(tx2.getTransactionId(), tx2.getWritePointer());
       // start another transaction, must be greater than tx3
       Transaction tx4 = txManager.startShort();
       Assert.assertTrue(tx4.getTransactionId() > tx3.getTransactionId());
@@ -181,7 +182,12 @@ public abstract class AbstractTransactionStateStorageTest {
       Assert.assertFalse(tx2.isVisible(tx3.getTransactionId()));
       Assert.assertFalse(tx2.isVisible(tx4.getTransactionId()));
       // add same change for tx3
-      Assert.assertFalse(txManager.canCommit(tx3, Collections.singleton(b)));
+      try {
+        txManager.canCommit(tx3.getTransactionId(), Collections.singleton(b));
+        Assert.fail("canCommit() should have failed");
+      } catch (TransactionConflictException e) {
+        // expected
+      }
       // check visibility with new xaction
       Transaction tx5 = txManager.startShort();
       Assert.assertTrue(tx5.isVisible(tx1.getTransactionId()));
@@ -252,11 +258,11 @@ public abstract class AbstractTransactionStateStorageTest {
       final byte[] b = { 'b' };
       // start a tx1, add a change A and commit
       Transaction tx1 = txManager.startShort();
-      Assert.assertTrue(txManager.canCommit(tx1, Collections.singleton(a)));
-      Assert.assertTrue(txManager.commit(tx1));
+      txManager.canCommit(tx1.getTransactionId(), Collections.singleton(a));
+      txManager.commit(tx1.getTransactionId(), tx1.getWritePointer());
       // start a tx2 and add a change B
       Transaction tx2 = txManager.startShort();
-      Assert.assertTrue(txManager.canCommit(tx2, Collections.singleton(b)));
+      txManager.canCommit(tx2.getTransactionId(), Collections.singleton(b));
       // start a tx3
       Transaction tx3 = txManager.startShort();
       TransactionSnapshot origState = txManager.getCurrentState();
