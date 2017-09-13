@@ -384,6 +384,15 @@ public class TxConstants {
     public static final String NUM_ENTRIES_APPENDED = "count";
     public static final String VERSION_KEY = "version";
     public static final byte CURRENT_VERSION = 3;
+
+    /**
+     * Time limit, in milliseconds, of an append to the transaction log before we log it as "slow".
+     */
+    public static final String CFG_SLOW_APPEND_THRESHOLD = "data.tx.log.slow.append.threshold";
+    /**
+     * Default value for the threshold in milli seconds for slow log append warnings.
+     */
+    public static final long DEFAULT_SLOW_APPEND_THRESHOLD = 1000;
   }
 
   /**

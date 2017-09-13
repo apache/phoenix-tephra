@@ -50,9 +50,9 @@ public class HDFSTransactionLog extends AbstractTransactionLog {
    * @param hConf HDFS cluster configuration.
    * @param logPath Path to the log file.
    */
-  public HDFSTransactionLog(final FileSystem fs, final Configuration hConf,
-                            final Path logPath, long timestamp, MetricsCollector metricsCollector) {
-    super(timestamp, metricsCollector);
+  HDFSTransactionLog(final FileSystem fs, final Configuration hConf,
+                     final Path logPath, long timestamp, MetricsCollector metricsCollector) {
+    super(timestamp, metricsCollector, hConf);
     this.fs = fs;
     this.hConf = hConf;
     this.logPath = logPath;
@@ -73,7 +73,7 @@ public class HDFSTransactionLog extends AbstractTransactionLog {
     FileStatus status = fs.getFileStatus(logPath);
     long length = status.getLen();
 
-    TransactionLogReader reader = null;
+    TransactionLogReader reader;
     // check if this file needs to be recovered due to failure
     // Check for possibly empty file. With appends, currently Hadoop reports a
     // zero length even if the file has been sync'd. Revisit if HDFS-376 or
@@ -82,38 +82,36 @@ public class HDFSTransactionLog extends AbstractTransactionLog {
       LOG.warn("File " + logPath + " might be still open, length is 0");
     }
 
+    HDFSUtil hdfsUtil = new HDFSUtil();
+    hdfsUtil.recoverFileLease(fs, logPath, hConf);
     try {
-      HDFSUtil hdfsUtil = new HDFSUtil();
-      hdfsUtil.recoverFileLease(fs, logPath, hConf);
-      try {
-        FileStatus newStatus = fs.getFileStatus(logPath);
-        LOG.info("New file size for " + logPath + " is " + newStatus.getLen());
-        SequenceFile.Reader fileReader = new SequenceFile.Reader(fs, logPath, hConf);
-        reader = new HDFSTransactionLogReaderSupplier(fileReader).get();
-      } catch (EOFException e) {
-        if (length <= 0) {
-          // TODO should we ignore an empty, not-last log file if skip.errors
-          // is false? Either way, the caller should decide what to do. E.g.
-          // ignore if this is the last log in sequence.
-          // TODO is this scenario still possible if the log has been
-          // recovered (i.e. closed)
-          LOG.warn("Could not open " + logPath + " for reading. File is empty", e);
-          return null;
-        } else {
-          // EOFException being ignored
-          return null;
-        }
+      FileStatus newStatus = fs.getFileStatus(logPath);
+      LOG.info("New file size for " + logPath + " is " + newStatus.getLen());
+      SequenceFile.Reader fileReader = new SequenceFile.Reader(fs, logPath, hConf);
+      reader = new HDFSTransactionLogReaderSupplier(fileReader).get();
+    } catch (EOFException e) {
+      if (length <= 0) {
+        // TODO should we ignore an empty, not-last log file if skip.errors
+        // is false? Either way, the caller should decide what to do. E.g.
+        // ignore if this is the last log in sequence.
+        // TODO is this scenario still possible if the log has been
+        // recovered (i.e. closed)
+        LOG.warn("Could not open " + logPath + " for reading. File is empty", e);
+        return null;
+      } else {
+        // EOFException being ignored
+        return null;
       }
-    } catch (IOException e) {
-      throw e;
     }
     return reader;
   }
 
   @VisibleForTesting
   static final class LogWriter implements TransactionLogWriter {
+
     private final SequenceFile.Writer internalWriter;
-    public LogWriter(FileSystem fs, Configuration hConf, Path logPath) throws IOException {
+
+    LogWriter(FileSystem fs, Configuration hConf, Path logPath) throws IOException {
       // TODO: retry a few times to ride over transient failures?
       SequenceFile.Metadata metadata = new SequenceFile.Metadata();
       metadata.set(new Text(TxConstants.TransactionLog.VERSION_KEY),
@@ -122,6 +120,11 @@ public class HDFSTransactionLog extends AbstractTransactionLog {
       this.internalWriter = SequenceFile.createWriter(fs, hConf, logPath, LongWritable.class, TransactionEdit.class,
                                                       SequenceFile.CompressionType.NONE, null, null, metadata);
       LOG.debug("Created a new TransactionLog writer for " + logPath);
+    }
+
+    @Override
+    public long getPosition() throws IOException {
+      return internalWriter.getLength();
     }
 
     @Override
