@@ -54,13 +54,25 @@
       <directory>${project.basedir}/..</directory>
       <outputDirectory>.</outputDirectory>
       <includes>
-        <include>LICENSE</include>
-        <include>NOTICE</include>
         <include>README.rst</include>
         <include>KEYS</include>
         <include>DISCLAIMER</include>
       </includes>
       <fileMode>0644</fileMode>
+    </fileSet>
+    <fileSet>
+      <directory>${project.basedir}/../tephra-distribution</directory>
+      <outputDirectory>.</outputDirectory>
+      <includes>
+        <include>LICENSE</include>
+        <include>NOTICE</include>
+      </includes>
+    </fileSet>
+    <fileSet>
+      <directory>${project.basedir}/../licenses</directory>
+      <outputDirectory>licenses</outputDirectory>
+      <fileMode>0755</fileMode>
+      <directoryMode>0755</directoryMode>
     </fileSet>
   </fileSets>
 </assembly>
