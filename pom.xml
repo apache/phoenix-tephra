@@ -435,6 +435,7 @@
                   <exclude>**/.project</exclude>
                   <exclude>**/.classpath</exclude>
                   <exclude>**/.settings/**</exclude>
+                  <exclude>licenses/**</exclude>
                 </excludes>
               </configuration>
             </execution>
