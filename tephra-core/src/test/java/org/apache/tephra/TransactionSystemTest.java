@@ -31,6 +31,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nullable;
 
 /**
  * Base class for testing implementations of {@link TransactionSystemClient}.
@@ -45,9 +46,12 @@ public abstract class TransactionSystemTest {
   /**
    * Sets up the common properties required for the test cases defined here.
    * Subclasses can call this and add more properties as needed.
+   *
+   * @param existing An existing configuration to be modified. If null, a new confoguration is created.
    */
-  static Configuration getCommonConfiguration() {
-    Configuration conf = new Configuration();
+  @SuppressWarnings("WeakerAccess")
+  protected static Configuration getCommonConfiguration(@Nullable Configuration existing) {
+    Configuration conf = existing != null ? existing : new Configuration();
     conf.setInt(TxConstants.Manager.CFG_TX_MAX_TIMEOUT, (int) TimeUnit.DAYS.toSeconds(5)); // very long limit
     conf.setInt(TxConstants.Manager.CFG_TX_CHANGESET_COUNT_LIMIT, 50);
     conf.setInt(TxConstants.Manager.CFG_TX_CHANGESET_COUNT_WARN_THRESHOLD, 40);

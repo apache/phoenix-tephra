@@ -73,7 +73,7 @@ public class ThriftTransactionSystemTest extends TransactionSystemTest {
     zkServer = InMemoryZKServer.builder().setDataDir(tmpFolder.newFolder()).build();
     zkServer.startAndWait();
 
-    Configuration conf = getCommonConfiguration();
+    Configuration conf = getCommonConfiguration(null);
     conf.setBoolean(TxConstants.Manager.CFG_DO_PERSIST, false);
     conf.set(TxConstants.Service.CFG_DATA_TX_ZOOKEEPER_QUORUM, zkServer.getConnectionStr());
     // we want to use a retry strategy that lets us query the number of times it retried:
