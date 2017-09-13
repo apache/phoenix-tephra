@@ -58,7 +58,7 @@ public class TransactionManagerTest extends TransactionSystemTest {
 
   @BeforeClass
   public static void beforeClass() {
-    conf = getCommonConfiguration();
+    conf = getCommonConfiguration(null);
     conf.setInt(TxConstants.Manager.CFG_TX_CLEANUP_INTERVAL, 0); // no cleanup thread
     // todo should create two sets of tests, one with LocalFileTxStateStorage and one with InMemoryTxStateStorage
     txStateStorage = new InMemoryTransactionStateStorage();
