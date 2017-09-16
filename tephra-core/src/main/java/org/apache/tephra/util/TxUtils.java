@@ -19,6 +19,8 @@
 package org.apache.tephra.util;
 
 import com.google.common.primitives.Longs;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.tephra.Transaction;
 import org.apache.tephra.TransactionManager;
 import org.apache.tephra.TransactionType;
@@ -61,9 +63,7 @@ public class TxUtils {
    * @return The oldest timestamp that will be visible for the given transaction and TTL configuration
    */
   public static long getOldestVisibleTimestamp(Map<byte[], Long> ttlByFamily, Transaction tx) {
-    long maxTTL = getMaxTTL(ttlByFamily);
-    // we know that data will not be cleaned up while this tx is running up to this point as janitor uses it
-    return maxTTL < Long.MAX_VALUE ? tx.getVisibilityUpperBound() - maxTTL * TxConstants.MAX_TX_PER_MS : 0;
+    return getOldestVisibleTimestamp(ttlByFamily, tx, false);
   }
 
   /**
@@ -75,12 +75,28 @@ public class TxUtils {
    * @return The oldest timestamp that will be visible for the given transaction and TTL configuration
    */
   public static long getOldestVisibleTimestamp(Map<byte[], Long> ttlByFamily, Transaction tx, boolean readNonTxnData) {
-    if (readNonTxnData) {
-      long maxTTL = getMaxTTL(ttlByFamily);
-      return maxTTL < Long.MAX_VALUE ? System.currentTimeMillis() - maxTTL : 0;
+    long maxTTL = getMaxTTL(ttlByFamily);
+    if (maxTTL == Long.MAX_VALUE) {
+      return 0;
     }
+    return getOldestVisibleTimestamp(maxTTL, tx, readNonTxnData);
+  }
 
-    return getOldestVisibleTimestamp(ttlByFamily, tx);
+  /**
+   * Returns the oldest visible timestamp for the given transaction, based on the TTL configured.  If the TTL is
+   * negative or zero, the oldest visible timestamp will be {@code 0}.
+   * @param ttl TTL value (in milliseconds)
+   * @param tx The current transaction
+   * @param readNonTxnData indicates that the timestamp returned should allow reading non-transactional data
+   * @return The oldest timestamp that will be visible for the given transaction and TTL configuration
+   */
+  public static long getOldestVisibleTimestamp(long ttl, Transaction tx, boolean readNonTxnData) {
+    if (ttl <= 0) {
+      return 0;
+    }
+    long ttlFactor = readNonTxnData ? 1 : TxConstants.MAX_TX_PER_MS;
+    // if the computed ttl is negative, return 0 because timestamps can not be negative
+    return Math.max(0, tx.getTransactionId() - ttl * ttlFactor);
   }
 
   /**
