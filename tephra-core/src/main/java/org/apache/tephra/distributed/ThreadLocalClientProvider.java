@@ -45,14 +45,8 @@ public class ThreadLocalClientProvider extends AbstractClientProvider {
   public CloseableThriftClient getCloseableClient() throws TException, TimeoutException, InterruptedException {
     TransactionServiceThriftClient client = this.clients.get();
     if (client == null) {
-      try {
-        client = this.newClient();
-        clients.set(client);
-      } catch (TException e) {
-        LOG.error("Unable to create new tx client for thread: "
-                    + e.getMessage());
-        throw e;
-      }
+      client = this.newClient();
+      clients.set(client);
     }
     return new CloseableThriftClient(this, client);
   }

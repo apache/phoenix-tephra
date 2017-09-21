@@ -179,6 +179,34 @@ public class TxConstants {
     public static final String CFG_TX_SNAPSHOT_RETAIN = "data.tx.snapshot.retain";
     /** Default value for number of most recent snapshots to retain. */
     public static final int DEFAULT_TX_SNAPSHOT_RETAIN = 10;
+
+    /** The limit for the number of entries in a change set. If exceeded, the transaction fails. */
+    public static final String CFG_TX_CHANGESET_COUNT_LIMIT = "data.tx.changeset.count.limit";
+    /** The warning threshold for the number of entries in a change set. If exceeded, a warning is logged. */
+    public static final String CFG_TX_CHANGESET_COUNT_WARN_THRESHOLD = "data.tx.changeset.count.warn.threshold";
+    /** The limit for the total size in bytes of a change set. If exceeded, the transaction fails. */
+    public static final String CFG_TX_CHANGESET_SIZE_LIMIT = "data.tx.changeset.size.limit";
+    /** The warning threshold for the total size in bytes of a change set. If exceeded, a warning is logged. */
+    public static final String CFG_TX_CHANGESET_SIZE_WARN_THRESHOLD = "data.tx.changeset.size.warn.threshold";
+    /** The default limit for the number of entries in a change set is unlimited. */
+    public static final int DEFAULT_TX_CHANGESET_COUNT_LIMIT = Integer.MAX_VALUE;
+    /** The default warning threshold for the number of entries in a change set is unlimited. */
+    public static final int DEFAULT_TX_CHANGESET_COUNT_WARN_THRESHOLD = Integer.MAX_VALUE;
+    /** The default limit for the total size in bytes of a change set is unlimited. */
+    public static final long DEFAULT_TX_CHANGESET_SIZE_LIMIT = Long.MAX_VALUE;
+    /** The default warning threshold for the total size in bytes of a change set is unlimited. */
+    public static final long DEFAULT_TX_CHANGESET_SIZE_WARN_THRESHOLD = Long.MAX_VALUE;
+
+    /** Whether and how long to retain the client id of a transaction. Valid values are:
+     * <ul>
+     *   <li>OFF - do not retain the client id at all</li>
+     *   <li>ACTIVE - retain the client id until a transaction commits, aborts, or is invalidated</li>
+     *   <li>COMMITTED - retain the client id after it commits, as long as it participates in conflict detection</li>
+     * </ul>
+     */
+    public static final String CFG_TX_RETAIN_CLIENT_ID = "data.tx.retain.client.id";
+    /** Default for how long to retain a transaction's client id */
+    public static final String DEFAULT_TX_RETAIN_CLIENT_ID = "COMMITTED";
   }
 
   /**
@@ -356,6 +384,15 @@ public class TxConstants {
     public static final String NUM_ENTRIES_APPENDED = "count";
     public static final String VERSION_KEY = "version";
     public static final byte CURRENT_VERSION = 3;
+
+    /**
+     * Time limit, in milliseconds, of an append to the transaction log before we log it as "slow".
+     */
+    public static final String CFG_SLOW_APPEND_THRESHOLD = "data.tx.log.slow.append.threshold";
+    /**
+     * Default value for the threshold in milli seconds for slow log append warnings.
+     */
+    public static final long DEFAULT_SLOW_APPEND_THRESHOLD = 1000;
   }
 
   /**

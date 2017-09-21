@@ -21,7 +21,7 @@
   <parent>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-1.1-base</artifactId>
-    <version>0.13.0-incubating-SNAPSHOT</version>
+    <version>0.14.0-incubating-SNAPSHOT</version>
     <relativePath>../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>

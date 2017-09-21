@@ -1,0 +1,1 @@
+Apache Tephra does not distribute any binary distributions. If users choose to build the Apache Tephra distribution, third party libraries might be included as part of the distribution. LICENSE_BINARY and NOTICE_BINARY contains information on those libraries and their licenses.

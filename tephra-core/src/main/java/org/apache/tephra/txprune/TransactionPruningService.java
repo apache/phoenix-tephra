@@ -50,6 +50,7 @@ public class TransactionPruningService extends AbstractIdleService {
   private final TransactionManager txManager;
   private final long scheduleInterval;
   private final boolean pruneEnabled;
+  private TransactionPruningRunnable pruneRunnable;
   private ScheduledExecutorService scheduledExecutorService;
 
   public TransactionPruningService(Configuration conf, TransactionManager txManager) {
@@ -81,9 +82,8 @@ public class TransactionPruningService extends AbstractIdleService {
     long txPruneBufferMillis =
       TimeUnit.SECONDS.toMillis(conf.getLong(TxConstants.TransactionPruning.PRUNE_GRACE_PERIOD,
                                             TxConstants.TransactionPruning.DEFAULT_PRUNE_GRACE_PERIOD));
-    scheduledExecutorService.scheduleAtFixedRate(
-      getTxPruneRunnable(txManager, plugins, txMaxLifetimeMillis, txPruneBufferMillis),
-      scheduleInterval, scheduleInterval, TimeUnit.SECONDS);
+    pruneRunnable = getTxPruneRunnable(txManager, plugins, txMaxLifetimeMillis, txPruneBufferMillis);
+    scheduledExecutorService.scheduleAtFixedRate(pruneRunnable, scheduleInterval, scheduleInterval, TimeUnit.SECONDS);
     LOG.info("Scheduled {} plugins with interval {} seconds", plugins.size(), scheduleInterval);
   }
 
@@ -102,6 +102,19 @@ public class TransactionPruningService extends AbstractIdleService {
       Thread.currentThread().interrupt();
     }
     LOG.info("Stopped {}", this.getClass().getSimpleName());
+  }
+
+  /**
+   * Trigger a run of the transaction pruning. It will run as soon as no pruning is running. That is,
+   * if pruning is running at this moment, then another will start after it is done.
+   */
+  public void pruneNow() {
+    if (pruneEnabled) {
+      scheduledExecutorService.execute(pruneRunnable);
+      LOG.info("Triggered invalid transaction pruning due to request received.");
+    } else {
+      LOG.info("Request to trigger transaction pruning received but pruning is not enabled.");
+    }
   }
 
   @VisibleForTesting

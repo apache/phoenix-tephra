@@ -191,6 +191,7 @@ public class HDFSTransactionLogTest {
     List<TransactionEdit> edits = TransactionEditUtil.createRandomEdits(totalCount);
     long timestamp = System.currentTimeMillis();
     Configuration configuration = getConfiguration();
+    configuration.set(TxConstants.TransactionLog.CFG_SLOW_APPEND_THRESHOLD, "0");
     FileSystem fs = FileSystem.newInstance(FileSystem.getDefaultUri(configuration), configuration);
     SequenceFile.Writer writer = getSequenceFileWriter(configuration, fs, timestamp, versionNumber);
     AtomicLong logSequence = new AtomicLong();

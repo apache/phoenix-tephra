@@ -43,6 +43,11 @@ public interface TransactionLogWriter extends Closeable {
   void commitMarker(int count) throws IOException;
 
   /**
+   * @return the current position in the output.
+   */
+  long getPosition() throws IOException;
+
+  /**
    * Syncs any pending transaction edits added through {@link #append(AbstractTransactionLog.Entry)},
    * but not yet flushed to durable storage.
    *

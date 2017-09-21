@@ -20,7 +20,7 @@
   <parent>
     <artifactId>tephra-examples</artifactId>
     <groupId>org.apache.tephra</groupId>
-    <version>0.13.0-incubating-SNAPSHOT</version>
+    <version>0.14.0-incubating-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 

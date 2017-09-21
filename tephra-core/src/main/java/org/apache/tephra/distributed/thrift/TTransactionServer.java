@@ -68,11 +68,15 @@ public class TTransactionServer {
 
     public TBoolean canCommitTx(TTransaction tx, Set<ByteBuffer> changes) throws TTransactionNotInProgressException, org.apache.thrift.TException;
 
+    public void canCommitOrThrow(long tx, Set<ByteBuffer> changes) throws TTransactionNotInProgressException, TTransactionConflictException, TGenericException, org.apache.thrift.TException;
+
     public TBoolean commitTx(TTransaction tx) throws TTransactionNotInProgressException, org.apache.thrift.TException;
+
+    public void commitOrThrow(long txId, long wp) throws TTransactionNotInProgressException, TTransactionConflictException, TGenericException, org.apache.thrift.TException;
 
     public void abortTx(TTransaction tx) throws org.apache.thrift.TException;
 
-    public boolean invalidateTx(long tx) throws org.apache.thrift.TException;
+    public boolean invalidateTx(long txid) throws org.apache.thrift.TException;
 
     public ByteBuffer getSnapshot() throws TTransactionCouldNotTakeSnapshotException, org.apache.thrift.TException;
 
@@ -87,6 +91,8 @@ public class TTransactionServer {
     public int invalidTxSize() throws org.apache.thrift.TException;
 
     public TTransaction checkpoint(TTransaction tx) throws TTransactionNotInProgressException, org.apache.thrift.TException;
+
+    public void pruneNow() throws org.apache.thrift.TException;
 
   }
 
@@ -108,11 +114,15 @@ public class TTransactionServer {
 
     public void canCommitTx(TTransaction tx, Set<ByteBuffer> changes, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.canCommitTx_call> resultHandler) throws org.apache.thrift.TException;
 
+    public void canCommitOrThrow(long tx, Set<ByteBuffer> changes, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.canCommitOrThrow_call> resultHandler) throws org.apache.thrift.TException;
+
     public void commitTx(TTransaction tx, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.commitTx_call> resultHandler) throws org.apache.thrift.TException;
+
+    public void commitOrThrow(long txId, long wp, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.commitOrThrow_call> resultHandler) throws org.apache.thrift.TException;
 
     public void abortTx(TTransaction tx, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.abortTx_call> resultHandler) throws org.apache.thrift.TException;
 
-    public void invalidateTx(long tx, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.invalidateTx_call> resultHandler) throws org.apache.thrift.TException;
+    public void invalidateTx(long txid, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.invalidateTx_call> resultHandler) throws org.apache.thrift.TException;
 
     public void getSnapshot(org.apache.thrift.async.AsyncMethodCallback<AsyncClient.getSnapshot_call> resultHandler) throws org.apache.thrift.TException;
 
@@ -127,6 +137,8 @@ public class TTransactionServer {
     public void invalidTxSize(org.apache.thrift.async.AsyncMethodCallback<AsyncClient.invalidTxSize_call> resultHandler) throws org.apache.thrift.TException;
 
     public void checkpoint(TTransaction tx, org.apache.thrift.async.AsyncMethodCallback<AsyncClient.checkpoint_call> resultHandler) throws org.apache.thrift.TException;
+
+    public void pruneNow(org.apache.thrift.async.AsyncMethodCallback<AsyncClient.pruneNow_call> resultHandler) throws org.apache.thrift.TException;
 
   }
 
@@ -349,6 +361,36 @@ public class TTransactionServer {
       throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "canCommitTx failed: unknown result");
     }
 
+    public void canCommitOrThrow(long tx, Set<ByteBuffer> changes) throws TTransactionNotInProgressException, TTransactionConflictException, TGenericException, org.apache.thrift.TException
+    {
+      send_canCommitOrThrow(tx, changes);
+      recv_canCommitOrThrow();
+    }
+
+    public void send_canCommitOrThrow(long tx, Set<ByteBuffer> changes) throws org.apache.thrift.TException
+    {
+      canCommitOrThrow_args args = new canCommitOrThrow_args();
+      args.setTx(tx);
+      args.setChanges(changes);
+      sendBase("canCommitOrThrow", args);
+    }
+
+    public void recv_canCommitOrThrow() throws TTransactionNotInProgressException, TTransactionConflictException, TGenericException, org.apache.thrift.TException
+    {
+      canCommitOrThrow_result result = new canCommitOrThrow_result();
+      receiveBase(result, "canCommitOrThrow");
+      if (result.e != null) {
+        throw result.e;
+      }
+      if (result.c != null) {
+        throw result.c;
+      }
+      if (result.g != null) {
+        throw result.g;
+      }
+      return;
+    }
+
     public TBoolean commitTx(TTransaction tx) throws TTransactionNotInProgressException, org.apache.thrift.TException
     {
       send_commitTx(tx);
@@ -375,6 +417,36 @@ public class TTransactionServer {
       throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "commitTx failed: unknown result");
     }
 
+    public void commitOrThrow(long txId, long wp) throws TTransactionNotInProgressException, TTransactionConflictException, TGenericException, org.apache.thrift.TException
+    {
+      send_commitOrThrow(txId, wp);
+      recv_commitOrThrow();
+    }
+
+    public void send_commitOrThrow(long txId, long wp) throws org.apache.thrift.TException
+    {
+      commitOrThrow_args args = new commitOrThrow_args();
+      args.setTxId(txId);
+      args.setWp(wp);
+      sendBase("commitOrThrow", args);
+    }
+
+    public void recv_commitOrThrow() throws TTransactionNotInProgressException, TTransactionConflictException, TGenericException, org.apache.thrift.TException
+    {
+      commitOrThrow_result result = new commitOrThrow_result();
+      receiveBase(result, "commitOrThrow");
+      if (result.e != null) {
+        throw result.e;
+      }
+      if (result.c != null) {
+        throw result.c;
+      }
+      if (result.g != null) {
+        throw result.g;
+      }
+      return;
+    }
+
     public void abortTx(TTransaction tx) throws org.apache.thrift.TException
     {
       send_abortTx(tx);
@@ -395,16 +467,16 @@ public class TTransactionServer {
       return;
     }
 
-    public boolean invalidateTx(long tx) throws org.apache.thrift.TException
+    public boolean invalidateTx(long txid) throws org.apache.thrift.TException
     {
-      send_invalidateTx(tx);
+      send_invalidateTx(txid);
       return recv_invalidateTx();
     }
 
-    public void send_invalidateTx(long tx) throws org.apache.thrift.TException
+    public void send_invalidateTx(long txid) throws org.apache.thrift.TException
     {
       invalidateTx_args args = new invalidateTx_args();
-      args.setTx(tx);
+      args.setTxid(txid);
       sendBase("invalidateTx", args);
     }
 
@@ -579,6 +651,25 @@ public class TTransactionServer {
         throw result.e;
       }
       throw new org.apache.thrift.TApplicationException(org.apache.thrift.TApplicationException.MISSING_RESULT, "checkpoint failed: unknown result");
+    }
+
+    public void pruneNow() throws org.apache.thrift.TException
+    {
+      send_pruneNow();
+      recv_pruneNow();
+    }
+
+    public void send_pruneNow() throws org.apache.thrift.TException
+    {
+      pruneNow_args args = new pruneNow_args();
+      sendBase("pruneNow", args);
+    }
+
+    public void recv_pruneNow() throws org.apache.thrift.TException
+    {
+      pruneNow_result result = new pruneNow_result();
+      receiveBase(result, "pruneNow");
+      return;
     }
 
   }
@@ -855,6 +946,41 @@ public class TTransactionServer {
       }
     }
 
+    public void canCommitOrThrow(long tx, Set<ByteBuffer> changes, org.apache.thrift.async.AsyncMethodCallback<canCommitOrThrow_call> resultHandler) throws org.apache.thrift.TException {
+      checkReady();
+      canCommitOrThrow_call method_call = new canCommitOrThrow_call(tx, changes, resultHandler, this, ___protocolFactory, ___transport);
+      this.___currentMethod = method_call;
+      ___manager.call(method_call);
+    }
+
+    public static class canCommitOrThrow_call extends org.apache.thrift.async.TAsyncMethodCall {
+      private long tx;
+      private Set<ByteBuffer> changes;
+      public canCommitOrThrow_call(long tx, Set<ByteBuffer> changes, org.apache.thrift.async.AsyncMethodCallback<canCommitOrThrow_call> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.tx = tx;
+        this.changes = changes;
+      }
+
+      public void write_args(org.apache.thrift.protocol.TProtocol prot) throws org.apache.thrift.TException {
+        prot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("canCommitOrThrow", org.apache.thrift.protocol.TMessageType.CALL, 0));
+        canCommitOrThrow_args args = new canCommitOrThrow_args();
+        args.setTx(tx);
+        args.setChanges(changes);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public void getResult() throws TTransactionNotInProgressException, TTransactionConflictException, TGenericException, org.apache.thrift.TException {
+        if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
+        org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        (new Client(prot)).recv_canCommitOrThrow();
+      }
+    }
+
     public void commitTx(TTransaction tx, org.apache.thrift.async.AsyncMethodCallback<commitTx_call> resultHandler) throws org.apache.thrift.TException {
       checkReady();
       commitTx_call method_call = new commitTx_call(tx, resultHandler, this, ___protocolFactory, ___transport);
@@ -884,6 +1010,41 @@ public class TTransactionServer {
         org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
         org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
         return (new Client(prot)).recv_commitTx();
+      }
+    }
+
+    public void commitOrThrow(long txId, long wp, org.apache.thrift.async.AsyncMethodCallback<commitOrThrow_call> resultHandler) throws org.apache.thrift.TException {
+      checkReady();
+      commitOrThrow_call method_call = new commitOrThrow_call(txId, wp, resultHandler, this, ___protocolFactory, ___transport);
+      this.___currentMethod = method_call;
+      ___manager.call(method_call);
+    }
+
+    public static class commitOrThrow_call extends org.apache.thrift.async.TAsyncMethodCall {
+      private long txId;
+      private long wp;
+      public commitOrThrow_call(long txId, long wp, org.apache.thrift.async.AsyncMethodCallback<commitOrThrow_call> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+        this.txId = txId;
+        this.wp = wp;
+      }
+
+      public void write_args(org.apache.thrift.protocol.TProtocol prot) throws org.apache.thrift.TException {
+        prot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("commitOrThrow", org.apache.thrift.protocol.TMessageType.CALL, 0));
+        commitOrThrow_args args = new commitOrThrow_args();
+        args.setTxId(txId);
+        args.setWp(wp);
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public void getResult() throws TTransactionNotInProgressException, TTransactionConflictException, TGenericException, org.apache.thrift.TException {
+        if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
+        org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        (new Client(prot)).recv_commitOrThrow();
       }
     }
 
@@ -919,24 +1080,24 @@ public class TTransactionServer {
       }
     }
 
-    public void invalidateTx(long tx, org.apache.thrift.async.AsyncMethodCallback<invalidateTx_call> resultHandler) throws org.apache.thrift.TException {
+    public void invalidateTx(long txid, org.apache.thrift.async.AsyncMethodCallback<invalidateTx_call> resultHandler) throws org.apache.thrift.TException {
       checkReady();
-      invalidateTx_call method_call = new invalidateTx_call(tx, resultHandler, this, ___protocolFactory, ___transport);
+      invalidateTx_call method_call = new invalidateTx_call(txid, resultHandler, this, ___protocolFactory, ___transport);
       this.___currentMethod = method_call;
       ___manager.call(method_call);
     }
 
     public static class invalidateTx_call extends org.apache.thrift.async.TAsyncMethodCall {
-      private long tx;
-      public invalidateTx_call(long tx, org.apache.thrift.async.AsyncMethodCallback<invalidateTx_call> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+      private long txid;
+      public invalidateTx_call(long txid, org.apache.thrift.async.AsyncMethodCallback<invalidateTx_call> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
         super(client, protocolFactory, transport, resultHandler, false);
-        this.tx = tx;
+        this.txid = txid;
       }
 
       public void write_args(org.apache.thrift.protocol.TProtocol prot) throws org.apache.thrift.TException {
         prot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("invalidateTx", org.apache.thrift.protocol.TMessageType.CALL, 0));
         invalidateTx_args args = new invalidateTx_args();
-        args.setTx(tx);
+        args.setTxid(txid);
         args.write(prot);
         prot.writeMessageEnd();
       }
@@ -1163,6 +1324,35 @@ public class TTransactionServer {
       }
     }
 
+    public void pruneNow(org.apache.thrift.async.AsyncMethodCallback<pruneNow_call> resultHandler) throws org.apache.thrift.TException {
+      checkReady();
+      pruneNow_call method_call = new pruneNow_call(resultHandler, this, ___protocolFactory, ___transport);
+      this.___currentMethod = method_call;
+      ___manager.call(method_call);
+    }
+
+    public static class pruneNow_call extends org.apache.thrift.async.TAsyncMethodCall {
+      public pruneNow_call(org.apache.thrift.async.AsyncMethodCallback<pruneNow_call> resultHandler, org.apache.thrift.async.TAsyncClient client, org.apache.thrift.protocol.TProtocolFactory protocolFactory, org.apache.thrift.transport.TNonblockingTransport transport) throws org.apache.thrift.TException {
+        super(client, protocolFactory, transport, resultHandler, false);
+      }
+
+      public void write_args(org.apache.thrift.protocol.TProtocol prot) throws org.apache.thrift.TException {
+        prot.writeMessageBegin(new org.apache.thrift.protocol.TMessage("pruneNow", org.apache.thrift.protocol.TMessageType.CALL, 0));
+        pruneNow_args args = new pruneNow_args();
+        args.write(prot);
+        prot.writeMessageEnd();
+      }
+
+      public void getResult() throws org.apache.thrift.TException {
+        if (getState() != org.apache.thrift.async.TAsyncMethodCall.State.RESPONSE_READ) {
+          throw new IllegalStateException("Method call not finished!");
+        }
+        org.apache.thrift.transport.TMemoryInputTransport memoryTransport = new org.apache.thrift.transport.TMemoryInputTransport(getFrameBuffer().array());
+        org.apache.thrift.protocol.TProtocol prot = client.getProtocolFactory().getProtocol(memoryTransport);
+        (new Client(prot)).recv_pruneNow();
+      }
+    }
+
   }
 
   public static class Processor<I extends Iface> extends org.apache.thrift.TBaseProcessor<I> implements org.apache.thrift.TProcessor {
@@ -1184,7 +1374,9 @@ public class TTransactionServer {
       processMap.put("startShortWithClientIdAndTimeOut", new startShortWithClientIdAndTimeOut());
       processMap.put("startShortWithTimeout", new startShortWithTimeout());
       processMap.put("canCommitTx", new canCommitTx());
+      processMap.put("canCommitOrThrow", new canCommitOrThrow());
       processMap.put("commitTx", new commitTx());
+      processMap.put("commitOrThrow", new commitOrThrow());
       processMap.put("abortTx", new abortTx());
       processMap.put("invalidateTx", new invalidateTx());
       processMap.put("getSnapshot", new getSnapshot());
@@ -1194,6 +1386,7 @@ public class TTransactionServer {
       processMap.put("truncateInvalidTxBefore", new truncateInvalidTxBefore());
       processMap.put("invalidTxSize", new invalidTxSize());
       processMap.put("checkpoint", new checkpoint());
+      processMap.put("pruneNow", new pruneNow());
       return processMap;
     }
 
@@ -1377,6 +1570,34 @@ public class TTransactionServer {
       }
     }
 
+    public static class canCommitOrThrow<I extends Iface> extends org.apache.thrift.ProcessFunction<I, canCommitOrThrow_args> {
+      public canCommitOrThrow() {
+        super("canCommitOrThrow");
+      }
+
+      public canCommitOrThrow_args getEmptyArgsInstance() {
+        return new canCommitOrThrow_args();
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public canCommitOrThrow_result getResult(I iface, canCommitOrThrow_args args) throws org.apache.thrift.TException {
+        canCommitOrThrow_result result = new canCommitOrThrow_result();
+        try {
+          iface.canCommitOrThrow(args.tx, args.changes);
+        } catch (TTransactionNotInProgressException e) {
+          result.e = e;
+        } catch (TTransactionConflictException c) {
+          result.c = c;
+        } catch (TGenericException g) {
+          result.g = g;
+        }
+        return result;
+      }
+    }
+
     public static class commitTx<I extends Iface> extends org.apache.thrift.ProcessFunction<I, commitTx_args> {
       public commitTx() {
         super("commitTx");
@@ -1396,6 +1617,34 @@ public class TTransactionServer {
           result.success = iface.commitTx(args.tx);
         } catch (TTransactionNotInProgressException e) {
           result.e = e;
+        }
+        return result;
+      }
+    }
+
+    public static class commitOrThrow<I extends Iface> extends org.apache.thrift.ProcessFunction<I, commitOrThrow_args> {
+      public commitOrThrow() {
+        super("commitOrThrow");
+      }
+
+      public commitOrThrow_args getEmptyArgsInstance() {
+        return new commitOrThrow_args();
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public commitOrThrow_result getResult(I iface, commitOrThrow_args args) throws org.apache.thrift.TException {
+        commitOrThrow_result result = new commitOrThrow_result();
+        try {
+          iface.commitOrThrow(args.txId, args.wp);
+        } catch (TTransactionNotInProgressException e) {
+          result.e = e;
+        } catch (TTransactionConflictException c) {
+          result.c = c;
+        } catch (TGenericException g) {
+          result.g = g;
         }
         return result;
       }
@@ -1436,7 +1685,7 @@ public class TTransactionServer {
 
       public invalidateTx_result getResult(I iface, invalidateTx_args args) throws org.apache.thrift.TException {
         invalidateTx_result result = new invalidateTx_result();
-        result.success = iface.invalidateTx(args.tx);
+        result.success = iface.invalidateTx(args.txid);
         result.setSuccessIsSet(true);
         return result;
       }
@@ -1591,6 +1840,26 @@ public class TTransactionServer {
         } catch (TTransactionNotInProgressException e) {
           result.e = e;
         }
+        return result;
+      }
+    }
+
+    public static class pruneNow<I extends Iface> extends org.apache.thrift.ProcessFunction<I, pruneNow_args> {
+      public pruneNow() {
+        super("pruneNow");
+      }
+
+      public pruneNow_args getEmptyArgsInstance() {
+        return new pruneNow_args();
+      }
+
+      protected boolean isOneway() {
+        return false;
+      }
+
+      public pruneNow_result getResult(I iface, pruneNow_args args) throws org.apache.thrift.TException {
+        pruneNow_result result = new pruneNow_result();
+        iface.pruneNow();
         return result;
       }
     }
@@ -7848,6 +8117,1072 @@ public class TTransactionServer {
 
   }
 
+  public static class canCommitOrThrow_args implements org.apache.thrift.TBase<canCommitOrThrow_args, canCommitOrThrow_args._Fields>, java.io.Serializable, Cloneable   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("canCommitOrThrow_args");
+
+    private static final org.apache.thrift.protocol.TField TX_FIELD_DESC = new org.apache.thrift.protocol.TField("tx", org.apache.thrift.protocol.TType.I64, (short)1);
+    private static final org.apache.thrift.protocol.TField CHANGES_FIELD_DESC = new org.apache.thrift.protocol.TField("changes", org.apache.thrift.protocol.TType.SET, (short)2);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new canCommitOrThrow_argsStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new canCommitOrThrow_argsTupleSchemeFactory());
+    }
+
+    public long tx; // required
+    public Set<ByteBuffer> changes; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      TX((short)1, "tx"),
+      CHANGES((short)2, "changes");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 1: // TX
+            return TX;
+          case 2: // CHANGES
+            return CHANGES;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    private static final int __TX_ISSET_ID = 0;
+    private byte __isset_bitfield = 0;
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.TX, new org.apache.thrift.meta_data.FieldMetaData("tx", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I64)));
+      tmpMap.put(_Fields.CHANGES, new org.apache.thrift.meta_data.FieldMetaData("changes", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.SetMetaData(org.apache.thrift.protocol.TType.SET, 
+              new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRING              , true))));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(canCommitOrThrow_args.class, metaDataMap);
+    }
+
+    public canCommitOrThrow_args() {
+    }
+
+    public canCommitOrThrow_args(
+      long tx,
+      Set<ByteBuffer> changes)
+    {
+      this();
+      this.tx = tx;
+      setTxIsSet(true);
+      this.changes = changes;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public canCommitOrThrow_args(canCommitOrThrow_args other) {
+      __isset_bitfield = other.__isset_bitfield;
+      this.tx = other.tx;
+      if (other.isSetChanges()) {
+        Set<ByteBuffer> __this__changes = new HashSet<ByteBuffer>();
+        for (ByteBuffer other_element : other.changes) {
+          ByteBuffer temp_binary_element = org.apache.thrift.TBaseHelper.copyBinary(other_element);
+;
+          __this__changes.add(temp_binary_element);
+        }
+        this.changes = __this__changes;
+      }
+    }
+
+    public canCommitOrThrow_args deepCopy() {
+      return new canCommitOrThrow_args(this);
+    }
+
+    @Override
+    public void clear() {
+      setTxIsSet(false);
+      this.tx = 0;
+      this.changes = null;
+    }
+
+    public long getTx() {
+      return this.tx;
+    }
+
+    public canCommitOrThrow_args setTx(long tx) {
+      this.tx = tx;
+      setTxIsSet(true);
+      return this;
+    }
+
+    public void unsetTx() {
+      __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __TX_ISSET_ID);
+    }
+
+    /** Returns true if field tx is set (has been assigned a value) and false otherwise */
+    public boolean isSetTx() {
+      return EncodingUtils.testBit(__isset_bitfield, __TX_ISSET_ID);
+    }
+
+    public void setTxIsSet(boolean value) {
+      __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __TX_ISSET_ID, value);
+    }
+
+    public int getChangesSize() {
+      return (this.changes == null) ? 0 : this.changes.size();
+    }
+
+    public java.util.Iterator<ByteBuffer> getChangesIterator() {
+      return (this.changes == null) ? null : this.changes.iterator();
+    }
+
+    public void addToChanges(ByteBuffer elem) {
+      if (this.changes == null) {
+        this.changes = new HashSet<ByteBuffer>();
+      }
+      this.changes.add(elem);
+    }
+
+    public Set<ByteBuffer> getChanges() {
+      return this.changes;
+    }
+
+    public canCommitOrThrow_args setChanges(Set<ByteBuffer> changes) {
+      this.changes = changes;
+      return this;
+    }
+
+    public void unsetChanges() {
+      this.changes = null;
+    }
+
+    /** Returns true if field changes is set (has been assigned a value) and false otherwise */
+    public boolean isSetChanges() {
+      return this.changes != null;
+    }
+
+    public void setChangesIsSet(boolean value) {
+      if (!value) {
+        this.changes = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case TX:
+        if (value == null) {
+          unsetTx();
+        } else {
+          setTx((Long)value);
+        }
+        break;
+
+      case CHANGES:
+        if (value == null) {
+          unsetChanges();
+        } else {
+          setChanges((Set<ByteBuffer>)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case TX:
+        return Long.valueOf(getTx());
+
+      case CHANGES:
+        return getChanges();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case TX:
+        return isSetTx();
+      case CHANGES:
+        return isSetChanges();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof canCommitOrThrow_args)
+        return this.equals((canCommitOrThrow_args)that);
+      return false;
+    }
+
+    public boolean equals(canCommitOrThrow_args that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_tx = true;
+      boolean that_present_tx = true;
+      if (this_present_tx || that_present_tx) {
+        if (!(this_present_tx && that_present_tx))
+          return false;
+        if (this.tx != that.tx)
+          return false;
+      }
+
+      boolean this_present_changes = true && this.isSetChanges();
+      boolean that_present_changes = true && that.isSetChanges();
+      if (this_present_changes || that_present_changes) {
+        if (!(this_present_changes && that_present_changes))
+          return false;
+        if (!this.changes.equals(that.changes))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    public int compareTo(canCommitOrThrow_args other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      canCommitOrThrow_args typedOther = (canCommitOrThrow_args)other;
+
+      lastComparison = Boolean.valueOf(isSetTx()).compareTo(typedOther.isSetTx());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetTx()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.tx, typedOther.tx);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetChanges()).compareTo(typedOther.isSetChanges());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetChanges()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.changes, typedOther.changes);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("canCommitOrThrow_args(");
+      boolean first = true;
+
+      sb.append("tx:");
+      sb.append(this.tx);
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("changes:");
+      if (this.changes == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.changes);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        // it doesn't seem like you should have to do this, but java serialization is wacky, and doesn't call the default constructor.
+        __isset_bitfield = 0;
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class canCommitOrThrow_argsStandardSchemeFactory implements SchemeFactory {
+      public canCommitOrThrow_argsStandardScheme getScheme() {
+        return new canCommitOrThrow_argsStandardScheme();
+      }
+    }
+
+    private static class canCommitOrThrow_argsStandardScheme extends StandardScheme<canCommitOrThrow_args> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, canCommitOrThrow_args struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 1: // TX
+              if (schemeField.type == org.apache.thrift.protocol.TType.I64) {
+                struct.tx = iprot.readI64();
+                struct.setTxIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 2: // CHANGES
+              if (schemeField.type == org.apache.thrift.protocol.TType.SET) {
+                {
+                  org.apache.thrift.protocol.TSet _set32 = iprot.readSetBegin();
+                  struct.changes = new HashSet<ByteBuffer>(2*_set32.size);
+                  for (int _i33 = 0; _i33 < _set32.size; ++_i33)
+                  {
+                    ByteBuffer _elem34; // required
+                    _elem34 = iprot.readBinary();
+                    struct.changes.add(_elem34);
+                  }
+                  iprot.readSetEnd();
+                }
+                struct.setChangesIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+
+        // check for required fields of primitive type, which can't be checked in the validate method
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, canCommitOrThrow_args struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        oprot.writeFieldBegin(TX_FIELD_DESC);
+        oprot.writeI64(struct.tx);
+        oprot.writeFieldEnd();
+        if (struct.changes != null) {
+          oprot.writeFieldBegin(CHANGES_FIELD_DESC);
+          {
+            oprot.writeSetBegin(new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, struct.changes.size()));
+            for (ByteBuffer _iter35 : struct.changes)
+            {
+              oprot.writeBinary(_iter35);
+            }
+            oprot.writeSetEnd();
+          }
+          oprot.writeFieldEnd();
+        }
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class canCommitOrThrow_argsTupleSchemeFactory implements SchemeFactory {
+      public canCommitOrThrow_argsTupleScheme getScheme() {
+        return new canCommitOrThrow_argsTupleScheme();
+      }
+    }
+
+    private static class canCommitOrThrow_argsTupleScheme extends TupleScheme<canCommitOrThrow_args> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, canCommitOrThrow_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        BitSet optionals = new BitSet();
+        if (struct.isSetTx()) {
+          optionals.set(0);
+        }
+        if (struct.isSetChanges()) {
+          optionals.set(1);
+        }
+        oprot.writeBitSet(optionals, 2);
+        if (struct.isSetTx()) {
+          oprot.writeI64(struct.tx);
+        }
+        if (struct.isSetChanges()) {
+          {
+            oprot.writeI32(struct.changes.size());
+            for (ByteBuffer _iter36 : struct.changes)
+            {
+              oprot.writeBinary(_iter36);
+            }
+          }
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, canCommitOrThrow_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        BitSet incoming = iprot.readBitSet(2);
+        if (incoming.get(0)) {
+          struct.tx = iprot.readI64();
+          struct.setTxIsSet(true);
+        }
+        if (incoming.get(1)) {
+          {
+            org.apache.thrift.protocol.TSet _set37 = new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.STRING, iprot.readI32());
+            struct.changes = new HashSet<ByteBuffer>(2*_set37.size);
+            for (int _i38 = 0; _i38 < _set37.size; ++_i38)
+            {
+              ByteBuffer _elem39; // required
+              _elem39 = iprot.readBinary();
+              struct.changes.add(_elem39);
+            }
+          }
+          struct.setChangesIsSet(true);
+        }
+      }
+    }
+
+  }
+
+  public static class canCommitOrThrow_result implements org.apache.thrift.TBase<canCommitOrThrow_result, canCommitOrThrow_result._Fields>, java.io.Serializable, Cloneable   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("canCommitOrThrow_result");
+
+    private static final org.apache.thrift.protocol.TField E_FIELD_DESC = new org.apache.thrift.protocol.TField("e", org.apache.thrift.protocol.TType.STRUCT, (short)1);
+    private static final org.apache.thrift.protocol.TField C_FIELD_DESC = new org.apache.thrift.protocol.TField("c", org.apache.thrift.protocol.TType.STRUCT, (short)2);
+    private static final org.apache.thrift.protocol.TField G_FIELD_DESC = new org.apache.thrift.protocol.TField("g", org.apache.thrift.protocol.TType.STRUCT, (short)3);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new canCommitOrThrow_resultStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new canCommitOrThrow_resultTupleSchemeFactory());
+    }
+
+    public TTransactionNotInProgressException e; // required
+    public TTransactionConflictException c; // required
+    public TGenericException g; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      E((short)1, "e"),
+      C((short)2, "c"),
+      G((short)3, "g");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 1: // E
+            return E;
+          case 2: // C
+            return C;
+          case 3: // G
+            return G;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.E, new org.apache.thrift.meta_data.FieldMetaData("e", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      tmpMap.put(_Fields.C, new org.apache.thrift.meta_data.FieldMetaData("c", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      tmpMap.put(_Fields.G, new org.apache.thrift.meta_data.FieldMetaData("g", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(canCommitOrThrow_result.class, metaDataMap);
+    }
+
+    public canCommitOrThrow_result() {
+    }
+
+    public canCommitOrThrow_result(
+      TTransactionNotInProgressException e,
+      TTransactionConflictException c,
+      TGenericException g)
+    {
+      this();
+      this.e = e;
+      this.c = c;
+      this.g = g;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public canCommitOrThrow_result(canCommitOrThrow_result other) {
+      if (other.isSetE()) {
+        this.e = new TTransactionNotInProgressException(other.e);
+      }
+      if (other.isSetC()) {
+        this.c = new TTransactionConflictException(other.c);
+      }
+      if (other.isSetG()) {
+        this.g = new TGenericException(other.g);
+      }
+    }
+
+    public canCommitOrThrow_result deepCopy() {
+      return new canCommitOrThrow_result(this);
+    }
+
+    @Override
+    public void clear() {
+      this.e = null;
+      this.c = null;
+      this.g = null;
+    }
+
+    public TTransactionNotInProgressException getE() {
+      return this.e;
+    }
+
+    public canCommitOrThrow_result setE(TTransactionNotInProgressException e) {
+      this.e = e;
+      return this;
+    }
+
+    public void unsetE() {
+      this.e = null;
+    }
+
+    /** Returns true if field e is set (has been assigned a value) and false otherwise */
+    public boolean isSetE() {
+      return this.e != null;
+    }
+
+    public void setEIsSet(boolean value) {
+      if (!value) {
+        this.e = null;
+      }
+    }
+
+    public TTransactionConflictException getC() {
+      return this.c;
+    }
+
+    public canCommitOrThrow_result setC(TTransactionConflictException c) {
+      this.c = c;
+      return this;
+    }
+
+    public void unsetC() {
+      this.c = null;
+    }
+
+    /** Returns true if field c is set (has been assigned a value) and false otherwise */
+    public boolean isSetC() {
+      return this.c != null;
+    }
+
+    public void setCIsSet(boolean value) {
+      if (!value) {
+        this.c = null;
+      }
+    }
+
+    public TGenericException getG() {
+      return this.g;
+    }
+
+    public canCommitOrThrow_result setG(TGenericException g) {
+      this.g = g;
+      return this;
+    }
+
+    public void unsetG() {
+      this.g = null;
+    }
+
+    /** Returns true if field g is set (has been assigned a value) and false otherwise */
+    public boolean isSetG() {
+      return this.g != null;
+    }
+
+    public void setGIsSet(boolean value) {
+      if (!value) {
+        this.g = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case E:
+        if (value == null) {
+          unsetE();
+        } else {
+          setE((TTransactionNotInProgressException)value);
+        }
+        break;
+
+      case C:
+        if (value == null) {
+          unsetC();
+        } else {
+          setC((TTransactionConflictException)value);
+        }
+        break;
+
+      case G:
+        if (value == null) {
+          unsetG();
+        } else {
+          setG((TGenericException)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case E:
+        return getE();
+
+      case C:
+        return getC();
+
+      case G:
+        return getG();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case E:
+        return isSetE();
+      case C:
+        return isSetC();
+      case G:
+        return isSetG();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof canCommitOrThrow_result)
+        return this.equals((canCommitOrThrow_result)that);
+      return false;
+    }
+
+    public boolean equals(canCommitOrThrow_result that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_e = true && this.isSetE();
+      boolean that_present_e = true && that.isSetE();
+      if (this_present_e || that_present_e) {
+        if (!(this_present_e && that_present_e))
+          return false;
+        if (!this.e.equals(that.e))
+          return false;
+      }
+
+      boolean this_present_c = true && this.isSetC();
+      boolean that_present_c = true && that.isSetC();
+      if (this_present_c || that_present_c) {
+        if (!(this_present_c && that_present_c))
+          return false;
+        if (!this.c.equals(that.c))
+          return false;
+      }
+
+      boolean this_present_g = true && this.isSetG();
+      boolean that_present_g = true && that.isSetG();
+      if (this_present_g || that_present_g) {
+        if (!(this_present_g && that_present_g))
+          return false;
+        if (!this.g.equals(that.g))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    public int compareTo(canCommitOrThrow_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      canCommitOrThrow_result typedOther = (canCommitOrThrow_result)other;
+
+      lastComparison = Boolean.valueOf(isSetE()).compareTo(typedOther.isSetE());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetE()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.e, typedOther.e);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetC()).compareTo(typedOther.isSetC());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetC()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.c, typedOther.c);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetG()).compareTo(typedOther.isSetG());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetG()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.g, typedOther.g);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+      }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("canCommitOrThrow_result(");
+      boolean first = true;
+
+      sb.append("e:");
+      if (this.e == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.e);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("c:");
+      if (this.c == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.c);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("g:");
+      if (this.g == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.g);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class canCommitOrThrow_resultStandardSchemeFactory implements SchemeFactory {
+      public canCommitOrThrow_resultStandardScheme getScheme() {
+        return new canCommitOrThrow_resultStandardScheme();
+      }
+    }
+
+    private static class canCommitOrThrow_resultStandardScheme extends StandardScheme<canCommitOrThrow_result> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, canCommitOrThrow_result struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 1: // E
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.e = new TTransactionNotInProgressException();
+                struct.e.read(iprot);
+                struct.setEIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 2: // C
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.c = new TTransactionConflictException();
+                struct.c.read(iprot);
+                struct.setCIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 3: // G
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.g = new TGenericException();
+                struct.g.read(iprot);
+                struct.setGIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+
+        // check for required fields of primitive type, which can't be checked in the validate method
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, canCommitOrThrow_result struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        if (struct.e != null) {
+          oprot.writeFieldBegin(E_FIELD_DESC);
+          struct.e.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        if (struct.c != null) {
+          oprot.writeFieldBegin(C_FIELD_DESC);
+          struct.c.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        if (struct.g != null) {
+          oprot.writeFieldBegin(G_FIELD_DESC);
+          struct.g.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class canCommitOrThrow_resultTupleSchemeFactory implements SchemeFactory {
+      public canCommitOrThrow_resultTupleScheme getScheme() {
+        return new canCommitOrThrow_resultTupleScheme();
+      }
+    }
+
+    private static class canCommitOrThrow_resultTupleScheme extends TupleScheme<canCommitOrThrow_result> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, canCommitOrThrow_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        BitSet optionals = new BitSet();
+        if (struct.isSetE()) {
+          optionals.set(0);
+        }
+        if (struct.isSetC()) {
+          optionals.set(1);
+        }
+        if (struct.isSetG()) {
+          optionals.set(2);
+        }
+        oprot.writeBitSet(optionals, 3);
+        if (struct.isSetE()) {
+          struct.e.write(oprot);
+        }
+        if (struct.isSetC()) {
+          struct.c.write(oprot);
+        }
+        if (struct.isSetG()) {
+          struct.g.write(oprot);
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, canCommitOrThrow_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        BitSet incoming = iprot.readBitSet(3);
+        if (incoming.get(0)) {
+          struct.e = new TTransactionNotInProgressException();
+          struct.e.read(iprot);
+          struct.setEIsSet(true);
+        }
+        if (incoming.get(1)) {
+          struct.c = new TTransactionConflictException();
+          struct.c.read(iprot);
+          struct.setCIsSet(true);
+        }
+        if (incoming.get(2)) {
+          struct.g = new TGenericException();
+          struct.g.read(iprot);
+          struct.setGIsSet(true);
+        }
+      }
+    }
+
+  }
+
   public static class commitTx_args implements org.apache.thrift.TBase<commitTx_args, commitTx_args._Fields>, java.io.Serializable, Cloneable   {
     private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("commitTx_args");
 
@@ -8668,6 +10003,1012 @@ public class TTransactionServer {
 
   }
 
+  public static class commitOrThrow_args implements org.apache.thrift.TBase<commitOrThrow_args, commitOrThrow_args._Fields>, java.io.Serializable, Cloneable   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("commitOrThrow_args");
+
+    private static final org.apache.thrift.protocol.TField TX_ID_FIELD_DESC = new org.apache.thrift.protocol.TField("txId", org.apache.thrift.protocol.TType.I64, (short)1);
+    private static final org.apache.thrift.protocol.TField WP_FIELD_DESC = new org.apache.thrift.protocol.TField("wp", org.apache.thrift.protocol.TType.I64, (short)2);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new commitOrThrow_argsStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new commitOrThrow_argsTupleSchemeFactory());
+    }
+
+    public long txId; // required
+    public long wp; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      TX_ID((short)1, "txId"),
+      WP((short)2, "wp");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 1: // TX_ID
+            return TX_ID;
+          case 2: // WP
+            return WP;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    private static final int __TXID_ISSET_ID = 0;
+    private static final int __WP_ISSET_ID = 1;
+    private byte __isset_bitfield = 0;
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.TX_ID, new org.apache.thrift.meta_data.FieldMetaData("txId", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I64)));
+      tmpMap.put(_Fields.WP, new org.apache.thrift.meta_data.FieldMetaData("wp", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I64)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(commitOrThrow_args.class, metaDataMap);
+    }
+
+    public commitOrThrow_args() {
+    }
+
+    public commitOrThrow_args(
+      long txId,
+      long wp)
+    {
+      this();
+      this.txId = txId;
+      setTxIdIsSet(true);
+      this.wp = wp;
+      setWpIsSet(true);
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public commitOrThrow_args(commitOrThrow_args other) {
+      __isset_bitfield = other.__isset_bitfield;
+      this.txId = other.txId;
+      this.wp = other.wp;
+    }
+
+    public commitOrThrow_args deepCopy() {
+      return new commitOrThrow_args(this);
+    }
+
+    @Override
+    public void clear() {
+      setTxIdIsSet(false);
+      this.txId = 0;
+      setWpIsSet(false);
+      this.wp = 0;
+    }
+
+    public long getTxId() {
+      return this.txId;
+    }
+
+    public commitOrThrow_args setTxId(long txId) {
+      this.txId = txId;
+      setTxIdIsSet(true);
+      return this;
+    }
+
+    public void unsetTxId() {
+      __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __TXID_ISSET_ID);
+    }
+
+    /** Returns true if field txId is set (has been assigned a value) and false otherwise */
+    public boolean isSetTxId() {
+      return EncodingUtils.testBit(__isset_bitfield, __TXID_ISSET_ID);
+    }
+
+    public void setTxIdIsSet(boolean value) {
+      __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __TXID_ISSET_ID, value);
+    }
+
+    public long getWp() {
+      return this.wp;
+    }
+
+    public commitOrThrow_args setWp(long wp) {
+      this.wp = wp;
+      setWpIsSet(true);
+      return this;
+    }
+
+    public void unsetWp() {
+      __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __WP_ISSET_ID);
+    }
+
+    /** Returns true if field wp is set (has been assigned a value) and false otherwise */
+    public boolean isSetWp() {
+      return EncodingUtils.testBit(__isset_bitfield, __WP_ISSET_ID);
+    }
+
+    public void setWpIsSet(boolean value) {
+      __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __WP_ISSET_ID, value);
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case TX_ID:
+        if (value == null) {
+          unsetTxId();
+        } else {
+          setTxId((Long)value);
+        }
+        break;
+
+      case WP:
+        if (value == null) {
+          unsetWp();
+        } else {
+          setWp((Long)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case TX_ID:
+        return Long.valueOf(getTxId());
+
+      case WP:
+        return Long.valueOf(getWp());
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case TX_ID:
+        return isSetTxId();
+      case WP:
+        return isSetWp();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof commitOrThrow_args)
+        return this.equals((commitOrThrow_args)that);
+      return false;
+    }
+
+    public boolean equals(commitOrThrow_args that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_txId = true;
+      boolean that_present_txId = true;
+      if (this_present_txId || that_present_txId) {
+        if (!(this_present_txId && that_present_txId))
+          return false;
+        if (this.txId != that.txId)
+          return false;
+      }
+
+      boolean this_present_wp = true;
+      boolean that_present_wp = true;
+      if (this_present_wp || that_present_wp) {
+        if (!(this_present_wp && that_present_wp))
+          return false;
+        if (this.wp != that.wp)
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    public int compareTo(commitOrThrow_args other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      commitOrThrow_args typedOther = (commitOrThrow_args)other;
+
+      lastComparison = Boolean.valueOf(isSetTxId()).compareTo(typedOther.isSetTxId());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetTxId()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.txId, typedOther.txId);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetWp()).compareTo(typedOther.isSetWp());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetWp()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.wp, typedOther.wp);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("commitOrThrow_args(");
+      boolean first = true;
+
+      sb.append("txId:");
+      sb.append(this.txId);
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("wp:");
+      sb.append(this.wp);
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        // it doesn't seem like you should have to do this, but java serialization is wacky, and doesn't call the default constructor.
+        __isset_bitfield = 0;
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class commitOrThrow_argsStandardSchemeFactory implements SchemeFactory {
+      public commitOrThrow_argsStandardScheme getScheme() {
+        return new commitOrThrow_argsStandardScheme();
+      }
+    }
+
+    private static class commitOrThrow_argsStandardScheme extends StandardScheme<commitOrThrow_args> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, commitOrThrow_args struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 1: // TX_ID
+              if (schemeField.type == org.apache.thrift.protocol.TType.I64) {
+                struct.txId = iprot.readI64();
+                struct.setTxIdIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 2: // WP
+              if (schemeField.type == org.apache.thrift.protocol.TType.I64) {
+                struct.wp = iprot.readI64();
+                struct.setWpIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+
+        // check for required fields of primitive type, which can't be checked in the validate method
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, commitOrThrow_args struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        oprot.writeFieldBegin(TX_ID_FIELD_DESC);
+        oprot.writeI64(struct.txId);
+        oprot.writeFieldEnd();
+        oprot.writeFieldBegin(WP_FIELD_DESC);
+        oprot.writeI64(struct.wp);
+        oprot.writeFieldEnd();
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class commitOrThrow_argsTupleSchemeFactory implements SchemeFactory {
+      public commitOrThrow_argsTupleScheme getScheme() {
+        return new commitOrThrow_argsTupleScheme();
+      }
+    }
+
+    private static class commitOrThrow_argsTupleScheme extends TupleScheme<commitOrThrow_args> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, commitOrThrow_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        BitSet optionals = new BitSet();
+        if (struct.isSetTxId()) {
+          optionals.set(0);
+        }
+        if (struct.isSetWp()) {
+          optionals.set(1);
+        }
+        oprot.writeBitSet(optionals, 2);
+        if (struct.isSetTxId()) {
+          oprot.writeI64(struct.txId);
+        }
+        if (struct.isSetWp()) {
+          oprot.writeI64(struct.wp);
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, commitOrThrow_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        BitSet incoming = iprot.readBitSet(2);
+        if (incoming.get(0)) {
+          struct.txId = iprot.readI64();
+          struct.setTxIdIsSet(true);
+        }
+        if (incoming.get(1)) {
+          struct.wp = iprot.readI64();
+          struct.setWpIsSet(true);
+        }
+      }
+    }
+
+  }
+
+  public static class commitOrThrow_result implements org.apache.thrift.TBase<commitOrThrow_result, commitOrThrow_result._Fields>, java.io.Serializable, Cloneable   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("commitOrThrow_result");
+
+    private static final org.apache.thrift.protocol.TField E_FIELD_DESC = new org.apache.thrift.protocol.TField("e", org.apache.thrift.protocol.TType.STRUCT, (short)1);
+    private static final org.apache.thrift.protocol.TField C_FIELD_DESC = new org.apache.thrift.protocol.TField("c", org.apache.thrift.protocol.TType.STRUCT, (short)2);
+    private static final org.apache.thrift.protocol.TField G_FIELD_DESC = new org.apache.thrift.protocol.TField("g", org.apache.thrift.protocol.TType.STRUCT, (short)3);
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new commitOrThrow_resultStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new commitOrThrow_resultTupleSchemeFactory());
+    }
+
+    public TTransactionNotInProgressException e; // required
+    public TTransactionConflictException c; // required
+    public TGenericException g; // required
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+      E((short)1, "e"),
+      C((short)2, "c"),
+      G((short)3, "g");
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          case 1: // E
+            return E;
+          case 2: // C
+            return C;
+          case 3: // G
+            return G;
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+
+    // isset id assignments
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      tmpMap.put(_Fields.E, new org.apache.thrift.meta_data.FieldMetaData("e", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      tmpMap.put(_Fields.C, new org.apache.thrift.meta_data.FieldMetaData("c", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      tmpMap.put(_Fields.G, new org.apache.thrift.meta_data.FieldMetaData("g", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+          new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.STRUCT)));
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(commitOrThrow_result.class, metaDataMap);
+    }
+
+    public commitOrThrow_result() {
+    }
+
+    public commitOrThrow_result(
+      TTransactionNotInProgressException e,
+      TTransactionConflictException c,
+      TGenericException g)
+    {
+      this();
+      this.e = e;
+      this.c = c;
+      this.g = g;
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public commitOrThrow_result(commitOrThrow_result other) {
+      if (other.isSetE()) {
+        this.e = new TTransactionNotInProgressException(other.e);
+      }
+      if (other.isSetC()) {
+        this.c = new TTransactionConflictException(other.c);
+      }
+      if (other.isSetG()) {
+        this.g = new TGenericException(other.g);
+      }
+    }
+
+    public commitOrThrow_result deepCopy() {
+      return new commitOrThrow_result(this);
+    }
+
+    @Override
+    public void clear() {
+      this.e = null;
+      this.c = null;
+      this.g = null;
+    }
+
+    public TTransactionNotInProgressException getE() {
+      return this.e;
+    }
+
+    public commitOrThrow_result setE(TTransactionNotInProgressException e) {
+      this.e = e;
+      return this;
+    }
+
+    public void unsetE() {
+      this.e = null;
+    }
+
+    /** Returns true if field e is set (has been assigned a value) and false otherwise */
+    public boolean isSetE() {
+      return this.e != null;
+    }
+
+    public void setEIsSet(boolean value) {
+      if (!value) {
+        this.e = null;
+      }
+    }
+
+    public TTransactionConflictException getC() {
+      return this.c;
+    }
+
+    public commitOrThrow_result setC(TTransactionConflictException c) {
+      this.c = c;
+      return this;
+    }
+
+    public void unsetC() {
+      this.c = null;
+    }
+
+    /** Returns true if field c is set (has been assigned a value) and false otherwise */
+    public boolean isSetC() {
+      return this.c != null;
+    }
+
+    public void setCIsSet(boolean value) {
+      if (!value) {
+        this.c = null;
+      }
+    }
+
+    public TGenericException getG() {
+      return this.g;
+    }
+
+    public commitOrThrow_result setG(TGenericException g) {
+      this.g = g;
+      return this;
+    }
+
+    public void unsetG() {
+      this.g = null;
+    }
+
+    /** Returns true if field g is set (has been assigned a value) and false otherwise */
+    public boolean isSetG() {
+      return this.g != null;
+    }
+
+    public void setGIsSet(boolean value) {
+      if (!value) {
+        this.g = null;
+      }
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      case E:
+        if (value == null) {
+          unsetE();
+        } else {
+          setE((TTransactionNotInProgressException)value);
+        }
+        break;
+
+      case C:
+        if (value == null) {
+          unsetC();
+        } else {
+          setC((TTransactionConflictException)value);
+        }
+        break;
+
+      case G:
+        if (value == null) {
+          unsetG();
+        } else {
+          setG((TGenericException)value);
+        }
+        break;
+
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      case E:
+        return getE();
+
+      case C:
+        return getC();
+
+      case G:
+        return getG();
+
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      case E:
+        return isSetE();
+      case C:
+        return isSetC();
+      case G:
+        return isSetG();
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof commitOrThrow_result)
+        return this.equals((commitOrThrow_result)that);
+      return false;
+    }
+
+    public boolean equals(commitOrThrow_result that) {
+      if (that == null)
+        return false;
+
+      boolean this_present_e = true && this.isSetE();
+      boolean that_present_e = true && that.isSetE();
+      if (this_present_e || that_present_e) {
+        if (!(this_present_e && that_present_e))
+          return false;
+        if (!this.e.equals(that.e))
+          return false;
+      }
+
+      boolean this_present_c = true && this.isSetC();
+      boolean that_present_c = true && that.isSetC();
+      if (this_present_c || that_present_c) {
+        if (!(this_present_c && that_present_c))
+          return false;
+        if (!this.c.equals(that.c))
+          return false;
+      }
+
+      boolean this_present_g = true && this.isSetG();
+      boolean that_present_g = true && that.isSetG();
+      if (this_present_g || that_present_g) {
+        if (!(this_present_g && that_present_g))
+          return false;
+        if (!this.g.equals(that.g))
+          return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    public int compareTo(commitOrThrow_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      commitOrThrow_result typedOther = (commitOrThrow_result)other;
+
+      lastComparison = Boolean.valueOf(isSetE()).compareTo(typedOther.isSetE());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetE()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.e, typedOther.e);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetC()).compareTo(typedOther.isSetC());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetC()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.c, typedOther.c);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      lastComparison = Boolean.valueOf(isSetG()).compareTo(typedOther.isSetG());
+      if (lastComparison != 0) {
+        return lastComparison;
+      }
+      if (isSetG()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.g, typedOther.g);
+        if (lastComparison != 0) {
+          return lastComparison;
+        }
+      }
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+      }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("commitOrThrow_result(");
+      boolean first = true;
+
+      sb.append("e:");
+      if (this.e == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.e);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("c:");
+      if (this.c == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.c);
+      }
+      first = false;
+      if (!first) sb.append(", ");
+      sb.append("g:");
+      if (this.g == null) {
+        sb.append("null");
+      } else {
+        sb.append(this.g);
+      }
+      first = false;
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class commitOrThrow_resultStandardSchemeFactory implements SchemeFactory {
+      public commitOrThrow_resultStandardScheme getScheme() {
+        return new commitOrThrow_resultStandardScheme();
+      }
+    }
+
+    private static class commitOrThrow_resultStandardScheme extends StandardScheme<commitOrThrow_result> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, commitOrThrow_result struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            case 1: // E
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.e = new TTransactionNotInProgressException();
+                struct.e.read(iprot);
+                struct.setEIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 2: // C
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.c = new TTransactionConflictException();
+                struct.c.read(iprot);
+                struct.setCIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            case 3: // G
+              if (schemeField.type == org.apache.thrift.protocol.TType.STRUCT) {
+                struct.g = new TGenericException();
+                struct.g.read(iprot);
+                struct.setGIsSet(true);
+              } else { 
+                org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+              }
+              break;
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+
+        // check for required fields of primitive type, which can't be checked in the validate method
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, commitOrThrow_result struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        if (struct.e != null) {
+          oprot.writeFieldBegin(E_FIELD_DESC);
+          struct.e.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        if (struct.c != null) {
+          oprot.writeFieldBegin(C_FIELD_DESC);
+          struct.c.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        if (struct.g != null) {
+          oprot.writeFieldBegin(G_FIELD_DESC);
+          struct.g.write(oprot);
+          oprot.writeFieldEnd();
+        }
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class commitOrThrow_resultTupleSchemeFactory implements SchemeFactory {
+      public commitOrThrow_resultTupleScheme getScheme() {
+        return new commitOrThrow_resultTupleScheme();
+      }
+    }
+
+    private static class commitOrThrow_resultTupleScheme extends TupleScheme<commitOrThrow_result> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, commitOrThrow_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+        BitSet optionals = new BitSet();
+        if (struct.isSetE()) {
+          optionals.set(0);
+        }
+        if (struct.isSetC()) {
+          optionals.set(1);
+        }
+        if (struct.isSetG()) {
+          optionals.set(2);
+        }
+        oprot.writeBitSet(optionals, 3);
+        if (struct.isSetE()) {
+          struct.e.write(oprot);
+        }
+        if (struct.isSetC()) {
+          struct.c.write(oprot);
+        }
+        if (struct.isSetG()) {
+          struct.g.write(oprot);
+        }
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, commitOrThrow_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+        BitSet incoming = iprot.readBitSet(3);
+        if (incoming.get(0)) {
+          struct.e = new TTransactionNotInProgressException();
+          struct.e.read(iprot);
+          struct.setEIsSet(true);
+        }
+        if (incoming.get(1)) {
+          struct.c = new TTransactionConflictException();
+          struct.c.read(iprot);
+          struct.setCIsSet(true);
+        }
+        if (incoming.get(2)) {
+          struct.g = new TGenericException();
+          struct.g.read(iprot);
+          struct.setGIsSet(true);
+        }
+      }
+    }
+
+  }
+
   public static class abortTx_args implements org.apache.thrift.TBase<abortTx_args, abortTx_args._Fields>, java.io.Serializable, Cloneable   {
     private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("abortTx_args");
 
@@ -9276,7 +11617,7 @@ public class TTransactionServer {
   public static class invalidateTx_args implements org.apache.thrift.TBase<invalidateTx_args, invalidateTx_args._Fields>, java.io.Serializable, Cloneable   {
     private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("invalidateTx_args");
 
-    private static final org.apache.thrift.protocol.TField TX_FIELD_DESC = new org.apache.thrift.protocol.TField("tx", org.apache.thrift.protocol.TType.I64, (short)1);
+    private static final org.apache.thrift.protocol.TField TXID_FIELD_DESC = new org.apache.thrift.protocol.TField("txid", org.apache.thrift.protocol.TType.I64, (short)1);
 
     private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
     static {
@@ -9284,11 +11625,11 @@ public class TTransactionServer {
       schemes.put(TupleScheme.class, new invalidateTx_argsTupleSchemeFactory());
     }
 
-    public long tx; // required
+    public long txid; // required
 
     /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
     public enum _Fields implements org.apache.thrift.TFieldIdEnum {
-      TX((short)1, "tx");
+      TXID((short)1, "txid");
 
       private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
 
@@ -9303,8 +11644,8 @@ public class TTransactionServer {
        */
       public static _Fields findByThriftId(int fieldId) {
         switch(fieldId) {
-          case 1: // TX
-            return TX;
+          case 1: // TXID
+            return TXID;
           default:
             return null;
         }
@@ -9345,12 +11686,12 @@ public class TTransactionServer {
     }
 
     // isset id assignments
-    private static final int __TX_ISSET_ID = 0;
+    private static final int __TXID_ISSET_ID = 0;
     private byte __isset_bitfield = 0;
     public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
     static {
       Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
-      tmpMap.put(_Fields.TX, new org.apache.thrift.meta_data.FieldMetaData("tx", org.apache.thrift.TFieldRequirementType.DEFAULT, 
+      tmpMap.put(_Fields.TXID, new org.apache.thrift.meta_data.FieldMetaData("txid", org.apache.thrift.TFieldRequirementType.DEFAULT, 
           new org.apache.thrift.meta_data.FieldValueMetaData(org.apache.thrift.protocol.TType.I64)));
       metaDataMap = Collections.unmodifiableMap(tmpMap);
       org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(invalidateTx_args.class, metaDataMap);
@@ -9360,11 +11701,11 @@ public class TTransactionServer {
     }
 
     public invalidateTx_args(
-      long tx)
+      long txid)
     {
       this();
-      this.tx = tx;
-      setTxIsSet(true);
+      this.txid = txid;
+      setTxidIsSet(true);
     }
 
     /**
@@ -9372,7 +11713,7 @@ public class TTransactionServer {
      */
     public invalidateTx_args(invalidateTx_args other) {
       __isset_bitfield = other.__isset_bitfield;
-      this.tx = other.tx;
+      this.txid = other.txid;
     }
 
     public invalidateTx_args deepCopy() {
@@ -9381,40 +11722,40 @@ public class TTransactionServer {
 
     @Override
     public void clear() {
-      setTxIsSet(false);
-      this.tx = 0;
+      setTxidIsSet(false);
+      this.txid = 0;
     }
 
-    public long getTx() {
-      return this.tx;
+    public long getTxid() {
+      return this.txid;
     }
 
-    public invalidateTx_args setTx(long tx) {
-      this.tx = tx;
-      setTxIsSet(true);
+    public invalidateTx_args setTxid(long txid) {
+      this.txid = txid;
+      setTxidIsSet(true);
       return this;
     }
 
-    public void unsetTx() {
-      __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __TX_ISSET_ID);
+    public void unsetTxid() {
+      __isset_bitfield = EncodingUtils.clearBit(__isset_bitfield, __TXID_ISSET_ID);
     }
 
-    /** Returns true if field tx is set (has been assigned a value) and false otherwise */
-    public boolean isSetTx() {
-      return EncodingUtils.testBit(__isset_bitfield, __TX_ISSET_ID);
+    /** Returns true if field txid is set (has been assigned a value) and false otherwise */
+    public boolean isSetTxid() {
+      return EncodingUtils.testBit(__isset_bitfield, __TXID_ISSET_ID);
     }
 
-    public void setTxIsSet(boolean value) {
-      __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __TX_ISSET_ID, value);
+    public void setTxidIsSet(boolean value) {
+      __isset_bitfield = EncodingUtils.setBit(__isset_bitfield, __TXID_ISSET_ID, value);
     }
 
     public void setFieldValue(_Fields field, Object value) {
       switch (field) {
-      case TX:
+      case TXID:
         if (value == null) {
-          unsetTx();
+          unsetTxid();
         } else {
-          setTx((Long)value);
+          setTxid((Long)value);
         }
         break;
 
@@ -9423,8 +11764,8 @@ public class TTransactionServer {
 
     public Object getFieldValue(_Fields field) {
       switch (field) {
-      case TX:
-        return Long.valueOf(getTx());
+      case TXID:
+        return Long.valueOf(getTxid());
 
       }
       throw new IllegalStateException();
@@ -9437,8 +11778,8 @@ public class TTransactionServer {
       }
 
       switch (field) {
-      case TX:
-        return isSetTx();
+      case TXID:
+        return isSetTxid();
       }
       throw new IllegalStateException();
     }
@@ -9456,12 +11797,12 @@ public class TTransactionServer {
       if (that == null)
         return false;
 
-      boolean this_present_tx = true;
-      boolean that_present_tx = true;
-      if (this_present_tx || that_present_tx) {
-        if (!(this_present_tx && that_present_tx))
+      boolean this_present_txid = true;
+      boolean that_present_txid = true;
+      if (this_present_txid || that_present_txid) {
+        if (!(this_present_txid && that_present_txid))
           return false;
-        if (this.tx != that.tx)
+        if (this.txid != that.txid)
           return false;
       }
 
@@ -9481,12 +11822,12 @@ public class TTransactionServer {
       int lastComparison = 0;
       invalidateTx_args typedOther = (invalidateTx_args)other;
 
-      lastComparison = Boolean.valueOf(isSetTx()).compareTo(typedOther.isSetTx());
+      lastComparison = Boolean.valueOf(isSetTxid()).compareTo(typedOther.isSetTxid());
       if (lastComparison != 0) {
         return lastComparison;
       }
-      if (isSetTx()) {
-        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.tx, typedOther.tx);
+      if (isSetTxid()) {
+        lastComparison = org.apache.thrift.TBaseHelper.compareTo(this.txid, typedOther.txid);
         if (lastComparison != 0) {
           return lastComparison;
         }
@@ -9511,8 +11852,8 @@ public class TTransactionServer {
       StringBuilder sb = new StringBuilder("invalidateTx_args(");
       boolean first = true;
 
-      sb.append("tx:");
-      sb.append(this.tx);
+      sb.append("txid:");
+      sb.append(this.txid);
       first = false;
       sb.append(")");
       return sb.toString();
@@ -9559,10 +11900,10 @@ public class TTransactionServer {
             break;
           }
           switch (schemeField.id) {
-            case 1: // TX
+            case 1: // TXID
               if (schemeField.type == org.apache.thrift.protocol.TType.I64) {
-                struct.tx = iprot.readI64();
-                struct.setTxIsSet(true);
+                struct.txid = iprot.readI64();
+                struct.setTxidIsSet(true);
               } else { 
                 org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
               }
@@ -9582,8 +11923,8 @@ public class TTransactionServer {
         struct.validate();
 
         oprot.writeStructBegin(STRUCT_DESC);
-        oprot.writeFieldBegin(TX_FIELD_DESC);
-        oprot.writeI64(struct.tx);
+        oprot.writeFieldBegin(TXID_FIELD_DESC);
+        oprot.writeI64(struct.txid);
         oprot.writeFieldEnd();
         oprot.writeFieldStop();
         oprot.writeStructEnd();
@@ -9603,12 +11944,12 @@ public class TTransactionServer {
       public void write(org.apache.thrift.protocol.TProtocol prot, invalidateTx_args struct) throws org.apache.thrift.TException {
         TTupleProtocol oprot = (TTupleProtocol) prot;
         BitSet optionals = new BitSet();
-        if (struct.isSetTx()) {
+        if (struct.isSetTxid()) {
           optionals.set(0);
         }
         oprot.writeBitSet(optionals, 1);
-        if (struct.isSetTx()) {
-          oprot.writeI64(struct.tx);
+        if (struct.isSetTxid()) {
+          oprot.writeI64(struct.txid);
         }
       }
 
@@ -9617,8 +11958,8 @@ public class TTransactionServer {
         TTupleProtocol iprot = (TTupleProtocol) prot;
         BitSet incoming = iprot.readBitSet(1);
         if (incoming.get(0)) {
-          struct.tx = iprot.readI64();
-          struct.setTxIsSet(true);
+          struct.txid = iprot.readI64();
+          struct.setTxidIsSet(true);
         }
       }
     }
@@ -12093,13 +14434,13 @@ public class TTransactionServer {
             case 1: // TXNS
               if (schemeField.type == org.apache.thrift.protocol.TType.SET) {
                 {
-                  org.apache.thrift.protocol.TSet _set32 = iprot.readSetBegin();
-                  struct.txns = new HashSet<Long>(2*_set32.size);
-                  for (int _i33 = 0; _i33 < _set32.size; ++_i33)
+                  org.apache.thrift.protocol.TSet _set40 = iprot.readSetBegin();
+                  struct.txns = new HashSet<Long>(2*_set40.size);
+                  for (int _i41 = 0; _i41 < _set40.size; ++_i41)
                   {
-                    long _elem34; // required
-                    _elem34 = iprot.readI64();
-                    struct.txns.add(_elem34);
+                    long _elem42; // required
+                    _elem42 = iprot.readI64();
+                    struct.txns.add(_elem42);
                   }
                   iprot.readSetEnd();
                 }
@@ -12127,9 +14468,9 @@ public class TTransactionServer {
           oprot.writeFieldBegin(TXNS_FIELD_DESC);
           {
             oprot.writeSetBegin(new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.I64, struct.txns.size()));
-            for (long _iter35 : struct.txns)
+            for (long _iter43 : struct.txns)
             {
-              oprot.writeI64(_iter35);
+              oprot.writeI64(_iter43);
             }
             oprot.writeSetEnd();
           }
@@ -12160,9 +14501,9 @@ public class TTransactionServer {
         if (struct.isSetTxns()) {
           {
             oprot.writeI32(struct.txns.size());
-            for (long _iter36 : struct.txns)
+            for (long _iter44 : struct.txns)
             {
-              oprot.writeI64(_iter36);
+              oprot.writeI64(_iter44);
             }
           }
         }
@@ -12174,13 +14515,13 @@ public class TTransactionServer {
         BitSet incoming = iprot.readBitSet(1);
         if (incoming.get(0)) {
           {
-            org.apache.thrift.protocol.TSet _set37 = new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.I64, iprot.readI32());
-            struct.txns = new HashSet<Long>(2*_set37.size);
-            for (int _i38 = 0; _i38 < _set37.size; ++_i38)
+            org.apache.thrift.protocol.TSet _set45 = new org.apache.thrift.protocol.TSet(org.apache.thrift.protocol.TType.I64, iprot.readI32());
+            struct.txns = new HashSet<Long>(2*_set45.size);
+            for (int _i46 = 0; _i46 < _set45.size; ++_i46)
             {
-              long _elem39; // required
-              _elem39 = iprot.readI64();
-              struct.txns.add(_elem39);
+              long _elem47; // required
+              _elem47 = iprot.readI64();
+              struct.txns.add(_elem47);
             }
           }
           struct.setTxnsIsSet(true);
@@ -14777,6 +17118,498 @@ public class TTransactionServer {
           struct.e.read(iprot);
           struct.setEIsSet(true);
         }
+      }
+    }
+
+  }
+
+  public static class pruneNow_args implements org.apache.thrift.TBase<pruneNow_args, pruneNow_args._Fields>, java.io.Serializable, Cloneable   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("pruneNow_args");
+
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new pruneNow_argsStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new pruneNow_argsTupleSchemeFactory());
+    }
+
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+;
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(pruneNow_args.class, metaDataMap);
+    }
+
+    public pruneNow_args() {
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public pruneNow_args(pruneNow_args other) {
+    }
+
+    public pruneNow_args deepCopy() {
+      return new pruneNow_args(this);
+    }
+
+    @Override
+    public void clear() {
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof pruneNow_args)
+        return this.equals((pruneNow_args)that);
+      return false;
+    }
+
+    public boolean equals(pruneNow_args that) {
+      if (that == null)
+        return false;
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    public int compareTo(pruneNow_args other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      pruneNow_args typedOther = (pruneNow_args)other;
+
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+    }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("pruneNow_args(");
+      boolean first = true;
+
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class pruneNow_argsStandardSchemeFactory implements SchemeFactory {
+      public pruneNow_argsStandardScheme getScheme() {
+        return new pruneNow_argsStandardScheme();
+      }
+    }
+
+    private static class pruneNow_argsStandardScheme extends StandardScheme<pruneNow_args> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, pruneNow_args struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+
+        // check for required fields of primitive type, which can't be checked in the validate method
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, pruneNow_args struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class pruneNow_argsTupleSchemeFactory implements SchemeFactory {
+      public pruneNow_argsTupleScheme getScheme() {
+        return new pruneNow_argsTupleScheme();
+      }
+    }
+
+    private static class pruneNow_argsTupleScheme extends TupleScheme<pruneNow_args> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, pruneNow_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, pruneNow_args struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
+      }
+    }
+
+  }
+
+  public static class pruneNow_result implements org.apache.thrift.TBase<pruneNow_result, pruneNow_result._Fields>, java.io.Serializable, Cloneable   {
+    private static final org.apache.thrift.protocol.TStruct STRUCT_DESC = new org.apache.thrift.protocol.TStruct("pruneNow_result");
+
+
+    private static final Map<Class<? extends IScheme>, SchemeFactory> schemes = new HashMap<Class<? extends IScheme>, SchemeFactory>();
+    static {
+      schemes.put(StandardScheme.class, new pruneNow_resultStandardSchemeFactory());
+      schemes.put(TupleScheme.class, new pruneNow_resultTupleSchemeFactory());
+    }
+
+
+    /** The set of fields this struct contains, along with convenience methods for finding and manipulating them. */
+    public enum _Fields implements org.apache.thrift.TFieldIdEnum {
+;
+
+      private static final Map<String, _Fields> byName = new HashMap<String, _Fields>();
+
+      static {
+        for (_Fields field : EnumSet.allOf(_Fields.class)) {
+          byName.put(field.getFieldName(), field);
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, or null if its not found.
+       */
+      public static _Fields findByThriftId(int fieldId) {
+        switch(fieldId) {
+          default:
+            return null;
+        }
+      }
+
+      /**
+       * Find the _Fields constant that matches fieldId, throwing an exception
+       * if it is not found.
+       */
+      public static _Fields findByThriftIdOrThrow(int fieldId) {
+        _Fields fields = findByThriftId(fieldId);
+        if (fields == null) throw new IllegalArgumentException("Field " + fieldId + " doesn't exist!");
+        return fields;
+      }
+
+      /**
+       * Find the _Fields constant that matches name, or null if its not found.
+       */
+      public static _Fields findByName(String name) {
+        return byName.get(name);
+      }
+
+      private final short _thriftId;
+      private final String _fieldName;
+
+      _Fields(short thriftId, String fieldName) {
+        _thriftId = thriftId;
+        _fieldName = fieldName;
+      }
+
+      public short getThriftFieldId() {
+        return _thriftId;
+      }
+
+      public String getFieldName() {
+        return _fieldName;
+      }
+    }
+    public static final Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> metaDataMap;
+    static {
+      Map<_Fields, org.apache.thrift.meta_data.FieldMetaData> tmpMap = new EnumMap<_Fields, org.apache.thrift.meta_data.FieldMetaData>(_Fields.class);
+      metaDataMap = Collections.unmodifiableMap(tmpMap);
+      org.apache.thrift.meta_data.FieldMetaData.addStructMetaDataMap(pruneNow_result.class, metaDataMap);
+    }
+
+    public pruneNow_result() {
+    }
+
+    /**
+     * Performs a deep copy on <i>other</i>.
+     */
+    public pruneNow_result(pruneNow_result other) {
+    }
+
+    public pruneNow_result deepCopy() {
+      return new pruneNow_result(this);
+    }
+
+    @Override
+    public void clear() {
+    }
+
+    public void setFieldValue(_Fields field, Object value) {
+      switch (field) {
+      }
+    }
+
+    public Object getFieldValue(_Fields field) {
+      switch (field) {
+      }
+      throw new IllegalStateException();
+    }
+
+    /** Returns true if field corresponding to fieldID is set (has been assigned a value) and false otherwise */
+    public boolean isSet(_Fields field) {
+      if (field == null) {
+        throw new IllegalArgumentException();
+      }
+
+      switch (field) {
+      }
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public boolean equals(Object that) {
+      if (that == null)
+        return false;
+      if (that instanceof pruneNow_result)
+        return this.equals((pruneNow_result)that);
+      return false;
+    }
+
+    public boolean equals(pruneNow_result that) {
+      if (that == null)
+        return false;
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      return 0;
+    }
+
+    public int compareTo(pruneNow_result other) {
+      if (!getClass().equals(other.getClass())) {
+        return getClass().getName().compareTo(other.getClass().getName());
+      }
+
+      int lastComparison = 0;
+      pruneNow_result typedOther = (pruneNow_result)other;
+
+      return 0;
+    }
+
+    public _Fields fieldForId(int fieldId) {
+      return _Fields.findByThriftId(fieldId);
+    }
+
+    public void read(org.apache.thrift.protocol.TProtocol iprot) throws org.apache.thrift.TException {
+      schemes.get(iprot.getScheme()).getScheme().read(iprot, this);
+    }
+
+    public void write(org.apache.thrift.protocol.TProtocol oprot) throws org.apache.thrift.TException {
+      schemes.get(oprot.getScheme()).getScheme().write(oprot, this);
+      }
+
+    @Override
+    public String toString() {
+      StringBuilder sb = new StringBuilder("pruneNow_result(");
+      boolean first = true;
+
+      sb.append(")");
+      return sb.toString();
+    }
+
+    public void validate() throws org.apache.thrift.TException {
+      // check for required fields
+      // check for sub-struct validity
+    }
+
+    private void writeObject(java.io.ObjectOutputStream out) throws java.io.IOException {
+      try {
+        write(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(out)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private void readObject(java.io.ObjectInputStream in) throws java.io.IOException, ClassNotFoundException {
+      try {
+        read(new org.apache.thrift.protocol.TCompactProtocol(new org.apache.thrift.transport.TIOStreamTransport(in)));
+      } catch (org.apache.thrift.TException te) {
+        throw new java.io.IOException(te);
+      }
+    }
+
+    private static class pruneNow_resultStandardSchemeFactory implements SchemeFactory {
+      public pruneNow_resultStandardScheme getScheme() {
+        return new pruneNow_resultStandardScheme();
+      }
+    }
+
+    private static class pruneNow_resultStandardScheme extends StandardScheme<pruneNow_result> {
+
+      public void read(org.apache.thrift.protocol.TProtocol iprot, pruneNow_result struct) throws org.apache.thrift.TException {
+        org.apache.thrift.protocol.TField schemeField;
+        iprot.readStructBegin();
+        while (true)
+        {
+          schemeField = iprot.readFieldBegin();
+          if (schemeField.type == org.apache.thrift.protocol.TType.STOP) { 
+            break;
+          }
+          switch (schemeField.id) {
+            default:
+              org.apache.thrift.protocol.TProtocolUtil.skip(iprot, schemeField.type);
+          }
+          iprot.readFieldEnd();
+        }
+        iprot.readStructEnd();
+
+        // check for required fields of primitive type, which can't be checked in the validate method
+        struct.validate();
+      }
+
+      public void write(org.apache.thrift.protocol.TProtocol oprot, pruneNow_result struct) throws org.apache.thrift.TException {
+        struct.validate();
+
+        oprot.writeStructBegin(STRUCT_DESC);
+        oprot.writeFieldStop();
+        oprot.writeStructEnd();
+      }
+
+    }
+
+    private static class pruneNow_resultTupleSchemeFactory implements SchemeFactory {
+      public pruneNow_resultTupleScheme getScheme() {
+        return new pruneNow_resultTupleScheme();
+      }
+    }
+
+    private static class pruneNow_resultTupleScheme extends TupleScheme<pruneNow_result> {
+
+      @Override
+      public void write(org.apache.thrift.protocol.TProtocol prot, pruneNow_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol oprot = (TTupleProtocol) prot;
+      }
+
+      @Override
+      public void read(org.apache.thrift.protocol.TProtocol prot, pruneNow_result struct) throws org.apache.thrift.TException {
+        TTupleProtocol iprot = (TTupleProtocol) prot;
       }
     }
 
