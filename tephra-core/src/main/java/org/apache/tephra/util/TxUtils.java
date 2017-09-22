@@ -124,10 +124,13 @@ public class TxUtils {
    * as being written by this transaction (and therefore visible).
    */
   public static Transaction createDummyTransaction(TransactionVisibilityState txVisibilityState) {
-    return new Transaction(txVisibilityState.getReadPointer(), txVisibilityState.getWritePointer(),
+    return new Transaction(txVisibilityState.getReadPointer(),
+                           txVisibilityState.getVisibilityUpperBound(),
+                           Long.MAX_VALUE,
                            Longs.toArray(txVisibilityState.getInvalid()),
                            Longs.toArray(txVisibilityState.getInProgress().keySet()),
-                           TxUtils.getFirstShortInProgress(txVisibilityState.getInProgress()), TransactionType.SHORT);
+                           TxUtils.getFirstShortInProgress(txVisibilityState.getInProgress()), TransactionType.SHORT,
+                           new long[0], Transaction.VisibilityLevel.SNAPSHOT);
   }
 
   /**
