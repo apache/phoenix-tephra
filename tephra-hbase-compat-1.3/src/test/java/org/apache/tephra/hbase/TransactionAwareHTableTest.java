@@ -105,10 +105,6 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
   public static TemporaryFolder tmpFolder = new TemporaryFolder();
   
   private static MiniDFSCluster dfsCluster;
-  
-  public static void tearDownAfterClass() throws Exception {
-    dfsCluster.shutdown();
-  }
 
   private static final class TestBytes {
     private static final byte[] table = Bytes.toBytes("testtable");
@@ -189,6 +185,9 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
   public static void shutdownAfterClass() throws Exception {
     if (txManager != null) {
       txManager.stopAndWait();
+    }
+    if (dfsCluster != null) {
+      dfsCluster.shutdown();
     }
   }
 
