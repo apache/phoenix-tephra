@@ -94,9 +94,14 @@ public class TxUtils {
     if (ttl <= 0) {
       return 0;
     }
-    long ttlFactor = readNonTxnData ? 1 : TxConstants.MAX_TX_PER_MS;
+    long oldestVisibleTimestamp;
+    if (readNonTxnData) {
+      oldestVisibleTimestamp = getTimestamp(tx.getTransactionId()) - ttl;
+    } else {
+      oldestVisibleTimestamp = tx.getTransactionId() - ttl * TxConstants.MAX_TX_PER_MS;
+    }
     // if the computed ttl is negative, return 0 because timestamps can not be negative
-    return Math.max(0, tx.getTransactionId() - ttl * ttlFactor);
+    return Math.max(0, oldestVisibleTimestamp);
   }
 
   /**
@@ -119,7 +124,7 @@ public class TxUtils {
    * as being written by this transaction (and therefore visible).
    */
   public static Transaction createDummyTransaction(TransactionVisibilityState txVisibilityState) {
-    return new Transaction(txVisibilityState.getReadPointer(), Long.MAX_VALUE,
+    return new Transaction(txVisibilityState.getReadPointer(), txVisibilityState.getWritePointer(),
                            Longs.toArray(txVisibilityState.getInvalid()),
                            Longs.toArray(txVisibilityState.getInProgress().keySet()),
                            TxUtils.getFirstShortInProgress(txVisibilityState.getInProgress()), TransactionType.SHORT);

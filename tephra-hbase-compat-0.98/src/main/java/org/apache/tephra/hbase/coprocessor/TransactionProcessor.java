@@ -446,7 +446,7 @@ public class TransactionProcessor extends BaseRegionObserver {
    * @param type the type of scan being performed
    */
   protected Filter getTransactionFilter(Transaction tx, ScanType type, Filter filter) {
-    return TransactionFilters.getVisibilityFilter(tx, ttlByFamily, allowEmptyValues, readNonTxnData, type, filter);
+    return TransactionFilters.getVisibilityFilter(tx, ttlByFamily, allowEmptyValues, type, filter);
   }
 
   /**
