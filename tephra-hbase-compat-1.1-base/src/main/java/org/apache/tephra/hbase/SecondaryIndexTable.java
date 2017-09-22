@@ -22,14 +22,16 @@ import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.KeyValue;
 import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HBaseAdmin;
 import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.tephra.TransactionContext;
 import org.apache.tephra.TransactionFailureException;
@@ -55,19 +57,22 @@ public class SecondaryIndexTable implements Closeable {
   private static final byte[] secondaryIndexFamily = Bytes.toBytes("secondaryIndexFamily");
   private static final byte[] secondaryIndexQualifier = Bytes.toBytes('r');
   private static final byte[] DELIMITER  = new byte[] {0};
+  private Connection conn  = null;
 
-  public SecondaryIndexTable(TransactionServiceClient transactionServiceClient, HTableInterface hTable,
-                             byte[] secondaryIndex) {
+  public SecondaryIndexTable(TransactionServiceClient transactionServiceClient, Table hTable,
+                             byte[] secondaryIndex) throws IOException {
     secondaryIndexTableName = TableName.valueOf(hTable.getName().getNameAsString() + ".idx");
-    HTable secondaryIndexHTable = null;
-    try (HBaseAdmin hBaseAdmin = new HBaseAdmin(hTable.getConfiguration())) {
+    Table secondaryIndexHTable = null;
+    try {
+      conn  = ConnectionFactory.createConnection(hTable.getConfiguration());
+      Admin hBaseAdmin = conn.getAdmin();
       if (!hBaseAdmin.tableExists(secondaryIndexTableName)) {
         hBaseAdmin.createTable(new HTableDescriptor(secondaryIndexTableName));
       }
-      secondaryIndexHTable = new HTable(hTable.getConfiguration(), secondaryIndexTableName);
+      secondaryIndexHTable = conn.getTable(secondaryIndexTableName);
     } catch (Exception e) {
       Throwables.propagate(e);
-    }
+    } 
 
     this.secondaryIndex = secondaryIndex;
     this.transactionAwareHTable = new TransactionAwareHTable(hTable);
@@ -163,16 +168,33 @@ public class SecondaryIndexTable implements Closeable {
 
   @Override
   public void close() throws IOException {
+    IOException ex = null;
     try {
       transactionAwareHTable.close();
     } catch (IOException e) {
-      try {
-        secondaryIndexTable.close();
-      } catch (IOException ex) {
-        e.addSuppressed(e);
-      }
-      throw e;
+      ex = e;
     }
-    secondaryIndexTable.close();
+    try {
+      secondaryIndexTable.close();
+    } catch (IOException e) {
+      if (ex == null) {
+         ex = e;
+      } else {
+         ex.addSuppressed(e);
+      }
+    }
+    try {
+      conn.close();
+    } catch (IOException e) {
+      if (ex == null) {
+         ex = e;
+      } else {
+         ex.addSuppressed(e);
+      }
+    }
+    if (ex != null) {
+      throw ex;
+    }
   }
+
 }
