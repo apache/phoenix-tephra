@@ -86,13 +86,15 @@ public class TransactionVisibilityFilter extends FilterBase {
    *                   {@link Filter.ReturnCode#INCLUDE_AND_NEXT_COL} will be returned instead.
    */
   public TransactionVisibilityFilter(Transaction tx, Map<byte[], Long> ttlByFamily, boolean allowEmptyValues,
-                              ScanType scanType, @Nullable Filter cellFilter) {
+                                     ScanType scanType, @Nullable Filter cellFilter) {
     this.tx = tx;
     this.oldestTsByFamily = Maps.newTreeMap(Bytes.BYTES_COMPARATOR);
     for (Map.Entry<byte[], Long> ttlEntry : ttlByFamily.entrySet()) {
       long familyTTL = ttlEntry.getValue();
       oldestTsByFamily.put(ttlEntry.getKey(),
-                           familyTTL <= 0 ? 0 : tx.getVisibilityUpperBound() - familyTTL * TxConstants.MAX_TX_PER_MS);
+                           // we pass false for 'readNonTxData'. For non transactional data, we scale the cell timestamp
+                           // in #filterKeyValue, using TxUtils#getTimestampForTTL(long)
+                           TxUtils.getOldestVisibleTimestamp(familyTTL, tx, false));
     }
     this.allowEmptyValues = allowEmptyValues;
     this.clearDeletes =

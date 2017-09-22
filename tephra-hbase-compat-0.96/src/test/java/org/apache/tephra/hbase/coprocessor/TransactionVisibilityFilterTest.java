@@ -294,8 +294,9 @@ public class TransactionVisibilityFilterTest extends AbstractTransactionVisibili
     ttls.put(FAM2, 30L);
     ttls.put(FAM3, 0L);
 
-    Transaction tx = txManager.startShort();
-    long now = tx.getVisibilityUpperBound();
+    long now = System.currentTimeMillis() * TxConstants.MAX_TX_PER_MS;
+    // we explicitly set the readPointer to 'now', because if you set it to an older value, it can filter values out
+    Transaction tx = new Transaction(now, now, new long[0], new long[0], now);
     Filter filter = new TransactionVisibilityFilter(tx, ttls, false, ScanType.USER_SCAN);
     assertEquals(Filter.ReturnCode.INCLUDE_AND_NEXT_COL,
                  filter.filterKeyValue(newKeyValue("row1", FAM, "val1", now)));

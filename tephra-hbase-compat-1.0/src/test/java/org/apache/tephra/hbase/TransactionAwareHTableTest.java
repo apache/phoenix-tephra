@@ -107,7 +107,7 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
   public static TemporaryFolder tmpFolder = new TemporaryFolder();
   
   private static MiniDFSCluster dfsCluster;
-  
+
   private static final class TestBytes {
     private static final byte[] table = Bytes.toBytes("testtable");
     private static final byte[] family = Bytes.toBytes("f1");
