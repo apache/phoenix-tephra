@@ -711,6 +711,8 @@
                     <exclude>**/.classpath</exclude>
                     <exclude>**/.settings/**</exclude>
                     <exclude>src/site/resources/**</exclude>
+                    <exclude>licenses/**</exclude>
+                    <exclude>**/NOTICE_BINARY</exclude>
                   </excludes>
                 </configuration>
               </execution>

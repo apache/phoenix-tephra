@@ -99,17 +99,17 @@ Once you have installed the JDK, you'll need to set the `JAVA_HOME` environment 
 Tephra requires a working HBase and HDFS environment in order to operate. Tephra supports these
 component versions:
 
-| Component     | Source        | Supported Versions                                              |
-|---------------|---------------|-----------------------------------------------------------------|
-| __HDFS__      | Apache Hadoop | 2.0.2-alpha through 2.7.x                                       |
-|               | CDH or HDP    | (CDH) 5.0.0 through 5.8.0 or (HDP) 2.0, 2.1, 2.2, 2.3 or 2.4    |
-|               | MapR          | 4.1 through 5.1 (with MapR-FS)                                  |
-| __HBase__     | Apache        | 0.96.x, 0.98.x, 1.0.x, 1.1.x and 1.2.x (except 1.1.5 and 1.2.2) |
-|               | CDH or HDP    | (CDH) 5.0.0 through 5.8.0 or (HDP) 2.0, 2.1, 2.2, 2.3 or 2.4    |
-|               | MapR          | 4.1 through 5.1 (with Apache HBase)                             |
-| __ZooKeeper__ | Apache        | Version 3.4.3 through 3.4.5                                     |
-|               | CDH or HDP    | (CDH) 5.0.0 through 5.8.0 or (HDP) 2.0, 2.1, 2.2, 2.3 or 2.4    |
-|               | MapR          | 4.1 through 5.1                                                 |
+| Component     | Source        | Supported Versions                                                     |
+|---------------|---------------|------------------------------------------------------------------------|
+| __HDFS__      | Apache Hadoop | 2.0.2-alpha through 2.7.x                                              |
+|               | CDH or HDP    | (CDH) 5.0.0 through 5.12.0 or (HDP) 2.0 through 2.6                    |
+|               | MapR          | 4.1 through 5.1 (with MapR-FS)                                         |
+| __HBase__     | Apache        | 0.96.x, 0.98.x, 1.0.x, 1.1.x, 1.2.x and 1.3.x (except 1.1.5 and 1.2.2) |
+|               | CDH or HDP    | (CDH) 5.0.0 through 5.12.0 or (HDP) 2.0 through 2.6                    |
+|               | MapR          | 4.1 through 5.1 (with Apache HBase)                                    |
+| __ZooKeeper__ | Apache        | Version 3.4.3 through 3.4.5                                            |
+|               | CDH or HDP    | (CDH) 5.0.0 through 5.12.0 or (HDP) 2.0 through 2.6                    |
+|               | MapR          | 4.1 through 5.1                                                        |
 
 __Note:__ Components versions shown in this table are those that we have tested and are
 confident of their suitability and compatibility. Later versions of components may work,
