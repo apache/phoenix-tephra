@@ -21,6 +21,8 @@ language: java
 # Run it on precise, until we figure out how to make jdk7 work (or no longer support jdk7).
 dist: precise
 
+install: true
+
 jdk:
   - oraclejdk7
   - oraclejdk8
@@ -30,10 +32,17 @@ jdk:
 # Note: -DskipCoreTests will active a profile in tephra-core that skips tests
 env:
  - OPTIONS='-am -pl tephra-core'
- - OPTIONS='-am -DskipCoreTests -pl tephra-examples/hbase-0.96,tephra-examples/hbase-0.98'
- - OPTIONS='-am -DskipCoreTests -pl tephra-examples/hbase-1.0,tephra-examples/hbase-1.0-cdh'
- - OPTIONS='-am -DskipCoreTests -pl tephra-examples/hbase-1.1,tephra-examples/hbase-1.2,tephra-examples/cdh-5.7,tephra-examples/cdh-5.8'
- - OPTIONS='-am -DskipCoreTests -pl tephra-examples/hbase-1.3,tephra-examples/hbase-1.4'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-0.96,tephra-hbase-compat-0.98,tephra-examples/hbase-0.96,tephra-examples/hbase-0.98'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.0,tephra-hbase-compat-1.0-cdh,tephra-examples/hbase-1.0,tephra-examples/hbase-1.0-cdh'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.1-base,tephra-examples/hbase-1.1,tephra-examples/hbase-1.2,tephra-examples/cdh-5.7,tephra-examples/cdh-5.8'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.3,tephra-examples/hbase-1.3'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.4,tephra-examples/hbase-1.4'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-2.0,tephra-examples/hbase-2.0'
+
+matrix:
+  exclude:
+  - jdk: oraclejdk7
+    env: OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-2.0,tephra-examples/hbase-2.0'
 
 branches:
   only:
