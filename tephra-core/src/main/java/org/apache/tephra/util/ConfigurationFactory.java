@@ -56,6 +56,11 @@ public class ConfigurationFactory implements Provider<Configuration> {
     protected String getHBase10CDHClassname() {
       return "org.apache.tephra.hbase.HBase10ConfigurationProvider";
     }
+
+    @Override
+    protected String getHBase14Classname() {
+      return "org.apache.tephra.hbase.HBase14ConfigurationProvider";
+    }
   }
 
   private final ConfigurationProvider provider = new ConfigurationProviderFactory().get();
