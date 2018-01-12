@@ -40,6 +40,7 @@ class DummyTxAware implements TransactionAware {
   InduceFailure failCommitTxOnce = InduceFailure.NoFailure;
   InduceFailure failPostCommitTxOnce = InduceFailure.NoFailure;
   InduceFailure failRollbackTxOnce = InduceFailure.NoFailure;
+  InduceFailure failGetName = InduceFailure.NoFailure;
 
   void addChange(byte[] key) {
     changes.add(key);
@@ -118,6 +119,9 @@ class DummyTxAware implements TransactionAware {
 
   @Override
   public String getTransactionAwareName() {
+    if (failGetName == InduceFailure.ThrowException) {
+      throw new RuntimeException("get name failure");
+    }
     return "dummy";
   }
 }

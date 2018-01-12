@@ -122,13 +122,15 @@ public class TransactionContext {
     for (TransactionAware txAware : txAwares) {
       try {
         txAware.startTx(currentTx);
-      } catch (Throwable e) {
-        String message = String.format("Unable to start transaction-aware '%s' for transaction %d. ",
-                                       txAware.getTransactionAwareName(), currentTx.getTransactionId());
-        LOG.warn(message, e);
-        txClient.abort(currentTx);
-        currentTx = null;
-        throw new TransactionFailureException(message, e);
+      } catch (Throwable t) {
+        try {
+          txClient.abort(currentTx);
+          TransactionFailureException tfe = createTransactionFailure("start", txAware, t);
+          LOG.warn(tfe.getMessage());
+          throw tfe;
+        } finally {
+          currentTx = null;
+        }
       }
     }
   }
@@ -147,8 +149,11 @@ public class TransactionContext {
     checkForConflicts();
     persist();
     commit();
-    postCommit();
-    currentTx = null;
+    try {
+      postCommit();
+    } finally {
+      currentTx = null;
+    }
   }
 
   /**
@@ -228,23 +233,32 @@ public class TransactionContext {
       boolean success = true;
       for (TransactionAware txAware : txAwares) {
         try {
-          if (!txAware.rollbackTx()) {
-            success = false;
-          }
-        } catch (Throwable e) {
-          String message = String.format("Unable to roll back changes in transaction-aware '%s' for transaction %d. ",
-                                         txAware.getTransactionAwareName(), currentTx.getTransactionId());
-          LOG.warn(message, e);
+          success = txAware.rollbackTx() && success;
+        } catch (Throwable t) {
+          TransactionFailureException tfe = createTransactionFailure("roll back changes in", txAware, t);
+          LOG.warn(tfe.getMessage());
           if (cause == null) {
-            cause = new TransactionFailureException(message, e);
+            cause = tfe;
+          } else {
+            cause.addSuppressed(tfe);
           }
           success = false;
         }
       }
-      if (success) {
-        txClient.abort(currentTx);
-      } else {
-        txClient.invalidate(currentTx.getTransactionId());
+      try {
+        if (success) {
+          txClient.abort(currentTx);
+        } else {
+          txClient.invalidate(currentTx.getTransactionId());
+        }
+      } catch (Throwable t) {
+        if (cause == null) {
+          cause = new TransactionFailureException(
+            String.format("Error while calling transaction service to %s transaction %d.",
+                          success ? "abort" : "invalidate", currentTx.getTransactionId()));
+        } else {
+          cause.addSuppressed(t);
+        }
       }
       if (cause != null) {
         throw cause;
@@ -259,12 +273,11 @@ public class TransactionContext {
     for (TransactionAware txAware : txAwares) {
       try {
         changes.addAll(txAware.getTxChanges());
-      } catch (Throwable e) {
-        String message = String.format("Unable to retrieve changes from transaction-aware '%s' for transaction %d. ",
-                                       txAware.getTransactionAwareName(), currentTx.getTransactionId());
-        LOG.warn(message, e);
-        abort(new TransactionFailureException(message, e));
+      } catch (Throwable t) {
+        TransactionFailureException tfe = createTransactionFailure("retrieve changes from", txAware, t);
+        LOG.warn(tfe.getMessage());
         // abort will throw that exception
+        abort(tfe);
       }
     }
     try {
@@ -281,24 +294,18 @@ public class TransactionContext {
 
   private void persist() throws TransactionFailureException {
     for (TransactionAware txAware : txAwares) {
-      boolean success;
+      boolean success = false;
       Throwable cause = null;
       try {
         success = txAware.commitTx();
       } catch (Throwable e) {
-        success = false;
         cause = e;
       }
       if (!success) {
-        String message = String.format("Unable to persist changes of transaction-aware '%s' for transaction %d. ",
-                                       txAware.getTransactionAwareName(), currentTx.getTransactionId());
-        if (cause == null) {
-          LOG.warn(message);
-        } else {
-          LOG.warn(message, cause);
-        }
-        abort(new TransactionFailureException(message, cause));
+        TransactionFailureException tfe = createTransactionFailure("persist changes of", txAware, cause);
+        LOG.warn(tfe.getMessage());
         // abort will throw that exception
+        abort(tfe);
       }
     }
   }
@@ -321,15 +328,38 @@ public class TransactionContext {
     for (TransactionAware txAware : txAwares) {
       try {
         txAware.postTxCommit();
-      } catch (Throwable e) {
-        String message = String.format("Unable to perform post-commit in transaction-aware '%s' for transaction %d. ",
-                                       txAware.getTransactionAwareName(), currentTx.getTransactionId());
-        LOG.warn(message, e);
-        cause = new TransactionFailureException(message, e);
+      } catch (Throwable t) {
+        TransactionFailureException tfe = createTransactionFailure("perform post-commit for", txAware, t);
+        LOG.warn(tfe.getMessage());
+        if (cause == null) {
+          cause = tfe;
+        } else {
+          cause.addSuppressed(tfe);
+        }
       }
     }
     if (cause != null) {
       throw cause;
     }
+  }
+
+  private TransactionFailureException createTransactionFailure(String action,
+                                                               TransactionAware txAware,
+                                                               Throwable cause) {
+    String txAwareName;
+    Throwable thrownForName = null;
+    try {
+      txAwareName = txAware.getTransactionAwareName();
+    } catch (Throwable t) {
+      thrownForName = t;
+      txAwareName = "unknown";
+    }
+    TransactionFailureException tfe = new TransactionFailureException(
+      String.format("Unable to %s transaction-aware '%s' for transaction %d",
+                    action, txAwareName, currentTx.getTransactionId()), cause);
+    if (thrownForName != null) {
+      tfe.addSuppressed(thrownForName);
+    }
+    return tfe;
   }
 }
