@@ -25,6 +25,16 @@ jdk:
   - oraclejdk7
   - oraclejdk8
 
+# Run once to test core, then test the compat modules in groups, though their respective example modules
+# Note: 1.1, 1.2, cdh-57 amd cdh-5.8 all depend on compat-1.1-base, so we run them all together
+# Note: -DskipCoreTests will active a profile in tephra-core that skips tests
+env:
+ - OPTIONS='-am -pl tephra-core'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-examples/hbase-0.96,tephra-examples/hbase-0.98'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-examples/hbase-1.0,tephra-examples/hbase-1.0-cdh'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-examples/hbase-1.1,tephra-examples/hbase-1.2,tephra-examples/cdh-5.7,tephra-examples/cdh-5.8'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-examples/hbase-1.3,tephra-examples/hbase-1.4'
+
 branches:
   only:
     - master 
@@ -32,7 +42,8 @@ branches:
     - /^hotfix\/.*$/
     - /^release\/.*$/
 
-script: mvn test
+script:
+ - mvn test $OPTIONS
 
 sudo: false
 
