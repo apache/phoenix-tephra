@@ -418,6 +418,7 @@
             </includes>
             <excludes>
               <exclude>**/*TestRun.java</exclude>
+              <exclude>${testExcludes}</exclude>
             </excludes>
           </configuration>
         </plugin>
