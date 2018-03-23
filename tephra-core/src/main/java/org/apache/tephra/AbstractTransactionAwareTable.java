@@ -24,6 +24,8 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Bytes;
 import com.google.common.primitives.UnsignedBytes;
 
+import org.apache.hadoop.io.WritableUtils;
+
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -42,15 +44,18 @@ public abstract class AbstractTransactionAwareTable implements TransactionAware 
   // map of write pointers to change set associated with each
   protected final Map<Long, Set<ActionChange>> changeSets;
   protected final TxConstants.ConflictDetection conflictLevel;
+  protected final boolean pre014ChangeSetKey;
   protected Transaction tx;
   protected boolean allowNonTransactional;
   protected static final byte[] SEPARATOR_BYTE_ARRAY = new byte[] {0};
 
-  public AbstractTransactionAwareTable(TxConstants.ConflictDetection conflictLevel, boolean allowNonTransactional) {
+  public AbstractTransactionAwareTable(TxConstants.ConflictDetection conflictLevel,
+      boolean allowNonTransactional, boolean pre014ChangeSetKey) {
     this.conflictLevel = conflictLevel;
     this.allowNonTransactional = allowNonTransactional;
     this.txCodec = new TransactionCodec();
     this.changeSets = Maps.newHashMap();
+    this.pre014ChangeSetKey = pre014ChangeSetKey;
   }
 
   /**
@@ -88,13 +93,98 @@ public abstract class AbstractTransactionAwareTable implements TransactionAware 
     Collection<byte[]> txChanges = new TreeSet<byte[]>(UnsignedBytes.lexicographicalComparator());
     for (Set<ActionChange> changeSet : changeSets.values()) {
       for (ActionChange change : changeSet) {
-        txChanges.add(getChangeKey(change.getRow(), change.getFamily(), change.getQualifier()));
+        byte[] row = change.getRow();
+        byte[] fam = change.getFamily();
+        byte[] qual = change.getQualifier();
+        txChanges.add(getChangeKey(row, fam, qual));
+        if (pre014ChangeSetKey) {
+          txChanges.add(getChangeKeyWithoutSeparators(row, fam, qual));
+        }
       }
     }
     return txChanges;
   }
 
+  /**
+   * @param vint long to make a vint of.
+   * @return long in vint byte array representation
+   * We could alternatively make this abstract and
+   * implement this method as Bytes.vintToBytes(long) in
+   * every compat module. 
+   */
+  protected byte [] getVIntBytes(final long vint) {
+    long i = vint;
+    int size = WritableUtils.getVIntSize(i);
+    byte [] result = new byte[size];
+    int offset = 0;
+    if (i >= -112 && i <= 127) {
+      result[offset] = (byte) i;
+      return result;
+    }
+
+    int len = -112;
+    if (i < 0) {
+      i ^= -1L; // take one's complement'
+      len = -120;
+    }
+
+    long tmp = i;
+    while (tmp != 0) {
+      tmp = tmp >> 8;
+    len--;
+    }
+
+    result[offset++] = (byte) len;
+
+    len = (len < -120) ? -(len + 120) : -(len + 112);
+
+    for (int idx = len; idx != 0; idx--) {
+      int shiftbits = (idx - 1) * 8;
+      long mask = 0xFFL << shiftbits;
+      result[offset++] = (byte) ((i & mask) >> shiftbits);
+    }
+    return result;
+  }
+
+  /**
+   * The unique bytes identifying what is changing. We use the
+   * following structure:
+   * ROW conflict level: <table_name><0 byte separator><row key>
+   * since we know that table_name cannot contain a zero byte.
+   * COLUMN conflict level: <table_name><0 byte separator>
+   *     <length of family as vint><family>
+   *     <length of qualifier as vint><qualifier><row key>
+   * The last part of the change key does not need the length to be part
+   * of the key since there's nothing after it that may overlap with it.
+   * @param row
+   * @param family
+   * @param qualifier 
+   * @return unique change key
+   */
   public byte[] getChangeKey(byte[] row, byte[] family, byte[] qualifier) {
+    return getChangeKeyWithSeparators(row, family, qualifier);
+  }
+  
+  private byte[] getChangeKeyWithSeparators(byte[] row, byte[] family, byte[] qualifier) {
+    byte[] key;
+    byte[] tableKey = getTableKey();
+    switch (conflictLevel) {
+    case ROW:
+      key = Bytes.concat(tableKey, SEPARATOR_BYTE_ARRAY, row);
+      break;
+    case COLUMN:
+      key = Bytes.concat(tableKey, SEPARATOR_BYTE_ARRAY, getVIntBytes(family.length), family,
+          getVIntBytes(qualifier.length), qualifier, row);
+      break;
+    case NONE:
+      throw new IllegalStateException("NONE conflict detection does not support change keys");
+    default:
+      throw new IllegalStateException("Unknown conflict detection level: " + conflictLevel);
+    }
+    return key;
+  }
+
+  private byte[] getChangeKeyWithoutSeparators(byte[] row, byte[] family, byte[] qualifier) {
     byte[] key;
     byte[] tableKey = getTableKey();
     switch (conflictLevel) {
