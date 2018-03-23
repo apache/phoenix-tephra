@@ -19,7 +19,6 @@
 package org.apache.tephra;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Objects;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Bytes;
@@ -33,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
+
 /**
  * Base class for all the common parts of the HBase version-specific {@code TransactionAwareHTable}
  * implementations.
@@ -44,6 +44,7 @@ public abstract class AbstractTransactionAwareTable implements TransactionAware 
   protected final TxConstants.ConflictDetection conflictLevel;
   protected Transaction tx;
   protected boolean allowNonTransactional;
+  protected static final byte[] SEPARATOR_BYTE_ARRAY = new byte[] {0};
 
   public AbstractTransactionAwareTable(TxConstants.ConflictDetection conflictLevel, boolean allowNonTransactional) {
     this.conflictLevel = conflictLevel;
@@ -95,17 +96,18 @@ public abstract class AbstractTransactionAwareTable implements TransactionAware 
 
   public byte[] getChangeKey(byte[] row, byte[] family, byte[] qualifier) {
     byte[] key;
+    byte[] tableKey = getTableKey();
     switch (conflictLevel) {
-      case ROW:
-        key = Bytes.concat(getTableKey(), row);
-        break;
-      case COLUMN:
-        key = Bytes.concat(getTableKey(), row, family, qualifier);
-        break;
-      case NONE:
-        throw new IllegalStateException("NONE conflict detection does not support change keys");
-      default:
-        throw new IllegalStateException("Unknown conflict detection level: " + conflictLevel);
+    case ROW:
+      key = Bytes.concat(tableKey, row);
+      break;
+    case COLUMN:
+      key = Bytes.concat(tableKey, row, family, qualifier);
+      break;
+    case NONE:
+      throw new IllegalStateException("NONE conflict detection does not support change keys");
+    default:
+      throw new IllegalStateException("Unknown conflict detection level: " + conflictLevel);
     }
     return key;
   }
@@ -156,17 +158,17 @@ public abstract class AbstractTransactionAwareTable implements TransactionAware 
       changeSets.put(currentWritePointer, changeSet);
     }
     switch (conflictLevel) {
-      case ROW:
-      case NONE:
-        // with ROW or NONE conflict detection, we still need to track changes per-family, since this
-        // is the granularity at which we will issue deletes for rollback
-        changeSet.add(new ActionChange(row, family));
-        break;
-      case COLUMN:
-        changeSet.add(new ActionChange(row, family, qualifier));
-        break;
-      default:
-        throw new IllegalStateException("Unknown conflict detection level: " + conflictLevel);
+    case ROW:
+    case NONE:
+      // with ROW or NONE conflict detection, we still need to track changes per-family, since this
+      // is the granularity at which we will issue deletes for rollback
+      changeSet.add(new ActionChange(row, family));
+      break;
+    case COLUMN:
+      changeSet.add(new ActionChange(row, family, qualifier));
+      break;
+    default:
+      throw new IllegalStateException("Unknown conflict detection level: " + conflictLevel);
     }
   }
 
@@ -212,9 +214,9 @@ public abstract class AbstractTransactionAwareTable implements TransactionAware 
       }
 
       ActionChange other = (ActionChange) o;
-      return Objects.equal(this.row, other.row) &&
-             Objects.equal(this.family, other.family) &&
-             Objects.equal(this.qualifier, other.qualifier);
+      return Arrays.equals(this.row, other.row) &&
+          Arrays.equals(this.family, other.family) &&
+          Arrays.equals(this.qualifier, other.qualifier);
     }
 
     @Override
