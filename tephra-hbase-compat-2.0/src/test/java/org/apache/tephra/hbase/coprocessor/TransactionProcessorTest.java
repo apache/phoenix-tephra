@@ -21,9 +21,7 @@ package org.apache.tephra.hbase.coprocessor;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-
 import it.unimi.dsi.fastutil.longs.LongArrayList;
-
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -42,7 +40,6 @@ import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.ColumnFamilyDescriptorBuilder;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Put;
-import org.apache.hadoop.hbase.client.RegionInfoBuilder;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.client.TableDescriptorBuilder;
 import org.apache.hadoop.hbase.io.util.MemorySizeUtil;
@@ -633,7 +630,7 @@ public class TransactionProcessorTest {
     cache.setConf(conf);
     cache.startAndWait();
     // verify that the transaction snapshot read matches what we wrote in setupBeforeClass()
-    TransactionVisibilityState cachedSnapshot = cache.getLatestState();
+    TransactionVisibilityState cachedSnapshot = waitForTransactionState(cache);
     assertNotNull(cachedSnapshot);
     assertEquals(invalidSet, cachedSnapshot.getInvalid());
     cache.stopAndWait();
