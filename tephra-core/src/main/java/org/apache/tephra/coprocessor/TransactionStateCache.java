@@ -55,6 +55,7 @@ public class TransactionStateCache extends AbstractIdleService implements Config
   // snapshot refresh frequency in milliseconds
   private long snapshotRefreshFrequency;
   private boolean initialized;
+  private String logPrefix = "";
 
   public TransactionStateCache() {
   }
@@ -103,10 +104,10 @@ public class TransactionStateCache extends AbstractIdleService implements Config
                                                      TxConstants.Manager.DEFAULT_TX_SNAPSHOT_INTERVAL) * 1000;
         this.initialized = true;
       } else {
-        LOG.info("Could not load configuration");
+        LOG.info(prefixLog("Could not load configuration"));
       }
     } catch (Exception e) {
-      LOG.info("Failed to initialize TransactionStateCache due to: ", e);
+      LOG.info(prefixLog("Failed to initialize TransactionStateCache due to: "), e);
     }
   }
 
@@ -131,7 +132,7 @@ public class TransactionStateCache extends AbstractIdleService implements Config
             try {
               refreshState();
             } catch (IOException ioe) {
-              LOG.info("Error refreshing transaction state cache.", ioe);
+              LOG.info(prefixLog("Error refreshing transaction state cache."), ioe);
             }
           }
           try {
@@ -142,7 +143,7 @@ public class TransactionStateCache extends AbstractIdleService implements Config
             break;
           }
         }
-        LOG.info("Exiting thread " + getName());
+        LOG.info(prefixLog("Exiting thread " + getName()));
       }
     };
     this.refreshService.setDaemon(true);
@@ -160,18 +161,18 @@ public class TransactionStateCache extends AbstractIdleService implements Config
       TransactionVisibilityState currentState = storage.getLatestTransactionVisibilityState();
       if (currentState != null) {
         if (currentState.getTimestamp() < (now - 2 * snapshotRefreshFrequency)) {
-          LOG.info("Current snapshot is old, will force a refresh on next run.");
+          LOG.info(prefixLog("Current snapshot is old, will force a refresh on next run."));
           reset();
         } else {
           latestState = currentState;
-          LOG.info("Transaction state reloaded with snapshot from " + latestState.getTimestamp());
+          LOG.info(prefixLog("Transaction state reloaded with snapshot from " + latestState.getTimestamp()));
           if (LOG.isDebugEnabled()) {
-            LOG.debug("Latest transaction snapshot: " + latestState.toString());
+            LOG.debug(prefixLog("Latest transaction snapshot: " + latestState.toString()));
           }
           lastRefresh = now;
         }
       } else {
-        LOG.info("No transaction state found.");
+        LOG.info(prefixLog("No transaction state found."));
       }
     }
   }
@@ -179,5 +180,15 @@ public class TransactionStateCache extends AbstractIdleService implements Config
   @Nullable
   public TransactionVisibilityState getLatestState() {
     return latestState;
+  }
+
+  protected void setId(@Nullable String id) {
+    if (id != null) {
+      this.logPrefix = "[" + id + "] ";
+    }
+  }
+
+  private String prefixLog(String message) {
+    return logPrefix + message;
   }
 }
