@@ -603,7 +603,7 @@ public class TransactionProcessorTest {
     cache.setConf(conf);
     cache.startAndWait();
     // verify that the transaction snapshot read matches what we wrote in setupBeforeClass()
-    TransactionVisibilityState cachedSnapshot = cache.getLatestState();
+    TransactionVisibilityState cachedSnapshot = waitForTransactionState(cache);
     assertNotNull(cachedSnapshot);
     assertEquals(invalidSet, cachedSnapshot.getInvalid());
     cache.stopAndWait();

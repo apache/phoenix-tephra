@@ -71,11 +71,6 @@ public class TransactionStateCache extends AbstractIdleService implements Config
 
   @Override
   protected void startUp() throws Exception {
-    try {
-      refreshState();
-    } catch (IOException ioe) {
-      LOG.info("Error refreshing transaction state cache.", ioe);
-    }
     startRefreshService();
   }
 
@@ -83,6 +78,7 @@ public class TransactionStateCache extends AbstractIdleService implements Config
   protected void shutDown() throws Exception {
     if (refreshService != null) {
       refreshService.interrupt();
+      refreshService.join(1000);
     }
 
     if (storage != null) {
