@@ -30,7 +30,6 @@
 
   <properties>
     <hadoop.version>2.7.4</hadoop.version>
-    <hbase20.version>2.0.0-beta-1</hbase20.version> 
   </properties>
 
   <dependencies>

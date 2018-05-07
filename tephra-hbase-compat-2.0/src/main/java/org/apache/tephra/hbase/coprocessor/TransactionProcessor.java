@@ -20,7 +20,6 @@ package org.apache.tephra.hbase.coprocessor;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
@@ -44,7 +43,6 @@ import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
 import org.apache.hadoop.hbase.coprocessor.RegionObserver;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.filter.FilterBase;
-import org.apache.hadoop.hbase.regionserver.HStore;
 import org.apache.hadoop.hbase.regionserver.InternalScanner;
 import org.apache.hadoop.hbase.regionserver.Region;
 import org.apache.hadoop.hbase.regionserver.ScanOptions;
@@ -73,7 +71,6 @@ import java.util.NavigableSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-
 import javax.annotation.Nullable;
 
 /**
@@ -364,7 +361,7 @@ public class TransactionProcessor implements RegionObserver, RegionCoprocessor {
     // in the region
     // then the region must be empty
     long numStoreFiles = numStoreFilesForRegion(e);
-    long memstoreSize = region.getMemStoreSize();
+    long memstoreSize = region.getMemStoreDataSize();
     LOG.debug(String.format("Region %s: memstore size = %s, num store files = %s",
       region.getRegionInfo().getRegionNameAsString(), memstoreSize, numStoreFiles));
     if (memstoreSize == 0 && numStoreFiles == 0) {
