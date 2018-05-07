@@ -58,7 +58,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-common</artifactId>
-      <version>${hbase2.version}</version>
+      <version>${hbase20.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -70,7 +70,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-client</artifactId>
-      <version>${hbase2.version}</version>
+      <version>${hbase20.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -82,13 +82,13 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-protocol</artifactId>
-      <version>${hbase2.version}</version>
+      <version>${hbase20.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase2.version}</version>
+      <version>${hbase20.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -102,7 +102,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase2.version}</version>
+      <version>${hbase20.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
       <exclusions>
@@ -135,7 +135,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-testing-util</artifactId>
-      <version>${hbase2.version}</version>
+      <version>${hbase20.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -150,20 +150,8 @@
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-testing-util</artifactId>
-      <version>${hbase2.version}</version>
-      <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>asm</groupId>
-          <artifactId>asm</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-http</artifactId>
-      <version>${hbase2.version}</version>
+      <version>${hbase20.version}</version>
       <scope>test</scope>
     </dependency>
   </dependencies>

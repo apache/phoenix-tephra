@@ -595,7 +595,7 @@ public class TransactionProcessorTest {
     Path tablePath = FSUtils.getTableDir(FSUtils.getRootDir(conf), htd.getTableName());
     FileSystem fs = FileSystem.get(conf);
     assertTrue(fs.mkdirs(tablePath));
-    WALFactory walFactory = new WALFactory(conf, null, tableName + ".hlog");
+    WALFactory walFactory = new WALFactory(conf, tableName + ".hlog");
     HRegionInfo info = new HRegionInfo(htd.getTableName(), null, null, false);
     WAL hLog = walFactory.getWAL(info);
     HRegionInfo regionInfo = new HRegionInfo(TableName.valueOf(tableName));
