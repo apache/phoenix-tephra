@@ -110,7 +110,10 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
    */
   public TransactionAwareHTable(HTableInterface hTable, TxConstants.ConflictDetection conflictLevel,
                                 boolean allowNonTransactional) {
-    super(conflictLevel, allowNonTransactional);
+    super(conflictLevel, allowNonTransactional, 
+        hTable.getConfiguration().getBoolean(
+            TxConstants.TX_PRE_014_CHANGESET_KEY,
+            TxConstants.DEFAULT_TX_PRE_014_CHANGESET_KEY));
     this.hTable = hTable;
   }
 

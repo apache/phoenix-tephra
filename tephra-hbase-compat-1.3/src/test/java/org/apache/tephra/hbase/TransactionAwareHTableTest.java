@@ -937,7 +937,10 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
 
     Collection<byte[]> changeSet = txTable1.getTxChanges();
     assertNotNull(changeSet);
-    assertEquals(2, changeSet.size());
+    boolean pre014ChangeSetKeys = txTable1.getConfiguration().getBoolean(
+        TxConstants.TX_PRE_014_CHANGESET_KEY,
+        TxConstants.DEFAULT_TX_PRE_014_CHANGESET_KEY);
+    assertEquals(pre014ChangeSetKeys ? 4 : 2, changeSet.size());
     assertTrue(changeSet.contains(txTable1.getChangeKey(row1, null, null)));
     assertTrue(changeSet.contains(txTable1.getChangeKey(row2, null, null)));
     txContext1.finish();
