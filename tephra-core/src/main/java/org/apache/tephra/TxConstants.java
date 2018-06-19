@@ -309,6 +309,10 @@ public class TxConstants {
     public static final String CFG_DATA_TX_CLIENT_BACKOFF_LIMIT
       = "data.tx.client.retry.backoff.limit";
 
+    /** to specify timeout in seconds for connecting discovery client */
+    public static final String CFG_DATA_TX_CLIENT_DISCOVERY_TIMEOUT_SEC
+      = "data.tx.client.discovery.timeout";
+
     /** the default tx client socket timeout in milli seconds. */
     public static final int DEFAULT_DATA_TX_CLIENT_TIMEOUT_MS
       = 30 * 1000;
@@ -344,6 +348,9 @@ public class TxConstants {
     /** default sleep limit is 30 sec. */
     public static final int DEFAULT_DATA_TX_CLIENT_BACKOFF_LIMIT
       = 30 * 1000;
+
+    /** default client discovery timeout is 10 sec. */
+    public static final int DEFAULT_DATA_TX_CLIENT_DISCOVERY_TIMEOUT_SEC = 10;
   }
 
   /**
