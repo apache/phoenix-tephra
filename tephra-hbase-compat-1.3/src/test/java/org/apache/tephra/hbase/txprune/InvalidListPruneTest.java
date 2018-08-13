@@ -26,7 +26,6 @@ import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HRegionLocation;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
@@ -90,7 +89,7 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
 
     // Do some transactional data operations
     txDataTable1 = TableName.valueOf("invalidListPruneTestTable1");
-    HTable hTable = createTable(txDataTable1.getName(), new byte[][]{family}, false,
+    Table hTable = createTable(txDataTable1.getName(), new byte[][]{family}, false,
                                 Collections.singletonList(TestTransactionProcessor.class.getName()));
     try (TransactionAwareHTable txTable = new TransactionAwareHTable(hTable, TxConstants.ConflictDetection.ROW)) {
       TransactionContext txContext = new TransactionContext(new InMemoryTxSystemClient(txManager), txTable);
@@ -129,7 +128,7 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
   }
 
   private void createPruneStateTable() throws Exception {
-    HTable table = createTable(pruneStateTable.getName(), new byte[][]{DataJanitorState.FAMILY}, false,
+    Table table = createTable(pruneStateTable.getName(), new byte[][]{DataJanitorState.FAMILY}, false,
                                // Prune state table is a non-transactional table, hence no transaction co-processor
                                Collections.<String>emptyList());
     table.close();
@@ -311,7 +310,7 @@ public class InvalidListPruneTest extends AbstractHBaseTableTest {
 
     // Create an empty table
     TableName txEmptyTable = TableName.valueOf("emptyPruneTestTable");
-    HTable emptyHTable = createTable(txEmptyTable.getName(), new byte[][]{family}, false,
+    Table emptyHTable = createTable(txEmptyTable.getName(), new byte[][]{family}, false,
                                      Collections.singletonList(TestTransactionProcessor.class.getName()));
 
     TransactionPruningPlugin transactionPruningPlugin = new TestTransactionPruningPlugin();

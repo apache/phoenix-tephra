@@ -30,7 +30,6 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import org.apache.hadoop.hbase.HRegionInfo;
 import org.apache.hadoop.hbase.TableName;
-import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.tephra.TxConstants;
@@ -104,7 +103,7 @@ public class InvalidListPruningDebugTest extends AbstractHBaseTableTest {
   public static void addData() throws Exception {
     pruneStateTable = TableName.valueOf(conf.get(TxConstants.TransactionPruning.PRUNE_STATE_TABLE,
                                                  TxConstants.TransactionPruning.DEFAULT_PRUNE_STATE_TABLE));
-    HTable table = createTable(pruneStateTable.getName(), new byte[][]{DataJanitorState.FAMILY}, false,
+    Table table = createTable(pruneStateTable.getName(), new byte[][]{DataJanitorState.FAMILY}, false,
                                // Prune state table is a non-transactional table, hence no transaction co-processor
                                Collections.<String>emptyList());
     table.close();

@@ -26,7 +26,7 @@ import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
-import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.tephra.TxConstants;
 import org.apache.tephra.hbase.coprocessor.TransactionProcessor;
 import org.junit.AfterClass;
@@ -60,7 +60,6 @@ public abstract class AbstractHBaseTableTest {
     conf.setInt("hbase.master.info.port", 0);
     conf.setInt("hbase.regionserver.port", 0);
     conf.setInt("hbase.regionserver.info.port", 0);
-
     testUtil.startMiniCluster();
     hBaseAdmin = testUtil.getHBaseAdmin();
   }
@@ -76,12 +75,12 @@ public abstract class AbstractHBaseTableTest {
     }
   }
 
-  protected static HTable createTable(byte[] tableName, byte[][] columnFamilies) throws Exception {
+  protected static Table createTable(byte[] tableName, byte[][] columnFamilies) throws Exception {
     return createTable(tableName, columnFamilies, false,
                        Collections.singletonList(TransactionProcessor.class.getName()));
   }
 
-  protected static HTable createTable(byte[] tableName, byte[][] columnFamilies, boolean existingData,
+  protected static Table createTable(byte[] tableName, byte[][] columnFamilies, boolean existingData,
                                       List<String> coprocessors) throws Exception {
     HTableDescriptor desc = new HTableDescriptor(TableName.valueOf(tableName));
     for (byte[] family : columnFamilies) {
@@ -101,6 +100,6 @@ public abstract class AbstractHBaseTableTest {
     }
     hBaseAdmin.createTable(desc);
     testUtil.waitTableAvailable(tableName, 5000);
-    return new HTable(testUtil.getConfiguration(), tableName);
+    return testUtil.getConnection().getTable(TableName.valueOf(tableName));
   }
 }

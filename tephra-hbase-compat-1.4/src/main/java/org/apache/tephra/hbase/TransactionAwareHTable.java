@@ -31,7 +31,6 @@ import org.apache.hadoop.hbase.client.Append;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.Get;
-import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.Increment;
 import org.apache.hadoop.hbase.client.Mutation;
 import org.apache.hadoop.hbase.client.OperationWithAttributes;
@@ -41,6 +40,7 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Row;
 import org.apache.hadoop.hbase.client.RowMutations;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.client.coprocessor.Batch;
 import org.apache.hadoop.hbase.client.coprocessor.Batch.Callback;
 import org.apache.hadoop.hbase.filter.CompareFilter;
@@ -58,6 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A Transaction Aware HTable implementation for HBase 1.3. Operations are committed as usual,
@@ -65,17 +66,17 @@ import java.util.Set;
  * was started.
  */
 public class TransactionAwareHTable extends AbstractTransactionAwareTable
-    implements HTableInterface, TransactionAware {
+    implements Table, TransactionAware {
 
   private static final Logger LOG = LoggerFactory.getLogger(TransactionAwareHTable.class);
-  private final HTableInterface hTable;
+  private final Table hTable;
 
   /**
    * Create a transactional aware instance of the passed HTable
    *
    * @param hTable underlying HBase table to use
    */
-  public TransactionAwareHTable(HTableInterface hTable) {
+  public TransactionAwareHTable(Table hTable) {
     this(hTable, false);
   }
 
@@ -85,7 +86,7 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
    * @param hTable underlying HBase table to use
    * @param conflictLevel level of conflict detection to perform (defaults to {@code COLUMN})
    */
-  public TransactionAwareHTable(HTableInterface hTable, TxConstants.ConflictDetection conflictLevel) {
+  public TransactionAwareHTable(Table hTable, TxConstants.ConflictDetection conflictLevel) {
     this(hTable, conflictLevel, false);
   }
 
@@ -96,7 +97,7 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
    * @param allowNonTransactional if true, additional operations (checkAndPut, increment, checkAndDelete)
    *                              will be available, though non-transactional
    */
-  public TransactionAwareHTable(HTableInterface hTable, boolean allowNonTransactional) {
+  public TransactionAwareHTable(Table hTable, boolean allowNonTransactional) {
     this(hTable, TxConstants.ConflictDetection.COLUMN, allowNonTransactional);
   }
 
@@ -108,7 +109,7 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
    * @param allowNonTransactional if true, additional operations (checkAndPut, increment, checkAndDelete)
    *                              will be available, though non-transactional
    */
-  public TransactionAwareHTable(HTableInterface hTable, TxConstants.ConflictDetection conflictLevel,
+  public TransactionAwareHTable(Table hTable, TxConstants.ConflictDetection conflictLevel,
                                 boolean allowNonTransactional) {
     super(conflictLevel, allowNonTransactional, 
         hTable.getConfiguration().getBoolean(
@@ -121,12 +122,11 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
 
   @Override
   protected byte[] getTableKey() {
-    return getTableName();
+    return hTable.getName().getName();
   }
 
   @Override
   protected boolean doCommit() throws IOException {
-    hTable.flushCommits();
     return true;
   }
 
@@ -169,22 +169,12 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
       hTable.delete(rollbackDeletes);
       return true;
     } finally {
-      try {
-        hTable.flushCommits();
-      } catch (Exception e) {
-        LOG.error("Could not flush HTable commits", e);
-      }
       tx = null;
       changeSets.clear();
     }
   }
 
-  /* HTableInterface implementation */
-
-  @Override
-  public byte[] getTableName() {
-    return hTable.getTableName();
-  }
+  /* Table implementation */
 
   @Override
   public TableName getName() {
@@ -207,18 +197,6 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
       throw new IOException("Transaction not started");
     }
     return hTable.exists(transactionalizeAction(get));
-  }
-
-  @Override
-  public Boolean[] exists(List<Get> gets) throws IOException {
-    if (tx == null) {
-      throw new IOException("Transaction not started");
-    }
-    List<Get> transactionalizedGets = new ArrayList<>(gets.size());
-    for (Get get : gets) {
-      transactionalizedGets.add(transactionalizeAction(get));
-    }
-    return hTable.exists(transactionalizedGets);
   }
 
   @Override
@@ -273,15 +251,6 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
       transactionalizedGets.add(transactionalizeAction(get));
     }
     return hTable.get(transactionalizedGets);
-  }
-
-  @Override
-  public Result getRowOrBefore(byte[] row, byte[] family) throws IOException {
-    if (allowNonTransactional) {
-      return hTable.getRowOrBefore(row, family);
-    } else {
-      throw new UnsupportedOperationException("Operation is not supported transactionally");
-    }
   }
 
   @Override
@@ -438,6 +407,28 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
   }
 
   @Override
+  public int getReadRpcTimeout() {
+    return hTable.getReadRpcTimeout();
+  }
+
+  @Override
+  public void setReadRpcTimeout(int readRpcTimeout) {
+    hTable.setReadRpcTimeout(readRpcTimeout);
+
+  }
+
+  @Override
+  public int getWriteRpcTimeout() {
+    return hTable.getWriteRpcTimeout();
+  }
+
+  @Override
+  public void setWriteRpcTimeout(int writeRpcTimeout) {
+    hTable.setWriteRpcTimeout(writeRpcTimeout);
+
+  }
+
+  @Override
   public void mutateRow(RowMutations rm) throws IOException {
     if (tx == null) {
       throw new IOException("Transaction not started");
@@ -472,7 +463,8 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
   }
 
   @Override
-  public long incrementColumnValue(byte[] row, byte[] family, byte[] qualifier, long amount) throws IOException {
+  public long incrementColumnValue(byte[] row, byte[] family, byte[] qualifier, long amount)
+      throws IOException {
     if (allowNonTransactional) {
       return hTable.incrementColumnValue(row, family, qualifier, amount);
     } else {
@@ -481,33 +473,13 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
   }
 
   @Override
-  public long incrementColumnValue(byte[] row, byte[] family, byte[] qualifier, long amount, Durability durability)
-    throws IOException {
+  public long incrementColumnValue(byte[] row, byte[] family, byte[] qualifier, long amount,
+      Durability durability) throws IOException {
     if (allowNonTransactional) {
       return hTable.incrementColumnValue(row, family, qualifier, amount, durability);
     } else {
       throw new UnsupportedOperationException("Operation is not supported transactionally");
     }
-  }
-
-  @Override
-  public long incrementColumnValue(byte[] row, byte[] family, byte[] qualifier, long amount, boolean writeToWAL)
-    throws IOException {
-    if (allowNonTransactional) {
-      return hTable.incrementColumnValue(row, family, qualifier, amount, writeToWAL);
-    } else {
-      throw new UnsupportedOperationException("Operation is not supported transactionally");
-    }
-  }
-
-  @Override
-  public boolean isAutoFlush() {
-    return hTable.isAutoFlush();
-  }
-
-  @Override
-  public void flushCommits() throws IOException {
-    hTable.flushCommits();
   }
 
   @Override
@@ -549,21 +521,6 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
   }
 
   @Override
-  public void setAutoFlush(boolean autoFlush) {
-    setAutoFlushTo(autoFlush);
-  }
-
-  @Override
-  public void setAutoFlush(boolean autoFlush, boolean clearBufferOnFail) {
-    hTable.setAutoFlush(autoFlush, clearBufferOnFail);
-  }
-
-  @Override
-  public void setAutoFlushTo(boolean autoFlush) {
-    hTable.setAutoFlushTo(autoFlush);
-  }
-
-  @Override
   public long getWriteBufferSize() {
     return hTable.getWriteBufferSize();
   }
@@ -571,26 +528,6 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
   @Override
   public void setWriteBufferSize(long writeBufferSize) throws IOException {
     hTable.setWriteBufferSize(writeBufferSize);
-  }
-
-  @Override
-  public int getReadRpcTimeout() {
-    return hTable.getReadRpcTimeout();
-  }
-
-  @Override
-  public void setReadRpcTimeout(int timeout) {
-    hTable.setReadRpcTimeout(timeout);
-  }
-
-  @Override
-  public int getWriteRpcTimeout() {
-    return hTable.getWriteRpcTimeout();
-  }
-
-  @Override
-  public void setWriteRpcTimeout(int timeout) {
-    hTable.setWriteRpcTimeout(timeout);
   }
 
   // Helpers to get copies of objects with the timestamp set to the current transaction timestamp.

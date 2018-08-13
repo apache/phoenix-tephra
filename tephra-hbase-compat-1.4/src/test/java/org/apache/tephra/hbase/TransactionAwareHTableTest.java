@@ -26,17 +26,17 @@ import org.apache.hadoop.hbase.DoNotRetryIOException;
 import org.apache.hadoop.hbase.HBaseTestingUtility;
 import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.KeyValue;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HBaseAdmin;
-import org.apache.hadoop.hbase.client.HTable;
-import org.apache.hadoop.hbase.client.HTableInterface;
 import org.apache.hadoop.hbase.client.OperationWithAttributes;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.coprocessor.BaseRegionObserver;
 import org.apache.hadoop.hbase.coprocessor.ObserverContext;
 import org.apache.hadoop.hbase.coprocessor.RegionCoprocessorEnvironment;
@@ -99,7 +99,7 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
   static TransactionManager txManager;
   private TransactionContext transactionContext;
   private TransactionAwareHTable transactionAwareHTable;
-  private HTable hTable;
+  private Table hTable;
   
   @ClassRule
   public static TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -254,7 +254,7 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
    */
   @Test
   public void testValidTransactionalDelete() throws Exception {
-    try (HTable hTable = createTable(Bytes.toBytes("TestValidTransactionalDelete"),
+    try (Table hTable = createTable(Bytes.toBytes("TestValidTransactionalDelete"),
                                      new byte[][]{TestBytes.family, TestBytes.family2})) {
       TransactionAwareHTable txTable = new TransactionAwareHTable(hTable);
       TransactionContext txContext = new TransactionContext(new InMemoryTxSystemClient(txManager), txTable);
@@ -394,7 +394,7 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
    */
   @Test
   public void testAttributesPreserved() throws Exception {
-    HTable hTable = createTable(Bytes.toBytes("TestAttributesPreserved"),
+    Table hTable = createTable(Bytes.toBytes("TestAttributesPreserved"),
         new byte[][]{TestBytes.family, TestBytes.family2}, false,
         Lists.newArrayList(TransactionProcessor.class.getName(), TestRegionObserver.class.getName()));
     try {
@@ -436,7 +436,7 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
   
   @Test
   public void testFamilyDeleteWithCompaction() throws Exception {
-    HTable hTable = createTable(Bytes.toBytes("TestFamilyDeleteWithCompaction"),
+    Table hTable = createTable(Bytes.toBytes("TestFamilyDeleteWithCompaction"),
                                 new byte[][]{TestBytes.family, TestBytes.family2});
     try {
       TransactionAwareHTable txTable = new TransactionAwareHTable(hTable, ConflictDetection.ROW);
@@ -536,7 +536,7 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
 
   private void testDeleteRollback(TxConstants.ConflictDetection conflictDetection) throws Exception {
     String tableName = String.format("%s%s", "TestColFamilyDelete", conflictDetection);
-    HTable hTable = createTable(Bytes.toBytes(tableName), new byte[][]{TestBytes.family});
+    Table hTable = createTable(Bytes.toBytes(tableName), new byte[][]{TestBytes.family});
     try (TransactionAwareHTable txTable = new TransactionAwareHTable(hTable, conflictDetection)) {
       TransactionContext txContext = new TransactionContext(new InMemoryTxSystemClient(txManager), txTable);
       txContext.start();
@@ -572,7 +572,7 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
 
   @Test
   public void testMultiColumnFamilyRowDeleteRollback() throws Exception {
-    HTable hTable = createTable(Bytes.toBytes("TestMultColFam"), new byte[][] {TestBytes.family, TestBytes.family2});
+    Table hTable = createTable(Bytes.toBytes("TestMultColFam"), new byte[][] {TestBytes.family, TestBytes.family2});
     try (TransactionAwareHTable txTable = new TransactionAwareHTable(hTable, TxConstants.ConflictDetection.ROW)) {
       TransactionContext txContext = new TransactionContext(new InMemoryTxSystemClient(txManager), txTable);
       txContext.start();
@@ -604,7 +604,7 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
 
   @Test
   public void testRowDelete() throws Exception {
-    HTable hTable = createTable(Bytes.toBytes("TestRowDelete"), new byte[][]{TestBytes.family, TestBytes.family2});
+    Table hTable = createTable(Bytes.toBytes("TestRowDelete"), new byte[][]{TestBytes.family, TestBytes.family2});
     try (TransactionAwareHTable txTable = new TransactionAwareHTable(hTable, TxConstants.ConflictDetection.ROW)) {
       TransactionContext txContext = new TransactionContext(new InMemoryTxSystemClient(txManager), txTable);
 
@@ -687,7 +687,7 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
                     .add(TestBytes.family2, TestBytes.qualifier, TestBytes.value)
                     .add(TestBytes.family2, TestBytes.qualifier2, TestBytes.value2));
       txContext.finish();
-
+      
       txContext.start();
       txTable.delete(new Delete(TestBytes.row2).deleteFamily(TestBytes.family));
       txContext.finish();
@@ -781,12 +781,12 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
   @Test
   public void testReadYourWrites() throws Exception {
     // In-progress tx1: started before our main transaction
-    HTable hTable1 = new HTable(testUtil.getConfiguration(), TestBytes.table);
+    Table hTable1 = testUtil.getConnection().getTable(TableName.valueOf(TestBytes.table));
     TransactionAwareHTable txHTable1 = new TransactionAwareHTable(hTable1);
     TransactionContext inprogressTxContext1 = new TransactionContext(new InMemoryTxSystemClient(txManager), txHTable1);
 
     // In-progress tx2: started while our main transaction is running
-    HTable hTable2 = new HTable(testUtil.getConfiguration(), TestBytes.table);
+    Table hTable2 = testUtil.getConnection().getTable(TableName.valueOf(TestBytes.table));
     TransactionAwareHTable txHTable2 = new TransactionAwareHTable(hTable2);
     TransactionContext inprogressTxContext2 = new TransactionContext(new InMemoryTxSystemClient(txManager), txHTable2);
 
@@ -838,11 +838,13 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
 
   @Test
   public void testRowLevelConflictDetection() throws Exception {
-    TransactionAwareHTable txTable1 = new TransactionAwareHTable(new HTable(conf, TestBytes.table),
+    TransactionAwareHTable txTable1 = new TransactionAwareHTable(
+            testUtil.getConnection().getTable(TableName.valueOf(TestBytes.table)),
         TxConstants.ConflictDetection.ROW);
     TransactionContext txContext1 = new TransactionContext(new InMemoryTxSystemClient(txManager), txTable1);
 
-    TransactionAwareHTable txTable2 = new TransactionAwareHTable(new HTable(conf, TestBytes.table),
+    TransactionAwareHTable txTable2 = new TransactionAwareHTable(
+            testUtil.getConnection().getTable(TableName.valueOf(TestBytes.table)),
         TxConstants.ConflictDetection.ROW);
     TransactionContext txContext2 = new TransactionContext(new InMemoryTxSystemClient(txManager), txTable2);
 
@@ -949,11 +951,13 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
   @Test
   public void testNoneLevelConflictDetection() throws Exception {
     InMemoryTxSystemClient txClient = new InMemoryTxSystemClient(txManager);
-    TransactionAwareHTable txTable1 = new TransactionAwareHTable(new HTable(conf, TestBytes.table),
+    TransactionAwareHTable txTable1 = new TransactionAwareHTable(
+            testUtil.getConnection().getTable(TableName.valueOf(TestBytes.table)),
         TxConstants.ConflictDetection.NONE);
     TransactionContext txContext1 = new TransactionContext(txClient, txTable1);
 
-    TransactionAwareHTable txTable2 = new TransactionAwareHTable(new HTable(conf, TestBytes.table),
+    TransactionAwareHTable txTable2 = new TransactionAwareHTable(
+            testUtil.getConnection().getTable(TableName.valueOf(TestBytes.table)),
         TxConstants.ConflictDetection.NONE);
     TransactionContext txContext2 = new TransactionContext(txClient, txTable2);
 
@@ -1088,7 +1092,8 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
     transactionAwareHTable.put(new Put(TestBytes.row2).add(TestBytes.family, TestBytes.qualifier, TestBytes.value2));
 
     // check that writes are still not visible to other clients
-    TransactionAwareHTable txTable2 = new TransactionAwareHTable(new HTable(conf, TestBytes.table));
+    TransactionAwareHTable txTable2 = new TransactionAwareHTable(
+            testUtil.getConnection().getTable(TableName.valueOf(TestBytes.table)));
     TransactionContext txContext2 = new TransactionContext(new InMemoryTxSystemClient(txManager), txTable2);
 
     txContext2.start();
@@ -1147,7 +1152,8 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
     txClient.invalidate(transactionContext.getCurrentTransaction().getTransactionId());
 
     // check that writes are not visible
-    TransactionAwareHTable txTable2 = new TransactionAwareHTable(new HTable(conf, TestBytes.table));
+    TransactionAwareHTable txTable2 = new TransactionAwareHTable(
+            testUtil.getConnection().getTable(TableName.valueOf(TestBytes.table)));
     TransactionContext txContext2 = new TransactionContext(txClient, txTable2);
     txContext2.start();
     Transaction newTx = txContext2.getCurrentTransaction();
@@ -1183,7 +1189,7 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
     TransactionContext txContext = new TransactionContext(new InMemoryTxSystemClient(txManager), txTable);
 
     // Add some pre-existing, non-transactional data
-    HTable nonTxTable = new HTable(testUtil.getConfiguration(), txTable.getTableName());
+    Table nonTxTable = testUtil.getConnection().getTable(txTable.getName());
     nonTxTable.put(new Put(TestBytes.row).add(TestBytes.family, TestBytes.qualifier, val11));
     nonTxTable.put(new Put(TestBytes.row).add(TestBytes.family, TestBytes.qualifier2, val12));
     nonTxTable.put(new Put(TestBytes.row2).add(TestBytes.family, TestBytes.qualifier, val21));
@@ -1191,7 +1197,6 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
     nonTxTable.put(new Put(TestBytes.row4).add(TestBytes.family, TxConstants.FAMILY_DELETE_QUALIFIER,
                                                HConstants.EMPTY_BYTE_ARRAY));
     nonTxTable.put(new Put(TestBytes.row4).add(TestBytes.family, TestBytes.qualifier, HConstants.EMPTY_BYTE_ARRAY));
-    nonTxTable.flushCommits();
 
     // Add transactional data
     txContext.start();
@@ -1282,15 +1287,15 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
     txContext.finish();
   }
 
-  private void verifyRow(HTableInterface table, byte[] rowkey, byte[] expectedValue) throws Exception {
+  private void verifyRow(Table table, byte[] rowkey, byte[] expectedValue) throws Exception {
     verifyRow(table, new Get(rowkey), expectedValue);
   }
 
-  private void verifyRow(HTableInterface table, Get get, byte[] expectedValue) throws Exception {
+  private void verifyRow(Table table, Get get, byte[] expectedValue) throws Exception {
     verifyRows(table, get, expectedValue == null ? null : ImmutableList.of(expectedValue));
   }
 
-  private void verifyRows(HTableInterface table, Get get, List<byte[]> expectedValues) throws Exception {
+  private void verifyRows(Table table, Get get, List<byte[]> expectedValues) throws Exception {
     Result result = table.get(get);
     if (expectedValues == null) {
       assertTrue(result.isEmpty());
@@ -1310,12 +1315,12 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
     }
   }
 
-  private Cell[] getRow(HTableInterface table, Get get) throws Exception {
+  private Cell[] getRow(Table table, Get get) throws Exception {
     Result result = table.get(get);
     return result.rawCells();
   }
 
-  private void verifyScan(HTableInterface table, Scan scan, List<KeyValue> expectedCells) throws Exception {
+  private void verifyScan(Table table, Scan scan, List<KeyValue> expectedCells) throws Exception {
     List<Cell> actualCells = new ArrayList<>();
     try (ResultScanner scanner = table.getScanner(scan)) {
       Result[] results = scanner.next(expectedCells.size() + 1);
@@ -1328,7 +1333,7 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
 
   @Test
   public void testVisibilityAll() throws Exception {
-    HTable nonTxTable =
+    Table nonTxTable =
       createTable(Bytes.toBytes("testVisibilityAll"), new byte[][]{TestBytes.family, TestBytes.family2},
                   true, Collections.singletonList(TransactionProcessor.class.getName()));
     TransactionAwareHTable txTable =
@@ -1500,7 +1505,6 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
     // to prevent Tephra from replacing delete with delete marker
     deleteFamily.setAttribute(TxConstants.TX_ROLLBACK_ATTRIBUTE_KEY, new byte[0]);
     nonTxTable.delete(deleteFamily);
-    nonTxTable.flushCommits();
 
     txContext.start();
     txContext.getCurrentTransaction().setVisibility(Transaction.VisibilityLevel.SNAPSHOT_ALL);
@@ -1712,7 +1716,7 @@ public class TransactionAwareHTableTest extends AbstractHBaseTableTest {
    * Represents older transaction clients
    */
   private static class OldTransactionAwareHTable extends TransactionAwareHTable {
-    public OldTransactionAwareHTable(HTableInterface hTable) {
+    public OldTransactionAwareHTable(Table hTable) {
       super(hTable);
     }
 
