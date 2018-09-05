@@ -104,7 +104,7 @@ component versions:
 | __HDFS__      | Apache Hadoop | 2.0.2-alpha through 2.7.x                                              |
 |               | CDH or HDP    | (CDH) 5.0.0 through 5.12.0 or (HDP) 2.0 through 2.6                    |
 |               | MapR          | 4.1 through 5.1 (with MapR-FS)                                         |
-| __HBase__     | Apache        | 0.96.x, 0.98.x, 1.0.x, 1.1.x, 1.2.x and 1.3.x (except 1.1.5 and 1.2.2) |
+| __HBase__     | Apache        | 0.96.x, 0.98.x, 1.0.x, 1.1.x, 1.2.x, 1.3.x (except 1.1.5 and 1.2.2) and 2.0.x |
 |               | CDH or HDP    | (CDH) 5.0.0 through 5.12.0 or (HDP) 2.0 through 2.6                    |
 |               | MapR          | 4.1 through 5.1 (with Apache HBase)                                    |
 | __ZooKeeper__ | Apache        | Version 3.4.3 through 3.4.5                                            |

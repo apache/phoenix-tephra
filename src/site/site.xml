@@ -51,6 +51,8 @@
       <item name="Home" href="./index.html"/>
       <item name="Getting Started" href="./GettingStarted.html"/>
       <item name="Presentations" href="./Presentations.html"/>
+      <item name="API (0.15.0-incubating)" href="./apidocs-0.15.0-incubating/index.html"/>
+      <item name="API (0.14.0-incubating)" href="./apidocs-0.14.0-incubating/index.html"/>
       <item name="API (0.13.0-incubating)" href="./apidocs-0.13.0-incubating/index.html"/>
       <item name="API (0.12.0-incubating)" href="./apidocs-0.12.0-incubating/index.html"/>
       <item name="API (0.11.0-incubating)" href="./apidocs-0.11.0-incubating/index.html"/>
@@ -60,6 +62,8 @@
     </menu>
 
     <menu name="Releases">
+      <item name="0.15.0-incubating" href="releases/0.15.0-incubating.html"/>
+      <item name="0.14.0-incubating" href="releases/0.14.0-incubating.html"/>
       <item name="0.13.0-incubating" href="releases/0.13.0-incubating.html"/>
       <item name="0.12.0-incubating" href="releases/0.12.0-incubating.html"/>
       <item name="0.11.0-incubating" href="releases/0.11.0-incubating.html"/>
