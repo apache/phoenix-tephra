@@ -19,6 +19,7 @@
 
 package org.apache.tephra.txprune;
 
+import java.util.Arrays;
 import java.util.Objects;
 
 /**
@@ -68,7 +69,7 @@ public class RegionPruneInfo {
     }
 
     RegionPruneInfo other = (RegionPruneInfo) obj;
-    return Objects.equals(regionName, other.getRegionName())
+    return Arrays.equals(regionName, other.getRegionName())
       && Objects.equals(regionNameAsString, other.getRegionNameAsString())
       && Objects.equals(pruneUpperBound, other.getPruneUpperBound())
       && Objects.equals(pruneRecordTime, other.getPruneRecordTime());

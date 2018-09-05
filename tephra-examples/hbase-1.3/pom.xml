@@ -21,7 +21,7 @@
   <parent>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-examples</artifactId>
-    <version>0.14.0-incubating-SNAPSHOT</version>
+    <version>0.16.0-incubating-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -34,8 +34,8 @@
   </properties>
 
   <build>
-    <sourceDirectory>../src/main/java</sourceDirectory>
-    <testSourceDirectory>../src/test/java</testSourceDirectory>
+    <sourceDirectory>src/main/java</sourceDirectory>
+    <testSourceDirectory>src/test/java</testSourceDirectory>
   </build>
 
   <dependencies>

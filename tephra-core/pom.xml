@@ -21,7 +21,7 @@
   <parent>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra</artifactId>
-    <version>0.14.0-incubating-SNAPSHOT</version>
+    <version>0.16.0-incubating-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -140,5 +140,29 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <!-- this profile is used in travis to avoid testing core for each compat module. Activated by -DskipCoreTests -->
+    <profile>
+      <id>noTest</id>
+      <activation>
+        <property>
+          <name>skipCoreTests</name>
+          <value>true</value>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <skipTests>true</skipTests>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 
 </project>

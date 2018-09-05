@@ -74,7 +74,7 @@ public class TransactionVisibilityFilterTest extends AbstractTransactionVisibili
     TxFilterFactory txFilterFactory = new TxFilterFactory() {
       @Override
       public Filter getTxFilter(Transaction tx, Map<byte[], Long> familyTTLs) {
-        return new TransactionVisibilityFilter(tx, familyTTLs, false, false, ScanType.USER_SCAN, includeFilter);
+        return new TransactionVisibilityFilter(tx, familyTTLs, false, ScanType.USER_SCAN, includeFilter);
       }
     };
     runFilteringTest(txFilterFactory,
@@ -94,7 +94,7 @@ public class TransactionVisibilityFilterTest extends AbstractTransactionVisibili
     txFilterFactory = new TxFilterFactory() {
       @Override
       public Filter getTxFilter(Transaction tx, Map<byte[], Long> familyTTLs) {
-        return new TransactionVisibilityFilter(tx, familyTTLs, false, false, ScanType.USER_SCAN, skipFilter);
+        return new TransactionVisibilityFilter(tx, familyTTLs, false, ScanType.USER_SCAN, skipFilter);
       }
     };
     runFilteringTest(txFilterFactory,
@@ -114,7 +114,7 @@ public class TransactionVisibilityFilterTest extends AbstractTransactionVisibili
     txFilterFactory = new TxFilterFactory() {
       @Override
       public Filter getTxFilter(Transaction tx, Map<byte[], Long> familyTTLs) {
-        return new TransactionVisibilityFilter(tx, familyTTLs, false, false, ScanType.USER_SCAN, includeNextFilter);
+        return new TransactionVisibilityFilter(tx, familyTTLs, false, ScanType.USER_SCAN, includeNextFilter);
       }
     };
     runFilteringTest(txFilterFactory,
@@ -134,7 +134,7 @@ public class TransactionVisibilityFilterTest extends AbstractTransactionVisibili
     txFilterFactory = new TxFilterFactory() {
       @Override
       public Filter getTxFilter(Transaction tx, Map<byte[], Long> familyTTLs) {
-        return new TransactionVisibilityFilter(tx, familyTTLs, false, false, ScanType.USER_SCAN, nextColFilter);
+        return new TransactionVisibilityFilter(tx, familyTTLs, false, ScanType.USER_SCAN, nextColFilter);
       }
     };
     runFilteringTest(txFilterFactory,
@@ -293,9 +293,8 @@ public class TransactionVisibilityFilterTest extends AbstractTransactionVisibili
     ttls.put(FAM2, 30L);
     ttls.put(FAM3, 0L);
 
-    long now = System.currentTimeMillis() * TxConstants.MAX_TX_PER_MS;
-    // we explicitly set the readPointer to 'now', because if you set it to an older value, it can filter values out
-    Transaction tx = new Transaction(now, now, new long[0], new long[0], now);
+    Transaction tx = txManager.startShort();
+    long now = tx.getVisibilityUpperBound();
     Filter filter = new TransactionVisibilityFilter(tx, ttls, false, ScanType.USER_SCAN);
     assertEquals(Filter.ReturnCode.INCLUDE_AND_NEXT_COL,
                  filter.filterKeyValue(newKeyValue("row1", FAM, "val1", now)));
@@ -353,7 +352,7 @@ public class TransactionVisibilityFilterTest extends AbstractTransactionVisibili
   private class CustomTxFilter extends TransactionVisibilityFilter {
     public CustomTxFilter(Transaction tx, Map<byte[], Long> ttlByFamily, boolean allowEmptyValues, ScanType scanType,
                           @Nullable Filter cellFilter) {
-      super(tx, ttlByFamily, allowEmptyValues, false, scanType, cellFilter);
+      super(tx, ttlByFamily, allowEmptyValues, scanType, cellFilter);
     }
 
     @Override

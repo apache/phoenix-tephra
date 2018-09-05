@@ -124,6 +124,13 @@ public class TxConstants {
    */
   public static final String CLIENT_ID = "tephra.client.id";
 
+  /** Whether or not to put separators in change set row keys  (see TEPHRA-287).
+   * Currently defaults to true so that a mix of old and new tx clients will
+   * consistenly use the old logic. Once all clients are know to be upgraded
+   * the default should be change to false */
+  public static final String TX_PRE_014_CHANGESET_KEY = "data.tx.pre.014.changeset.key";
+  public static final boolean DEFAULT_TX_PRE_014_CHANGESET_KEY = true;
+
   /**
    * TransactionManager configuration.
    */
@@ -196,7 +203,7 @@ public class TxConstants {
     public static final long DEFAULT_TX_CHANGESET_SIZE_LIMIT = Long.MAX_VALUE;
     /** The default warning threshold for the total size in bytes of a change set is unlimited. */
     public static final long DEFAULT_TX_CHANGESET_SIZE_WARN_THRESHOLD = Long.MAX_VALUE;
-
+ 
     /** Whether and how long to retain the client id of a transaction. Valid values are:
      * <ul>
      *   <li>OFF - do not retain the client id at all</li>
@@ -302,6 +309,10 @@ public class TxConstants {
     public static final String CFG_DATA_TX_CLIENT_BACKOFF_LIMIT
       = "data.tx.client.retry.backoff.limit";
 
+    /** to specify timeout in seconds for connecting discovery client */
+    public static final String CFG_DATA_TX_CLIENT_DISCOVERY_TIMEOUT_SEC
+      = "data.tx.client.discovery.timeout";
+
     /** the default tx client socket timeout in milli seconds. */
     public static final int DEFAULT_DATA_TX_CLIENT_TIMEOUT_MS
       = 30 * 1000;
@@ -337,6 +348,9 @@ public class TxConstants {
     /** default sleep limit is 30 sec. */
     public static final int DEFAULT_DATA_TX_CLIENT_BACKOFF_LIMIT
       = 30 * 1000;
+
+    /** default client discovery timeout is 10 sec. */
+    public static final int DEFAULT_DATA_TX_CLIENT_DISCOVERY_TIMEOUT_SEC = 10;
   }
 
   /**

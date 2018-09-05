@@ -77,7 +77,9 @@ public abstract class AbstractClientProvider implements ThriftClientProvider {
         discoveryServiceClient.discover(
           configuration.get(TxConstants.Service.CFG_DATA_TX_DISCOVERY_SERVICE_NAME,
                             TxConstants.Service.DEFAULT_DATA_TX_DISCOVERY_SERVICE_NAME))),
-      2, TimeUnit.SECONDS);
+      configuration.getInt(TxConstants.Service.CFG_DATA_TX_CLIENT_DISCOVERY_TIMEOUT_SEC,
+                           TxConstants.Service.DEFAULT_DATA_TX_CLIENT_DISCOVERY_TIMEOUT_SEC),
+      TimeUnit.SECONDS);
   }
 
   protected TransactionServiceThriftClient newClient() throws TException {
