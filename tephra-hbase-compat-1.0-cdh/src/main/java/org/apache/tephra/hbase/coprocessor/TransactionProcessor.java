@@ -322,6 +322,8 @@ public class TransactionProcessor extends BaseRegionObserver {
   public InternalScanner preFlushScannerOpen(ObserverContext<RegionCoprocessorEnvironment> c, Store store,
                                              KeyValueScanner memstoreScanner, InternalScanner scanner)
       throws IOException {
+    // silently close the passed scanner as we're returning a brand-new one
+    try (InternalScanner temp = scanner) { }
     return createStoreScanner(c.getEnvironment(), "flush", cache.getLatestState(), store,
                               Collections.singletonList(memstoreScanner), ScanType.COMPACT_RETAIN_DELETES,
                               HConstants.OLDEST_TIMESTAMP);
@@ -357,6 +359,8 @@ public class TransactionProcessor extends BaseRegionObserver {
       compactionState.record(request, snapshot);
     }
 
+    // silently close the passed scanner as we're returning a brand-new one
+    try (InternalScanner temp = s) { }
     // Also make sure to use the same snapshot for the compaction
     return createStoreScanner(c.getEnvironment(), "compaction", snapshot, store, scanners, scanType, earliestPutTs);
   }
