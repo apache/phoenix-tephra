@@ -25,6 +25,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.Cell;
 import org.apache.hadoop.hbase.CellUtil;
 import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HConstants;
 import org.apache.hadoop.hbase.HTableDescriptor;
 import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Append;
@@ -316,7 +317,7 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
     if (tx == null) {
       throw new IOException("Transaction not started");
     }
-    hTable.delete(transactionalizeAction(delete));
+    hTable.put(transactionalizeAction(delete));
   }
 
   @Override
@@ -324,12 +325,12 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
     if (tx == null) {
       throw new IOException("Transaction not started");
     }
-    List<Delete> transactionalizedDeletes = new ArrayList<>(deletes.size());
+    List<Put> transactionalizedDeletes = new ArrayList<>(deletes.size());
     for (Delete delete : deletes) {
-      Delete txDelete = transactionalizeAction(delete);
+      Put txDelete = transactionalizeAction(delete);
       transactionalizedDeletes.add(txDelete);
     }
-    hTable.delete(transactionalizedDeletes);
+    hTable.put(transactionalizedDeletes);
   }
 
   @Override
@@ -541,11 +542,11 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
     return txPut;
   }
 
-  private Delete transactionalizeAction(Delete delete) throws IOException {
+  private Put transactionalizeAction(Delete delete) throws IOException {
     long transactionTimestamp = tx.getWritePointer();
 
     byte[] deleteRow = delete.getRow();
-    Delete txDelete = new Delete(deleteRow, transactionTimestamp);
+    Put deleteMarkers = new Put(delete.getRow(), delete.getTimeStamp());
 
     Map<byte[], List<Cell>> familyToDelete = delete.getFamilyCellMap();
     if (familyToDelete.isEmpty()) {
@@ -556,6 +557,8 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
         // Therefore get all the column families of the hTable from the HTableDescriptor and add them to the changeSet
         for (HColumnDescriptor columnDescriptor : hTable.getTableDescriptor().getColumnFamilies()) {
           // no need to identify individual columns deleted
+          deleteMarkers.add(columnDescriptor.getName(), TxConstants.FAMILY_DELETE_QUALIFIER, transactionTimestamp,
+            HConstants.EMPTY_BYTE_ARRAY);
           addToChangeSet(deleteRow, columnDescriptor.getName(), null);
         }
       } else {
@@ -565,7 +568,8 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
         for (Map.Entry<byte[], NavigableMap<byte[], byte[]>> familyEntry : resultMap.entrySet()) {
           NavigableMap<byte[], byte[]> familyColumns = result.getFamilyMap(familyEntry.getKey());
           for (Map.Entry<byte[], byte[]> column : familyColumns.entrySet()) {
-            txDelete.deleteColumns(familyEntry.getKey(), column.getKey(), transactionTimestamp);
+            deleteMarkers.add(familyEntry.getKey(), column.getKey(), transactionTimestamp,
+              HConstants.EMPTY_BYTE_ARRAY);
             addToChangeSet(deleteRow, familyEntry.getKey(), column.getKey());
           }
         }
@@ -583,31 +587,34 @@ public class TransactionAwareHTable extends AbstractTransactionAwareTable
           if (conflictLevel == TxConstants.ConflictDetection.ROW ||
               conflictLevel == TxConstants.ConflictDetection.NONE) {
             // no need to identify individual columns deleted
-            txDelete.deleteFamily(family);
+            deleteMarkers.add(family, TxConstants.FAMILY_DELETE_QUALIFIER, transactionTimestamp,
+              HConstants.EMPTY_BYTE_ARRAY);
             addToChangeSet(deleteRow, family, null);
           } else {
             Result result = get(new Get(delete.getRow()).addFamily(family));
             // Delete entire family
             NavigableMap<byte[], byte[]> familyColumns = result.getFamilyMap(family);
             for (Map.Entry<byte[], byte[]> column : familyColumns.entrySet()) {
-              txDelete.deleteColumns(family, column.getKey(), transactionTimestamp);
+              deleteMarkers.add(family, column.getKey(), transactionTimestamp,
+                HConstants.EMPTY_BYTE_ARRAY);
               addToChangeSet(deleteRow, family, column.getKey());
             }
           }
         } else {
           for (Cell value : entries) {
-            txDelete.deleteColumns(value.getFamily(), value.getQualifier(), transactionTimestamp);
+            deleteMarkers.add(value.getFamily(), value.getQualifier(), transactionTimestamp,
+              HConstants.EMPTY_BYTE_ARRAY);
             addToChangeSet(deleteRow, value.getFamily(), value.getQualifier());
           }
         }
       }
     }
     for (Map.Entry<String, byte[]> entry : delete.getAttributesMap().entrySet()) {
-        txDelete.setAttribute(entry.getKey(), entry.getValue());
+      deleteMarkers.setAttribute(entry.getKey(), entry.getValue());
     }
-    txDelete.setDurability(delete.getDurability());
-    addToOperation(txDelete, tx);
-    return txDelete;
+    deleteMarkers.setDurability(delete.getDurability());
+    addToOperation(deleteMarkers, tx);
+    return deleteMarkers;
   }
 
   private List<? extends Row> transactionalizeActions(List<? extends Row> actions) throws IOException {
