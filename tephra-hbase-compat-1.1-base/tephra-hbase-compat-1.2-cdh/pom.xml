@@ -22,7 +22,6 @@
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra-hbase-compat-1.1-base</artifactId>
     <version>0.16.0-incubating-SNAPSHOT</version>
-    <relativePath>../pom.xml</relativePath>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -43,8 +42,12 @@
   </repositories>
 
   <build>
-    <sourceDirectory>../src/main/java</sourceDirectory>
-    <testSourceDirectory>../src/test/java</testSourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
   </build>
 
   <dependencies>

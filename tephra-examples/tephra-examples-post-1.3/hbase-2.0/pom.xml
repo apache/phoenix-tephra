@@ -16,43 +16,49 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
+
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
-    <artifactId>tephra-examples</artifactId>
     <groupId>org.apache.tephra</groupId>
+    <artifactId>tephra-examples-post-1.3</artifactId>
     <version>0.16.0-incubating-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>tephra-examples-hbase-1.0-cdh</artifactId>
-  <name>Apache Tephra Examples For Hbase 1.0-cdh</name>
+  <artifactId>tephra-examples-hbase-2.0</artifactId>
+  <name>Apache Tephra Examples For HBase 2.0</name>
 
   <properties>
-    <hadoop.version>2.6.0</hadoop.version>
+    <hadoop.version>2.7.4</hadoop.version>
   </properties>
 
-  <repositories>
-    <repository>
-      <id>cloudera</id>
-      <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
-    </repository>
-  </repositories>
-
   <build>
-    <sourceDirectory>../src/main/java</sourceDirectory>
-    <testSourceDirectory>../src/test/java</testSourceDirectory>
+    <sourceDirectory>src/main/java</sourceDirectory>
+    <testSourceDirectory>src/test/java</testSourceDirectory>
+      <plugins>
+        <!-- Compiler -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.1</version>
+          <configuration>
+            <source>1.8</source>
+            <target>1.8</target>
+          </configuration>
+        </plugin>
+      </plugins>
   </build>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-hbase-compat-1.0-cdh</artifactId>
+      <artifactId>tephra-hbase-compat-2.0</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-common</artifactId>
-      <version>${hbase10cdh.version}</version>
+      <version>${hbase20.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -64,7 +70,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-client</artifactId>
-      <version>${hbase10cdh.version}</version>
+      <version>${hbase20.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -76,13 +82,13 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-protocol</artifactId>
-      <version>${hbase10cdh.version}</version>
+      <version>${hbase20.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase10cdh.version}</version>
+      <version>${hbase20.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -96,7 +102,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase10cdh.version}</version>
+      <version>${hbase20.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
       <exclusions>
@@ -107,9 +113,21 @@
       </exclusions>
     </dependency>
     <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
+      <version>1.6.4</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>log4j</groupId>
+      <artifactId>log4j</artifactId>
+      <version>1.2.17</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-testing-util</artifactId>
-      <version>${hbase10cdh.version}</version>
+      <version>${hbase20.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -122,6 +140,11 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <dependency>
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-http</artifactId>
+      <version>${hbase20.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
-
 </project>

@@ -18,7 +18,7 @@
 
 language: java
 
-# Run it on precise, until we figure out how to make jdk7 work (or no longer support jdk7).
+# Run it on trusty, which has Java 8 support, until we support Java 9
 dist: precise
 
 install: true
@@ -31,12 +31,13 @@ jdk:
 # Note: -DskipCoreTests will active a profile in tephra-core that skips tests
 env:
  - OPTIONS='-am -pl tephra-core'
- - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-0.96,tephra-hbase-compat-0.98,tephra-examples/hbase-0.96,tephra-examples/hbase-0.98'
- - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.0,tephra-hbase-compat-1.0-cdh,tephra-examples/hbase-1.0,tephra-examples/hbase-1.0-cdh'
- - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.1-base,tephra-examples/hbase-1.1,tephra-examples/hbase-1.2,tephra-examples/cdh-5.7,tephra-examples/cdh-5.8'
- - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.3,tephra-examples/hbase-1.3'
- - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.4,tephra-examples/hbase-1.4'
- - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-2.0,tephra-examples/hbase-2.0'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-0.96,tephra-hbase-compat-0.98,tephra-examples/tephra-examples-pre-1.3/hbase-0.96,tephra-examples/tephra-examples-pre-1.3/hbase-0.98'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.0,tephra-hbase-compat-1.0-cdh,tephra-examples/tephra-examples-pre-1.3/hbase-1.0,tephra-examples/tephra-examples-pre-1.3/hbase-1.0-cdh'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.1-base/tephra-hbase-compat-1.1,tephra-hbase-compat-1.1-base/tephra-hbase-compat-1.2,tephra-examples/tephra-examples-pre-1.3/hbase-1.1,tephra-examples/tephra-examples-pre-1.3/hbase-1.2'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.1-base/tephra-hbase-compat-1.2-cdh,tephra-examples/tephra-examples-pre-1.3/cdh-5.7,tephra-examples/tephra-examples-pre-1.3/cdh-5.8'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.3,tephra-examples/tephra-examples-post-1.3/hbase-1.3'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.4,tephra-examples/tephra-examples-post-1.3/hbase-1.4'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-2.0,tephra-examples/tephra-examples-post-1.3/hbase-2.0'
 
 branches:
   only:
@@ -46,7 +47,8 @@ branches:
     - /^release\/.*$/
 
 script:
- - mvn test $OPTIONS
+ - mvn -v
+ - MAVEN_OPTS="-Dhttps.protocols=TLSv1,TLSv1.1,TLSv1.2" mvn -B test $OPTIONS
 
 sudo: false
 

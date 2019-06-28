@@ -16,38 +16,40 @@
   ~ See the License for the specific language governing permissions and
   ~ limitations under the License.
   -->
-
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <parent>
+    <artifactId>tephra-examples-pre-1.3</artifactId>
     <groupId>org.apache.tephra</groupId>
-    <artifactId>tephra-examples</artifactId>
     <version>0.16.0-incubating-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>tephra-examples-hbase-1.1</artifactId>
-  <name>Apache Tephra Examples For Hbase 1.1</name>
+  <artifactId>tephra-examples-hbase-0.98</artifactId>
+  <name>Apache Tephra Examples For Hbase 0.98</name>
 
   <properties>
-    <hadoop.version>2.5.1</hadoop.version>
-    <hbase11.version>1.1.1</hbase11.version>
+    <hadoop.version>2.5.0</hadoop.version>
   </properties>
 
   <build>
-    <sourceDirectory>../src/main/java</sourceDirectory>
-    <testSourceDirectory>../src/test/java</testSourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
   </build>
 
   <dependencies>
     <dependency>
       <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-hbase-compat-1.1</artifactId>
+      <artifactId>tephra-hbase-compat-0.98</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-common</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase98.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -59,7 +61,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-client</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase98.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -71,13 +73,13 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-protocol</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase98.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase98.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -91,7 +93,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase98.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
       <exclusions>
@@ -104,7 +106,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-testing-util</artifactId>
-      <version>${hbase11.version}</version>
+      <version>${hbase98.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -116,6 +118,7 @@
           <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
       </exclusions>
+
     </dependency>
   </dependencies>
 
