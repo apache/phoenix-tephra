@@ -24,7 +24,6 @@ dist: precise
 install: true
 
 jdk:
-  - oraclejdk7
   - oraclejdk8
 
 # Run once to test core, then test the compat modules in groups, though their respective example modules
@@ -38,18 +37,6 @@ env:
  - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.3,tephra-examples/hbase-1.3'
  - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.4,tephra-examples/hbase-1.4'
  - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-2.0,tephra-examples/hbase-2.0'
-
-# exclude hbase-2.0 for jdk7;
-# exclude hbase-1.4 for jdk7; then include it with an extra excluded test to work around TEPHRA-285
-matrix:
-  exclude:
-  - jdk: oraclejdk7
-    env: OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-2.0,tephra-examples/hbase-2.0'
-  - jdk: oraclejdk7
-    env: OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.4,tephra-examples/hbase-1.4'
-  include:
-  - jdk: oraclejdk7
-    env: OPTIONS='-am -DskipCoreTests -DtestExcludes=org/apache/tephra/hbase/coprocessor/TransactionProcessorTest.java -pl tephra-hbase-compat-1.4,tephra-examples/hbase-1.4'
 
 branches:
   only:
