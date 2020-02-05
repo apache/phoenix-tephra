@@ -33,6 +33,8 @@
     <module>hbase-1.3</module>
     <module>hbase-1.4</module>
     <module>hbase-2.0</module>
+    <module>hbase-2.1</module>
+    <module>hbase-2.2</module>
   </modules>
 
   <build>
