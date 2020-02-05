@@ -30,6 +30,9 @@ import java.util.Collection;
 public class HBase20ConfigurationProviderTest extends AbstractConfigurationProviderTest {
   @Override
   protected Collection<HBaseVersion.Version> getExpectedVersions() {
-    return ImmutableList.of(HBaseVersion.Version.HBASE_20);
+    return ImmutableList.of(
+        HBaseVersion.Version.HBASE_20,
+        HBaseVersion.Version.HBASE_21,
+        HBaseVersion.Version.HBASE_22);
   }
 }
