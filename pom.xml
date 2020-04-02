@@ -408,6 +408,7 @@
             <argLine>-Xmx4096m -Djava.awt.headless=true -XX:MaxPermSize=256m -Djava.net.preferIPv4Stack=true</argLine>
             <redirectTestOutputToFile>${surefire.redirectTestOutputToFile}</redirectTestOutputToFile>
             <reuseForks>false</reuseForks>
+            <trimStackTrace>false</trimStackTrace>
             <reportFormat>plain</reportFormat>
             <systemPropertyVariables>
               <java.io.tmpdir>${project.build.directory}</java.io.tmpdir>
