@@ -85,6 +85,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.tephra:tephra-core</include>
+                  <include>org.apache.twill:twill-api</include>
                   <include>org.apache.twill:twill-common</include>
                   <include>org.apache.twill:twill-core</include>
                   <include>org.apache.twill:twill-discovery-api</include>
