@@ -152,6 +152,7 @@
   <modules>
     <module>tephra-api</module>
     <module>tephra-core</module>
+    <module>tephra-shaded</module>
     <module>tephra-hbase-compat-0.96</module>
     <module>tephra-hbase-compat-0.98</module>
     <module>tephra-hbase-compat-1.0</module>
@@ -224,7 +225,9 @@
     <junit.version>4.11</junit.version>
     <slf4j.version>1.7.5</slf4j.version>
     <thrift.version>0.9.0</thrift.version>
+    <!-- twill -->
     <twill.version>0.8.0</twill.version>
+    <!-- end twill -->
     <dropwizard.metrics.version>3.1.0</dropwizard.metrics.version>
   </properties>
 
@@ -234,8 +237,6 @@
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
         <version>${findbugs.jsr305.version}</version>
-        <scope>provided</scope>
-        <optional>true</optional>
       </dependency>
       <dependency>
         <groupId>com.google.code.gson</groupId>
@@ -283,6 +284,7 @@
         <version>${thrift.version}</version>
       </dependency>
       <dependency>
+      <!-- twill -->
         <groupId>org.apache.twill</groupId>
         <artifactId>twill-common</artifactId>
         <version>${twill.version}</version>
@@ -322,6 +324,7 @@
         <version>${twill.version}</version>
       </dependency>
       <dependency>
+      <!-- end twill -->
         <groupId>io.dropwizard.metrics</groupId>
         <artifactId>metrics-core</artifactId>
         <version>${dropwizard.metrics.version}</version>
