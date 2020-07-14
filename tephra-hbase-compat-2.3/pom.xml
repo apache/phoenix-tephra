@@ -159,4 +159,47 @@
     </dependency>
   </dependencies>
 
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
+          <configuration>
+            <relocations>
+              <relocation>
+                <pattern>com.google.common</pattern>
+                <shadedPattern>${shaded.package}.com.google.common</shadedPattern>
+              </relocation>
+            </relocations>
+          </configuration>
+          <executions>
+            <execution>
+              <id>default-shaded</id>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+              <configuration>
+                <shadedArtifactAttached>true</shadedArtifactAttached>
+                <dependencyReducedPomLocation>${basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+                <artifactSet>
+                  <includes>
+                    <include>org.apache.tephra:tephra-hbase-compat-*</include>
+                  </includes>
+                </artifactSet>
+              </configuration>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
 </project>
