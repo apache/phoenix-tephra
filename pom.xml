@@ -163,6 +163,7 @@
     <module>tephra-hbase-compat-2.3</module>
     <module>tephra-examples</module>
     <module>tephra-distribution</module>
+    <module>tephra-core-shaded</module>
   </modules>
 
   <scm>
@@ -226,7 +227,13 @@
     <junit.version>4.11</junit.version>
     <slf4j.version>1.7.5</slf4j.version>
     <thrift.version>0.9.0</thrift.version>
+
+    <!-- twill -->
+
     <twill.version>0.8.0</twill.version>
+
+    <!-- end twill -->
+
     <dropwizard.metrics.version>3.1.0</dropwizard.metrics.version>
   </properties>
 
@@ -236,8 +243,6 @@
         <groupId>com.google.code.findbugs</groupId>
         <artifactId>jsr305</artifactId>
         <version>${findbugs.jsr305.version}</version>
-        <scope>provided</scope>
-        <optional>true</optional>
       </dependency>
       <dependency>
         <groupId>com.google.code.gson</groupId>
@@ -284,6 +289,16 @@
         <artifactId>libthrift</artifactId>
         <version>${thrift.version}</version>
       </dependency>
+      <!-- This is curator's transitive dependency
+      The original version, 1.2.15 has a missing transitive dependency, and blocks shading -->
+      <dependency>
+        <groupId>log4j</groupId>
+        <artifactId>log4j</artifactId>
+        <version>1.2.17</version>
+      </dependency>
+
+      <!-- twill -->
+
       <dependency>
         <groupId>org.apache.twill</groupId>
         <artifactId>twill-common</artifactId>
@@ -323,6 +338,9 @@
         <artifactId>twill-zookeeper</artifactId>
         <version>${twill.version}</version>
       </dependency>
+
+      <!-- end twill -->
+
       <dependency>
         <groupId>io.dropwizard.metrics</groupId>
         <artifactId>metrics-core</artifactId>
