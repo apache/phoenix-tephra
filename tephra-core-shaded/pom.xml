@@ -86,10 +86,10 @@
               <goal>shade</goal>
             </goals>
             <configuration>
-              <promoteTransitiveDependencies>false</promoteTransitiveDependencies>
-              <shadeTestJar>false</shadeTestJar>
-              <createSourcesJar>false</createSourcesJar>
-              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
+              <dependencyReducedPomLocation>${basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+              <shadeTestJar>true</shadeTestJar>
+              <createSourcesJar>true</createSourcesJar>
               <artifactSet>
                 <includes>
                   <include>org.apache.tephra:tephra-core</include>
