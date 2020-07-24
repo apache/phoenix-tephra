@@ -27,7 +27,7 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>tephra-shaded</artifactId>
+  <artifactId>tephra-core-shaded</artifactId>
   <name>Apache Tephra Core Shaded</name>
   <description>Apache Tephra Transaction System Core Module w/shaded Twill and Guava</description>
 
@@ -57,10 +57,6 @@
                 <exclude>META-INF/*.DSA</exclude>
                 <exclude>META-INF/*.RSA</exclude>
                 <exclude>META-INF/license/*</exclude>
-                <exclude>META-INF/NOTICE</exclude>
-                <exclude>LICENSE.*</exclude>
-                <exclude>NOTICE.*</exclude>
-                <exclude>NOTICE</exclude>
                 <exclude>README*</exclude>
               </excludes>
             </filter>
@@ -75,6 +71,12 @@
               <shadedPattern>${shaded.package}.org.apache.twill</shadedPattern>
             </relocation>
           </relocations>
+          <transformers>
+            <transformer
+              implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+              <addHeader>false</addHeader>
+            </transformer>
+          </transformers>
         </configuration>
         <executions>
           <execution>
