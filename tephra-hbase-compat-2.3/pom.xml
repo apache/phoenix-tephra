@@ -25,15 +25,13 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>tephra-hbase-compat-2.0-base</artifactId>
-  <name>Apache Tephra HBase 2.0 Compatibility base</name>
+  <artifactId>tephra-hbase-compat-2.3</artifactId>
+  <name>Apache Tephra HBase 2.3 Compatibility</name>
 
-  <packaging>pom</packaging>
-  <modules>
-    <module>tephra-hbase-compat-2.0</module>
-    <module>tephra-hbase-compat-2.1</module>
-    <module>tephra-hbase-compat-2.2</module>
-  </modules>
+  <properties>
+    <hbase20.version>${hbase23.version}</hbase20.version>
+    <hadoop.version>2.10.0</hadoop.version>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -160,49 +158,5 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
-  <build>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>3.0.0</version>
-          <executions>
-            <execution>
-              <id>add-source</id>
-              <phase>generate-sources</phase>
-              <goals>
-                <goal>add-source</goal>
-              </goals>
-              <configuration>
-                <sources>
-                  <source>${project.parent.basedir}/src/main/java</source>
-                </sources>
-              </configuration>
-            </execution>
-            <execution>
-              <id>add-test-source</id>
-              <phase>generate-sources</phase>
-              <goals>
-                <goal>add-test-source</goal>
-              </goals>
-              <configuration>
-                <sources>
-                  <source>${project.parent.basedir}/src/test/java</source>
-                </sources>
-              </configuration>
-            </execution>
-          </executions>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-    <plugins>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
 
 </project>
