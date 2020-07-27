@@ -221,6 +221,7 @@
     <hbase20.version>2.0.0</hbase20.version>
     <hbase21.version>2.1.0</hbase21.version>
     <hbase22.version>2.2.0</hbase22.version>
+    <hbase23.version>2.3.0</hbase23.version>
     <junit.version>4.11</junit.version>
     <slf4j.version>1.7.5</slf4j.version>
     <thrift.version>0.9.0</thrift.version>

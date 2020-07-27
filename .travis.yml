@@ -37,7 +37,7 @@ env:
  - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.1-base/tephra-hbase-compat-1.2-cdh,tephra-examples/tephra-examples-pre-1.3/cdh-5.7,tephra-examples/tephra-examples-pre-1.3/cdh-5.8'
  - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.3,tephra-examples/tephra-examples-post-1.3/hbase-1.3'
  - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-1.4,tephra-examples/tephra-examples-post-1.3/hbase-1.4'
- - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-2.0-base/tephra-hbase-compat-2.0,tephra-hbase-compat-2.0-base/tephra-hbase-compat-2.1,tephra-hbase-compat-2.0-base/tephra-hbase-compat-2.2,tephra-examples/tephra-examples-post-1.3/hbase-2.0,tephra-examples/tephra-examples-post-1.3/hbase-2.1,tephra-examples/tephra-examples-post-1.3/hbase-2.2'
+ - OPTIONS='-am -DskipCoreTests -pl tephra-hbase-compat-2.0-base/tephra-hbase-compat-2.0,tephra-hbase-compat-2.0-base/tephra-hbase-compat-2.1,tephra-hbase-compat-2.0-base/tephra-hbase-compat-2.2,tephra-hbase-compat-2.0-base/tephra-hbase-compat-2.3,tephra-examples/tephra-examples-post-1.3/hbase-2.0,tephra-examples/tephra-examples-post-1.3/hbase-2.1,tephra-examples/tephra-examples-post-1.3/hbase-2.2,tephra-examples/tephra-examples-post-1.3/hbase-23'
 
 branches:
   only:

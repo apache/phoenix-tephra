@@ -54,7 +54,7 @@ import org.apache.hadoop.hbase.regionserver.MemStoreLABImpl;
 import org.apache.hadoop.hbase.regionserver.RegionScanner;
 import org.apache.hadoop.hbase.regionserver.ScanType;
 import org.apache.hadoop.hbase.util.Bytes;
-import org.apache.hadoop.hbase.util.FSUtils;
+import org.apache.hadoop.hbase.util.CommonFSUtils;
 import org.apache.hadoop.hbase.wal.WAL;
 import org.apache.hadoop.hbase.wal.WALFactory;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -592,7 +592,7 @@ public class TransactionProcessorTest {
     cfd.setMaxVersions(10);
     htd.addFamily(cfd);
     htd.addCoprocessor(TransactionProcessor.class.getName());
-    Path tablePath = FSUtils.getTableDir(FSUtils.getRootDir(conf), htd.getTableName());
+    Path tablePath = CommonFSUtils.getTableDir(CommonFSUtils.getRootDir(conf), htd.getTableName());
     FileSystem fs = FileSystem.get(conf);
     assertTrue(fs.mkdirs(tablePath));
     WALFactory walFactory = new WALFactory(conf, tableName + ".hlog");
