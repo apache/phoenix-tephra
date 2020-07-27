@@ -25,7 +25,7 @@ import org.apache.tephra.util.ConfigurationProvider;
 /**
  * HBase 2.0 version of {@link ConfigurationProvider}.
  */
-public class HBase20ConfigurationProvider extends ConfigurationProvider {
+public class HBase23ConfigurationProvider extends ConfigurationProvider {
   @Override
   public Configuration get() {
     return HBaseConfiguration.create();

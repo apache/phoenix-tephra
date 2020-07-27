@@ -64,6 +64,9 @@ public abstract class HBaseVersionSpecificFactory<T> implements Provider<T> {
         case HBASE_22:
             instance = createInstance(getHBase20Classname());
             break;
+        case HBASE_23:
+            instance = createInstance(getHBase23Classname());
+            break;
         case UNKNOWN:
         default:
           throw new ProvisionException("Unknown HBase version: " + HBaseVersion.getVersionString());
@@ -87,4 +90,5 @@ public abstract class HBaseVersionSpecificFactory<T> implements Provider<T> {
   protected abstract String getHBase13Classname();
   protected abstract String getHBase14Classname();
   protected abstract String getHBase20Classname();
+  protected abstract String getHBase23Classname();
 }
