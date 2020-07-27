@@ -18,22 +18,21 @@
 
 package org.apache.tephra.hbase;
 
-import com.google.common.collect.ImmutableList;
-import org.apache.tephra.util.AbstractConfigurationProviderTest;
-import org.apache.tephra.util.HBaseVersion;
-
-import java.util.Collection;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.tephra.util.ConfigurationProvider;
 
 /**
- * Test for HBase 2.0 version specific behavior.
+ * HBase 2.0 version of {@link ConfigurationProvider}.
  */
-public class HBase20ConfigurationProviderTest extends AbstractConfigurationProviderTest {
+public class HBase23ConfigurationProvider extends ConfigurationProvider {
   @Override
-  protected Collection<HBaseVersion.Version> getExpectedVersions() {
-    return ImmutableList.of(
-        HBaseVersion.Version.HBASE_20,
-        HBaseVersion.Version.HBASE_21,
-        HBaseVersion.Version.HBASE_22,
-        HBaseVersion.Version.HBASE_23);
+  public Configuration get() {
+    return HBaseConfiguration.create();
+  }
+
+  @Override
+  public Configuration get(Configuration baseConf) {
+    return HBaseConfiguration.create(baseConf);
   }
 }
