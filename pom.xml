@@ -23,7 +23,7 @@
   <parent>
     <groupId>org.apache</groupId>
     <artifactId>apache</artifactId>
-    <version>17</version>
+    <version>23</version>
   </parent>
 
   <groupId>org.apache.tephra</groupId>
@@ -202,6 +202,7 @@
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <surefire.redirectTestOutputToFile>true</surefire.redirectTestOutputToFile>
+    <shaded.package>org.apache.tephra.shaded</shaded.package>
 
     <!-- Dependencies versions -->
     <fastutil.version>6.5.6</fastutil.version>

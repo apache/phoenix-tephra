@@ -31,10 +31,6 @@
   <name>Apache Tephra Core Shaded</name>
   <description>Apache Tephra Transaction System Core Module w/shaded Twill and Guava</description>
 
-  <properties>
-    <shaded.package>org.apache.tephra.shaded</shaded.package>
-  </properties>
-
   <dependencies>
     <dependency>
       <groupId>org.apache.tephra</groupId>
@@ -88,7 +84,6 @@
             <configuration>
               <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
               <dependencyReducedPomLocation>${basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
-              <shadeTestJar>true</shadeTestJar>
               <createSourcesJar>true</createSourcesJar>
               <artifactSet>
                 <includes>
