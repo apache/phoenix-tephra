@@ -33,7 +33,6 @@ public class HBase20ConfigurationProviderTest extends AbstractConfigurationProvi
     return ImmutableList.of(
         HBaseVersion.Version.HBASE_20,
         HBaseVersion.Version.HBASE_21,
-        HBaseVersion.Version.HBASE_22,
-        HBaseVersion.Version.HBASE_23);
+        HBaseVersion.Version.HBASE_22);
   }
 }

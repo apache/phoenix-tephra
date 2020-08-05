@@ -57,6 +57,7 @@ public abstract class HBaseVersionSpecificFactory<T> implements Provider<T> {
           break;
         case HBASE_14:
         case HBASE_15:
+        case HBASE_16:
           instance = createInstance(getHBase14Classname());
           break;
         case HBASE_20:

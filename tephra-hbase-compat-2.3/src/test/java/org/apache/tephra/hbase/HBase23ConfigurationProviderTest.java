@@ -25,11 +25,12 @@ import org.apache.tephra.util.HBaseVersion;
 import java.util.Collection;
 
 /**
- * Test for HBase 1.4 version specific behavior.
+ * Test for HBase 2.0 version specific behavior.
  */
-public class HBase14ConfigurationProviderTest extends AbstractConfigurationProviderTest {
+public class HBase23ConfigurationProviderTest extends AbstractConfigurationProviderTest {
   @Override
   protected Collection<HBaseVersion.Version> getExpectedVersions() {
-    return ImmutableList.of(HBaseVersion.Version.HBASE_14);
+    return ImmutableList.of(
+        HBaseVersion.Version.HBASE_23);
   }
 }

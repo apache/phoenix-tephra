@@ -158,7 +158,7 @@
     <module>tephra-hbase-compat-1.0-cdh</module>
     <module>tephra-hbase-compat-1.1-base</module>
     <module>tephra-hbase-compat-1.3</module>
-    <module>tephra-hbase-compat-1.4</module>
+    <module>tephra-hbase-compat-1.4-base</module>
     <module>tephra-hbase-compat-2.0-base</module>
     <module>tephra-hbase-compat-2.3</module>
     <module>tephra-examples</module>
@@ -221,6 +221,8 @@
     <hbase12.version>1.2.0</hbase12.version>
     <hbase13.version>1.3.1</hbase13.version>
     <hbase14.version>1.4.0</hbase14.version>
+    <hbase15.version>1.5.0</hbase15.version>
+    <hbase16.version>1.6.0</hbase16.version>
     <hbase20.version>2.0.0</hbase20.version>
     <hbase21.version>2.1.0</hbase21.version>
     <hbase22.version>2.2.0</hbase22.version>
