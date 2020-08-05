@@ -40,6 +40,7 @@ public class HBaseVersion {
   private static final String HBASE_13_VERSION = "1.3";
   private static final String HBASE_14_VERSION = "1.4";
   private static final String HBASE_15_VERSION = "1.5";
+  private static final String HBASE_16_VERSION = "1.6";
   private static final String HBASE_20_VERSION = "2.0";
   private static final String HBASE_21_VERSION = "2.1";
   private static final String HBASE_22_VERSION = "2.2";
@@ -62,6 +63,7 @@ public class HBaseVersion {
     HBASE_13("1.3"),
     HBASE_14("1.4"),
     HBASE_15("1.5"),
+    HBASE_16("1.6"),
     HBASE_20("2.0"),
     HBASE_21("2.1"),
     HBASE_22("2.2"),
@@ -109,6 +111,8 @@ public class HBaseVersion {
         currentVersion = Version.HBASE_14;
       } else if (versionString.startsWith(HBASE_15_VERSION)) {
         currentVersion = Version.HBASE_15;
+      } else if (versionString.startsWith(HBASE_16_VERSION)) {
+          currentVersion = Version.HBASE_16;
       } else if (versionString.startsWith(HBASE_20_VERSION)) {
           currentVersion = Version.HBASE_20;
       } else if (versionString.startsWith(HBASE_21_VERSION)) {

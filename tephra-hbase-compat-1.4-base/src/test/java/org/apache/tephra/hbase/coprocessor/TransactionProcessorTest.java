@@ -26,6 +26,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.ChoreService;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.HColumnDescriptor;
 import org.apache.hadoop.hbase.HConstants;
@@ -635,6 +636,12 @@ public class TransactionProcessorTest {
     @Override
     public ServerName getServerName() {
       return serverName;
+    }
+
+    @Override
+    public ChoreService getChoreService() {
+        //should be mocked, but the interface is not visible
+        return new ChoreService("forMockRegionServerServices");
     }
   }
 }

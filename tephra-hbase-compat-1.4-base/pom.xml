@@ -25,15 +25,19 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>tephra-hbase-compat-2.0-base</artifactId>
-  <name>Apache Tephra HBase 2.0 Compatibility base</name>
+  <artifactId>tephra-hbase-compat-1.4-base</artifactId>
+  <name>Apache Tephra HBase 1.4 Compatibility Base</name>
 
   <packaging>pom</packaging>
   <modules>
-    <module>tephra-hbase-compat-2.0</module>
-    <module>tephra-hbase-compat-2.1</module>
-    <module>tephra-hbase-compat-2.2</module>
+    <module>tephra-hbase-compat-1.4</module>
+    <module>tephra-hbase-compat-1.5</module>
+    <module>tephra-hbase-compat-1.6</module>
   </modules>
+
+  <properties>
+    <hadoop.version>2.7.4</hadoop.version>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -55,7 +59,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-common</artifactId>
-      <version>${hbase20.version}</version>
+      <version>${hbase14.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -67,7 +71,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-client</artifactId>
-      <version>${hbase20.version}</version>
+      <version>${hbase14.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -79,13 +83,13 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-protocol</artifactId>
-      <version>${hbase20.version}</version>
+      <version>${hbase14.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase20.version}</version>
+      <version>${hbase14.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -118,7 +122,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase20.version}</version>
+      <version>${hbase14.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
       <exclusions>
@@ -130,9 +134,20 @@
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-zookeeper</artifactId>
-      <version>${hbase20.version}</version>
-      <type>test-jar</type>
+      <artifactId>hbase-metrics-api</artifactId>
+      <version>${hbase14.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-metrics</artifactId>
+      <version>${hbase14.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
@@ -144,20 +159,18 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-testing-util</artifactId>
-      <version>${hbase20.version}</version>
+      <version>${hbase14.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>
           <groupId>asm</groupId>
           <artifactId>asm</artifactId>
         </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
       </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.hbase</groupId>
-      <artifactId>hbase-http</artifactId>
-      <version>${hbase20.version}</version>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 
