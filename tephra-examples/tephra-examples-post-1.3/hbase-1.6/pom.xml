@@ -41,7 +41,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.tephra</groupId>
-      <artifactId>tephra-hbase-compat-1.4</artifactId>
+      <artifactId>tephra-hbase-compat-1.6</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
