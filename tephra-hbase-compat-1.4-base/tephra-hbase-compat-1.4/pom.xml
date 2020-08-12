@@ -28,4 +28,13 @@
   <artifactId>tephra-hbase-compat-1.4</artifactId>
   <name>Apache Tephra HBase 1.4 Compatibility</name>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
 </project>
