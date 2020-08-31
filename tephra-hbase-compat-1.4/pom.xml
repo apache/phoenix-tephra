@@ -25,9 +25,12 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
-  <artifactId>tephra-hbase-compat-0.96</artifactId>
-  <name>Apache Tephra HBase 0.96 Compatibility</name>
-  <description>Apache Tephra Transaction System HBase 0.96 Compatibility Module</description>
+  <artifactId>tephra-hbase-compat-1.4</artifactId>
+  <name>Apache Tephra HBase 1.4 Compatibility</name>
+
+  <properties>
+    <hadoop.version>2.7.4</hadoop.version>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -49,7 +52,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-common</artifactId>
-      <version>${hbase96.version}</version>
+      <version>${hbase14.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -61,7 +64,7 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-client</artifactId>
-      <version>${hbase96.version}</version>
+      <version>${hbase14.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -73,13 +76,13 @@
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-protocol</artifactId>
-      <version>${hbase96.version}</version>
+      <version>${hbase14.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-server</artifactId>
-      <version>${hbase96.version}</version>
+      <version>${hbase14.version}</version>
       <scope>provided</scope>
       <exclusions>
         <exclusion>
@@ -111,8 +114,45 @@
     </dependency>
     <dependency>
       <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-server</artifactId>
+      <version>${hbase14.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-metrics-api</artifactId>
+      <version>${hbase14.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hbase</groupId>
+      <artifactId>hbase-metrics</artifactId>
+      <version>${hbase14.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hbase</groupId>
       <artifactId>hbase-testing-util</artifactId>
-      <version>${hbase96.version}</version>
+      <version>${hbase14.version}</version>
       <scope>test</scope>
       <exclusions>
         <exclusion>

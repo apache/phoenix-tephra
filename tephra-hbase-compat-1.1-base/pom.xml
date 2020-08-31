@@ -21,7 +21,7 @@
   <parent>
     <groupId>org.apache.tephra</groupId>
     <artifactId>tephra</artifactId>
-    <version>0.16.0-SNAPSHOT</version>
+    <version>0.16.0-incubating-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
 
@@ -150,43 +150,4 @@
       </exclusions>
     </dependency>
   </dependencies>
-
-  <build>
-    <pluginManagement>
-      <plugins>
-        <plugin>
-          <groupId>org.codehaus.mojo</groupId>
-          <artifactId>build-helper-maven-plugin</artifactId>
-          <version>3.0.0</version>
-          <executions>
-            <execution>
-              <id>add-source</id>
-              <phase>generate-sources</phase>
-              <goals>
-                <goal>add-source</goal>
-              </goals>
-              <configuration>
-                <sources>
-                  <source>${project.parent.basedir}/sources/main/java</source>
-                </sources>
-              </configuration>
-            </execution>
-            <execution>
-              <id>add-test-source</id>
-              <phase>generate-sources</phase>
-              <goals>
-                <goal>add-test-source</goal>
-              </goals>
-              <configuration>
-                <sources>
-                  <source>${project.parent.basedir}/sources/test/java</source>
-                </sources>
-              </configuration>
-            </execution>
-          </executions>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-  </build>
-
 </project>

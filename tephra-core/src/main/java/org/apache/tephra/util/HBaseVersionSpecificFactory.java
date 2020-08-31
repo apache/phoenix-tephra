@@ -57,16 +57,10 @@ public abstract class HBaseVersionSpecificFactory<T> implements Provider<T> {
           break;
         case HBASE_14:
         case HBASE_15:
-        case HBASE_16:
           instance = createInstance(getHBase14Classname());
           break;
         case HBASE_20:
-        case HBASE_21:
-        case HBASE_22:
             instance = createInstance(getHBase20Classname());
-            break;
-        case HBASE_23:
-            instance = createInstance(getHBase23Classname());
             break;
         case UNKNOWN:
         default:
@@ -91,5 +85,4 @@ public abstract class HBaseVersionSpecificFactory<T> implements Provider<T> {
   protected abstract String getHBase13Classname();
   protected abstract String getHBase14Classname();
   protected abstract String getHBase20Classname();
-  protected abstract String getHBase23Classname();
 }
