@@ -25,21 +25,12 @@
     <format>tar.gz</format>
   </formats>
   <includeBaseDirectory>true</includeBaseDirectory>
-  <moduleSets>
-    <moduleSet>
-    
-      <!-- Enable access to all projects in the current multimodule build! -->
-      <useAllReactorProjects>true</useAllReactorProjects>
-      
-      <binaries>
+  <dependencySets>
+    <dependencySet>
         <outputDirectory>lib</outputDirectory>
         <unpack>false</unpack>
-        <dependencySets>
-          <dependencySet/>
-        </dependencySets>
-      </binaries>
-    </moduleSet>
-  </moduleSets>
+     </dependencySet>
+  </dependencySets>
   <fileSets>
     <!-- Include top level bin directory -->
     <!-- First copy all but the *.cmd files-->
