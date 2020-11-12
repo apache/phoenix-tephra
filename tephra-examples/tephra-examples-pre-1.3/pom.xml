@@ -30,10 +30,6 @@
 
   <packaging>pom</packaging>
   <modules>
-    <module>hbase-0.96</module>
-    <module>hbase-0.98</module>
-    <module>hbase-1.0</module>
-    <module>hbase-1.0-cdh</module>
     <module>hbase-1.1</module>
     <module>hbase-1.2</module>
     <module>cdh-5.7</module>
