@@ -46,20 +46,20 @@
         <artifactId>maven-shade-plugin</artifactId>
         <configuration>
           <promoteTransitiveDependencies>true</promoteTransitiveDependencies>
-            <dependencyReducedPomLocation>${basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
-            <createSourcesJar>true</createSourcesJar>
-            <artifactSet>
-              <includes>
-                <include>org.apache.tephra:tephra-core</include>
-                <include>org.apache.twill:twill-api</include>
-                <include>org.apache.twill:twill-common</include>
-                <include>org.apache.twill:twill-core</include>
-                <include>org.apache.twill:twill-discovery-api</include>
-                <include>org.apache.twill:twill-discovery-core</include>
-                <include>org.apache.twill:twill-zookeeper</include>
-                <include>com.google.guava:guava</include>
-              </includes>
-            </artifactSet>
+          <dependencyReducedPomLocation>${basedir}/target/dependency-reduced-pom.xml</dependencyReducedPomLocation>
+          <createSourcesJar>true</createSourcesJar>
+          <artifactSet>
+            <includes>
+              <include>org.apache.tephra:tephra-core</include>
+              <include>org.apache.twill:twill-api</include>
+              <include>org.apache.twill:twill-common</include>
+              <include>org.apache.twill:twill-core</include>
+              <include>org.apache.twill:twill-discovery-api</include>
+              <include>org.apache.twill:twill-discovery-core</include>
+              <include>org.apache.twill:twill-zookeeper</include>
+              <include>com.google.guava:guava</include>
+            </includes>
+          </artifactSet>
           <filters>
             <filter>
               <artifact>*:*</artifact>
@@ -89,6 +89,14 @@
             </transformer>
           </transformers>
         </configuration>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
     </plugins>
   </build>
