@@ -157,6 +157,7 @@
     <module>tephra-hbase-compat-1.4-base</module>
     <module>tephra-hbase-compat-2.0-base</module>
     <module>tephra-hbase-compat-2.3</module>
+    <module>tephra-hbase-compat-2.4</module>
     <module>tephra-examples</module>
     <module>tephra-distribution</module>
     <module>tephra-core-shaded</module>
@@ -219,6 +220,7 @@
     <hbase21.version>2.1.0</hbase21.version>
     <hbase22.version>2.2.0</hbase22.version>
     <hbase23.version>2.3.0</hbase23.version>
+    <hbase24.version>2.4.0</hbase24.version>
     <junit.version>4.11</junit.version>
     <slf4j.version>1.7.5</slf4j.version>
     <thrift.version>0.9.3-1</thrift.version>

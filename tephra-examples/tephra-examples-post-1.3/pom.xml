@@ -38,6 +38,7 @@
     <module>hbase-2.1</module>
     <module>hbase-2.2</module>
     <module>hbase-2.3</module>
+    <module>hbase-2.4</module>
   </modules>
 
   <build>
