@@ -18,6 +18,18 @@
 -->
 # TEPHRA Changelog
 
+## Release 0.16.1 - Unreleased (as of 2021-04-27)
+
+
+
+### OTHER:
+
+| JIRA | Summary | Priority | Component |
+|:---- |:---- | :--- |:---- |
+| [TEPHRA-317](https://issues.apache.org/jira/browse/TEPHRA-317) | Add support for HBase 2.4 |  Major | core |
+
+
+
 ## Release 0.16.0 - Unreleased (as of 2020-11-16)
 
 

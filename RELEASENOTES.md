@@ -16,6 +16,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 -->
+# TEPHRA  0.16.1 Release Notes
+
+These release notes cover new developer and user-facing incompatibilities, important issues, features, and major improvements.
+
+
+---
+
+* [TEPHRA-317](https://issues.apache.org/jira/browse/TEPHRA-317) | *Major* | **Add support for HBase 2.4**
+
+Tephra now supports HBase 2.4
+
+
+
 # TEPHRA  0.16.0 Release Notes
 
 These release notes cover new developer and user-facing incompatibilities, important issues, features, and major improvements.
