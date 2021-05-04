@@ -18,8 +18,15 @@
 -->
 # TEPHRA Changelog
 
-## Release 0.16.1 - Unreleased (as of 2021-04-27)
+## Release 0.16.1 - Unreleased (as of 2021-05-04)
 
+
+
+### BUG FIXES:
+
+| JIRA | Summary | Priority | Component |
+|:---- |:---- | :--- |:---- |
+| [TEPHRA-316](https://issues.apache.org/jira/browse/TEPHRA-316) | Fix missing executable permission because of MASSEMBLY-941 |  Major | . |
 
 
 ### OTHER:
