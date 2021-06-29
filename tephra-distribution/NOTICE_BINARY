@@ -6,22 +6,16 @@ The Apache Software Foundation (http://www.apache.org/).
 
 Apache Tephra - notice for binary distribution
 ==============================================
-Apache Tephra includes Guice v3.0 and Guice Assisted Inject v3.0. Tephra
-elects to include this software in this distribution under the Apache License.
-You can obtain a copy of the License at:
-http://apache.org/licenses/LICENSE-2.0
+Apache Tephra includes Guice v3.0.
+Google Guice - Core Library
+Copyright 2006-2011 Google, Inc.
 
-Apache Tephra includes Guava v13.0.1. Tephra elects to include this software
-in this distribution under the Apache License.
-You can obtain a copy of the License at:
-http://apache.org/licenses/LICENSE-2.0
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
 
-Apache Tephra includes Gson v2.2.4. Tephra elects to include this software
-in this distribution under the Apache License.
-You can obtain a copy of the License at:
-http://apache.org/licenses/LICENSE-2.0
+Apache Tephra includes Guice Assisted Inject v3.0.
+Google Guice - Extensions - AssistedInject
+Copyright 2006-2011 Google, Inc.
 
-Apache Tephra includes javax.inject v1. Tephra elects to include this software
-in this distribution under the Apache License.
-You can obtain a copy of the License at:
-http://apache.org/licenses/LICENSE-2.0
+This product includes software developed at
+The Apache Software Foundation (http://www.apache.org/).
