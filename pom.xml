@@ -223,7 +223,7 @@
     <hbase24.version>2.4.0</hbase24.version>
     <junit.version>4.11</junit.version>
     <slf4j.version>1.7.5</slf4j.version>
-    <thrift.version>0.9.3-1</thrift.version>
+    <thrift.version>0.14.0</thrift.version>
 
     <!-- twill -->
 
