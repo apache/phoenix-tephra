@@ -207,7 +207,7 @@
     <gson.version>2.2.4</gson.version>
     <guava.version>13.0.1</guava.version>
     <guice.version>3.0</guice.version>
-    <logback.version>1.2.3</logback.version>
+    <logback.version>1.2.9</logback.version>
     <hadoop.version>2.2.0</hadoop.version>
     <hbase11.version>1.1.1</hbase11.version>
     <hbase12cdh.version>1.2.0-cdh5.7.0</hbase12cdh.version>
